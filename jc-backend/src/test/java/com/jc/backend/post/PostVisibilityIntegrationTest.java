@@ -1,0 +1,82 @@
+package com.jc.backend.post;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.jc.backend.common.DomainException;
+import com.jc.backend.common.PageResponse;
+import com.jc.backend.region.Region;
+import com.jc.backend.region.RegionRepository;
+import com.jc.backend.user.UserAccount;
+import com.jc.backend.user.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@Transactional
+class PostVisibilityIntegrationTest {
+
+    @Autowired private UserRepository users;
+    @Autowired private RegionRepository regions;
+    @Autowired private JourneyPostRepository posts;
+    @Autowired private PostService postService;
+
+    private UserAccount owner;
+    private UserAccount other;
+    private JourneyPost draft;
+
+    @BeforeEach
+    void setUp() {
+        owner = users.save(new UserAccount("owner@example.com", "hash", "owner"));
+        other = users.save(new UserAccount("other@example.com", "hash", "other"));
+        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+
+        draft = posts.save(new JourneyPost(owner, seoul, "draft", "private"));
+        draft.update(null, null, null, false);
+        posts.save(new JourneyPost(owner, seoul, "public", "visible"));
+    }
+
+    @Test
+    void anonymousAndOtherUserCannotReadDraft() {
+        assertThatThrownBy(() -> postService.detail(draft.getId(), null))
+                .isInstanceOfSatisfying(DomainException.class, exception -> {
+                    assertThat(exception.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+                    assertThat(exception.getCode()).isEqualTo("POST_NOT_FOUND");
+                });
+
+        assertThatThrownBy(() -> postService.detail(draft.getId(), other.getId()))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void authorCanReadDraft() {
+        PostDtos.Detail detail = postService.detail(draft.getId(), owner.getId());
+        assertThat(detail.id()).isEqualTo(draft.getId());
+        assertThat(detail.title()).isEqualTo("draft");
+    }
+
+    @Test
+    void publicProfileExcludesDraftButMyPostsIncludesIt() {
+        PageResponse<PostDtos.Summary> publicPosts =
+                postService.publicUserPosts(owner.getId(), PageRequest.of(0, 20));
+        PageResponse<PostDtos.Summary> myPosts =
+                postService.myPosts(owner.getId(), PageRequest.of(0, 20));
+
+        assertThat(publicPosts.items()).extracting(PostDtos.Summary::title)
+                .containsExactly("public");
+        assertThat(myPosts.items()).extracting(PostDtos.Summary::title)
+                .containsExactlyInAnyOrder("public", "draft");
+    }
+
+    @Test
+    void anonymousCannotReadDraftComments() {
+        assertThatThrownBy(() ->
+                postService.comments(draft.getId(), null, PageRequest.of(0, 20)))
+                .isInstanceOf(DomainException.class);
+    }
+}

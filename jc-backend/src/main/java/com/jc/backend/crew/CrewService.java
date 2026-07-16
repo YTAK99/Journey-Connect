@@ -1,0 +1,283 @@
+package com.jc.backend.crew;
+
+import com.jc.backend.common.DomainException;
+import com.jc.backend.common.PageResponse;
+import com.jc.backend.region.Region;
+import com.jc.backend.region.RegionService;
+import com.jc.backend.user.UserAccount;
+import com.jc.backend.user.UserRepository;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 크루 참가 신청과 승인 흐름을 담당합니다.
+ * 정원에 영향을 주는 즉시 참가·승인은 크루 행 잠금 안에서 처리합니다.
+ */
+@Service
+@Transactional(readOnly = true)
+public class CrewService {
+
+    private static final Collection<CrewMemberStatus> ACTIVE_STATUSES =
+            List.of(CrewMemberStatus.OWNER, CrewMemberStatus.APPROVED);
+    private static final Collection<CrewMemberStatus> EXISTING_APPLICATION_STATUSES =
+            List.of(CrewMemberStatus.OWNER, CrewMemberStatus.PENDING, CrewMemberStatus.APPROVED);
+
+    private final CrewRepository crews;
+    private final CrewMemberRepository members;
+    private final UserRepository users;
+    private final RegionService regionService;
+
+    public CrewService(
+            CrewRepository crews,
+            CrewMemberRepository members,
+            UserRepository users,
+            RegionService regionService) {
+        this.crews = crews;
+        this.members = members;
+        this.users = users;
+        this.regionService = regionService;
+    }
+
+    public PageResponse<CrewDtos.View> list(Pageable pageable) {
+        Page<Crew> page = crews.findByRecruitingTrueOrderByCreatedAtDescIdDesc(pageable);
+        List<Long> crewIds = page.getContent().stream().map(Crew::getId).toList();
+        Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
+        Map<Long, Long> pendingCounts = countMap(crewIds, List.of(CrewMemberStatus.PENDING));
+
+        return PageResponse.from(page.map(crew -> view(
+                crew,
+                activeCounts.getOrDefault(crew.getId(), 0L),
+                pendingCounts.getOrDefault(crew.getId(), 0L))));
+    }
+
+    public CrewDtos.View detail(Long crewId) {
+        Crew crew = findCrew(crewId);
+        return view(
+                crew,
+                members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES),
+                members.countByCrewIdAndStatusIn(crewId, List.of(CrewMemberStatus.PENDING)));
+    }
+
+    @Transactional
+    public CrewDtos.View create(Long userId, CrewDtos.CreateRequest request) {
+        UserAccount owner = user(userId);
+        Region region = regionService.require(request.regionCode(), request.regionName());
+        boolean approvalRequired = request.approvalRequired() == null
+                || request.approvalRequired();
+        Crew crew = crews.save(new Crew(
+                owner,
+                region,
+                request.title().trim(),
+                request.description(),
+                request.travelDate(),
+                request.capacity(),
+                approvalRequired));
+        members.save(new CrewMember(crew, owner, CrewMemberStatus.OWNER));
+        return view(crew, 1L, 0L);
+    }
+
+    @Transactional
+    public CrewDtos.ApplicationView join(Long userId, Long crewId) {
+        Crew crew = lockedCrew(crewId);
+        ensureRecruiting(crew);
+        UserAccount applicant = user(userId);
+
+        CrewMember existing = members.findByCrewIdAndUserId(crewId, userId).orElse(null);
+        if (existing != null && EXISTING_APPLICATION_STATUSES.contains(existing.getStatus())) {
+            return applicationView(existing);
+        }
+
+        if (approvedMemberCount(crewId) >= crew.getCapacity()) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_FULL",
+                    "크루 정원이 가득 찼습니다.");
+        }
+
+        CrewMemberStatus nextStatus = crew.isApprovalRequired()
+                ? CrewMemberStatus.PENDING
+                : CrewMemberStatus.APPROVED;
+        CrewMember application;
+        if (existing == null) {
+            application = members.save(new CrewMember(crew, applicant, nextStatus));
+        } else {
+            existing.reapply(nextStatus);
+            application = existing;
+        }
+        return applicationView(application);
+    }
+
+    @Transactional
+    public void cancelJoin(Long userId, Long crewId) {
+        CrewMember application = members.findByCrewIdAndUserId(crewId, userId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "CREW_APPLICATION_NOT_FOUND",
+                        "크루 참가 내역을 찾을 수 없습니다."));
+        if (application.getStatus() == CrewMemberStatus.OWNER) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_OWNER_CANNOT_CANCEL",
+                    "크루장은 참가를 취소할 수 없습니다.");
+        }
+        application.cancel();
+    }
+
+    public PageResponse<CrewDtos.ApplicationView> applications(
+            Long ownerId,
+            Long crewId,
+            Pageable pageable) {
+        Crew crew = findCrew(crewId);
+        ensureOwner(crew, ownerId);
+        return PageResponse.from(members
+                .findByCrewIdAndStatusOrderByCreatedAtAsc(
+                        crewId,
+                        CrewMemberStatus.PENDING,
+                        pageable)
+                .map(this::applicationView));
+    }
+
+    @Transactional
+    public CrewDtos.ApplicationView review(
+            Long ownerId,
+            Long crewId,
+            Long applicationId,
+            CrewDtos.ReviewRequest request) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+        if (request.status() != CrewMemberStatus.APPROVED
+                && request.status() != CrewMemberStatus.REJECTED) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CREW_REVIEW_STATUS",
+                    "승인 또는 거절 상태만 지정할 수 있습니다.");
+        }
+
+        CrewMember application = members.findApplication(crewId, applicationId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "CREW_APPLICATION_NOT_FOUND",
+                        "크루 참가 신청을 찾을 수 없습니다."));
+        if (application.getStatus() != CrewMemberStatus.PENDING) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_APPLICATION_ALREADY_REVIEWED",
+                    "이미 처리된 참가 신청입니다.");
+        }
+
+        UserAccount owner = user(ownerId);
+        if (request.status() == CrewMemberStatus.APPROVED) {
+            if (approvedMemberCount(crewId) >= crew.getCapacity()) {
+                throw new DomainException(
+                        HttpStatus.CONFLICT,
+                        "CREW_FULL",
+                        "크루 정원이 가득 찼습니다.");
+            }
+            application.approve(owner);
+        } else {
+            application.reject(owner);
+        }
+        return applicationView(application);
+    }
+
+    private Map<Long, Long> countMap(
+            List<Long> crewIds,
+            Collection<CrewMemberStatus> statuses) {
+        if (crewIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return members.countByCrewIdsAndStatuses(crewIds, statuses)
+                .stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        CrewMemberCountProjection::getCrewId,
+                        CrewMemberCountProjection::getTotal,
+                        (existing, ignored) -> existing));
+    }
+
+    private long approvedMemberCount(Long crewId) {
+        return members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES);
+    }
+
+    private Crew findCrew(Long crewId) {
+        return crews.findWithOwnerAndRegionById(crewId)
+                .orElseThrow(this::crewNotFound);
+    }
+
+    private Crew lockedCrew(Long crewId) {
+        return crews.findByIdForUpdate(crewId)
+                .orElseThrow(this::crewNotFound);
+    }
+
+    private void ensureRecruiting(Crew crew) {
+        if (!crew.isRecruiting()) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_CLOSED",
+                    "모집이 종료된 크루입니다.");
+        }
+    }
+
+    private void ensureOwner(Crew crew, Long userId) {
+        if (!crew.getOwner().getId().equals(userId)) {
+            throw new DomainException(
+                    HttpStatus.FORBIDDEN,
+                    "CREW_OWNER_REQUIRED",
+                    "크루장만 참가 신청을 관리할 수 있습니다.");
+        }
+    }
+
+    private DomainException crewNotFound() {
+        return new DomainException(
+                HttpStatus.NOT_FOUND,
+                "CREW_NOT_FOUND",
+                "크루를 찾을 수 없습니다.");
+    }
+
+    private UserAccount user(Long userId) {
+        return users.findById(userId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "사용자를 찾을 수 없습니다."));
+    }
+
+    private CrewDtos.View view(Crew crew, long memberCount, long pendingCount) {
+        return new CrewDtos.View(
+                crew.getId(),
+                crew.getTitle(),
+                crew.getRegion().getCode(),
+                crew.getRegionName(),
+                crew.getDescription(),
+                crew.getTravelDate(),
+                crew.getCapacity(),
+                memberCount,
+                pendingCount,
+                crew.isRecruiting(),
+                crew.isApprovalRequired(),
+                crew.getOwner().getId(),
+                crew.getOwner().getNickname(),
+                crew.getCreatedAt());
+    }
+
+    private CrewDtos.ApplicationView applicationView(CrewMember application) {
+        return new CrewDtos.ApplicationView(
+                application.getId(),
+                application.getCrew().getId(),
+                application.getUser().getId(),
+                application.getUser().getNickname(),
+                application.getStatus(),
+                application.getReviewedBy() == null
+                        ? null
+                        : application.getReviewedBy().getId(),
+                application.getReviewedAt(),
+                application.getCreatedAt());
+    }
+}
