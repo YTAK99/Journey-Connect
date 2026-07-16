@@ -20,6 +20,10 @@ jobs:
     defaults:
       run:
         working-directory: jc-backend
+        
+    env:
+      SPRING_FLYWAY_ENABLED: "false"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
 
     steps:
       - name: Checkout repository
