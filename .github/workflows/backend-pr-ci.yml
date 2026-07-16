@@ -58,6 +58,8 @@ jobs:
       postgis:
         image: postgis/postgis:18-3.6-alpine
         env:
+          POSTGRES_DB: journey_db
+          POSTGRES_PASSWORD: postgres
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/journey_db
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: postgres
