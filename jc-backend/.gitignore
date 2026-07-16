@@ -36,6 +36,12 @@ out/
 ### VS Code ###
 .vscode/
 
-### Local application secrets ###
-src/main/resources/application.yml
+# 로컬·운영 설정만 제외
+jc-backend/src/main/resources/application.yml
+jc-backend/src/main/resources/application-local.yml
+jc-backend/src/main/resources/application-*.local.yml
+
+# 테스트 설정은 추적
+!jc-backend/src/test/resources/
+!jc-backend/src/test/resources/application.yml
 .env

@@ -10,7 +10,7 @@ import com.jc.backend.user.UserRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +25,7 @@ class FeedCursorIntegrationTest {
     @Autowired private RegionRepository regions;
     @Autowired private JourneyPostRepository posts;
     @Autowired private PostService postService;
+    @Autowired private EntityManager entityManager;
 
     @Test
     void cursorFeedReturnsEveryPostOnceWithoutOffsetCountQueryContract() {
@@ -45,6 +46,7 @@ class FeedCursorIntegrationTest {
         }
 
         posts.flush();
+        entityManager.clear();
 
         List<Long> expectedIds = posts.findByPublishedTrueOrderByCreatedAtDescIdDesc(
                         PageRequest.of(0, 10))
@@ -67,3 +69,5 @@ class FeedCursorIntegrationTest {
 
         assertThat(collected).containsExactlyElementsOf(expectedIds);
         assertThat(new HashSet<>(collected)).hasSameSizeAs(collected);
+    }
+}

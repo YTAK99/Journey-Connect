@@ -49,13 +49,6 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.withType<KotlinCompile>().configureEach {
-    kotlinOptions {
-        jvmTarget = "21"
-        freeCompilerArgs += "-Xjsr305=strict"
-    }
-}
-
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
