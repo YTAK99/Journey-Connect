@@ -16,6 +16,10 @@ jobs:
     name: Gradle tests (H2)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    
+    defaults:
+      run:
+        working-directory: jc-backend
 
     steps:
       - name: Checkout repository
@@ -41,6 +45,10 @@ jobs:
     name: PostgreSQL 18 / PostGIS migration smoke
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: jc-backend
 
     services:
       postgis:
