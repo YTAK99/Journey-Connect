@@ -82,6 +82,8 @@ jobs:
           --health-retries 10
 
     env:
+      POSTGRES_DB: journey_db
+      POSTGRES_PASSWORD: postgres
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/journey_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
