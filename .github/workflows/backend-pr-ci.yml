@@ -1,0 +1,127 @@
+name: Backend PR CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-pr-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Gradle tests (H2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # setup-gradle이 Gradle Wrapper 검증과 Gradle User Home 캐시를 함께 처리합니다.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Grant execute permission for Gradle Wrapper
+        run: chmod +x ./gradlew
+
+      - name: Run unit and integration tests
+        run: ./gradlew clean test --stacktrace --no-daemon
+
+  postgis-migration-smoke:
+    name: PostgreSQL 18 / PostGIS migration smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgis:
+        image: postgis/postgis:18-3.6-alpine
+        env:
+          POSTGRES_DB: journey_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d journey_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: journey_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: journey-connect-ci-jwt-secret-at-least-32-bytes
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      SERVER_PORT: 8080
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Grant execute permission for Gradle Wrapper
+        run: chmod +x ./gradlew
+
+      - name: Build executable application JAR
+        run: ./gradlew clean bootJar --stacktrace --no-daemon
+
+      - name: Verify Flyway migrations and application startup
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APP_JAR="$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)"
+          if [[ -z "${APP_JAR}" ]]; then
+            echo "Executable Spring Boot JAR was not created."
+            exit 1
+          fi
+
+          java -jar "${APP_JAR}" > application-startup.log 2>&1 &
+          APP_PID=$!
+
+          cleanup() {
+            kill "${APP_PID}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error \
+              http://localhost:8080/api-docs \
+              > /tmp/openapi.json; then
+              echo "Application started successfully with Flyway and PostGIS."
+              exit 0
+            fi
+
+            if ! kill -0 "${APP_PID}" 2>/dev/null; then
+              echo "Application terminated before becoming ready."
+              cat application-startup.log
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "Application did not become ready within the CI timeout."
+          cat application-startup.log
+          exit 1
