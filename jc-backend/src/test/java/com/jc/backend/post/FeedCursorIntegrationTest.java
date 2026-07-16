@@ -34,10 +34,19 @@ class FeedCursorIntegrationTest {
 
         UserAccount author = users.save(new UserAccount("cursor@example.com", "hash", "cursor-user"));
         Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
-        for (int i = 1; i <= 5; i++) {
-            posts.save(new JourneyPost(author, seoul, "post-" + i, "content"));
-        }
         posts.flush();
+
+        List<JourneyPost> savedPosts = posts.findAll();
+        LocalDateTime base = LocalDateTime.of(2026, 1, 1, 12, 0);
+
+        for (int i = 0; i < savedPosts.size(); i++) {
+            jdbcTemplate.update(
+                    "update journey_post set created_at = ? where id = ?",
+                    base.plusSeconds(i),
+                    savedPosts.get(i).getId());
+        }
+
+entityManager.clear();
 
         List<Long> collected = new ArrayList<>();
         String cursor = null;
