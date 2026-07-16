@@ -2,6 +2,9 @@ package com.jc.backend.post;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.jc.backend.common.CursorPageResponse;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionRepository;
@@ -24,7 +27,9 @@ class FeedCursorIntegrationTest {
     @Autowired private RegionRepository regions;
     @Autowired private JourneyPostRepository posts;
     @Autowired private PostService postService;
-
+    @Autowired private EntityManager entityManager;
+    @Autowired private JdbcTemplate jdbcTemplate;
+    
     @Test
     void cursorFeedReturnsEveryPostOnceWithoutOffsetCountQueryContract() {
         // 고정 이름 H2 DB나 선행 테스트 데이터에 의존하지 않도록 현재 테스트 데이터를 명시적으로 격리합니다.
