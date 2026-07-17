@@ -1,5 +1,7 @@
 -- P0/P1 시점의 Hibernate 자동 생성 스키마를 Flyway 기준선으로 옮깁니다.
 -- 기존 로컬 DB에도 적용할 수 있도록 CREATE TABLE/INDEX는 멱등 형태로 작성합니다.
+-- 기본 사용자, 게시물, 좋아요/북마크, 댓글, 크루 도메인을 먼저 생성해 이후 확장 마이그레이션이
+-- 안정적으로 참조할 수 있는 기반 구조를 만든다.
 
 CREATE TABLE IF NOT EXISTS user_account (
     id BIGSERIAL PRIMARY KEY,

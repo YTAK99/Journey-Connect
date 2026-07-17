@@ -11,6 +11,11 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import org.locationtech.jts.geom.Point;
 
+/**
+ * 표준화된 지역 정보를 저장하는 엔티티입니다.
+ *
+ * <p>PostGIS Point 타입의 중심 좌표를 함께 보관해 지도 기반 검색과 지역 필터링에 사용할 수 있습니다.
+ */
 @Entity
 @Table(
         name = "region",

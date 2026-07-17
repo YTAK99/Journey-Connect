@@ -18,8 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 크루 참가 신청과 승인 흐름을 담당합니다.
- * 정원에 영향을 주는 즉시 참가·승인은 크루 행 잠금 안에서 처리합니다.
+ * 크루 생성, 참가 신청, 승인/거절, 정원 관리 흐름을 담당합니다.
+ *
+ * <p>정원과 승인 상태는 동시에 변경될 수 있으므로, 참가 신청과 승인 처리에는 크루 행 잠금과
+ * 멤버 상태 검증을 함께 사용해 경쟁 조건을 줄입니다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -84,6 +86,10 @@ public class CrewService {
         return view(crew, 1L, 0L);
     }
 
+    /**
+     * 참가 신청은 모집 중인 크루에 대해서만 허용하고, 정원이 가득 차면 거절합니다.
+     * 이미 처리된 신청이 있으면 재신청이 아니라 기존 상태를 유지해 멱등하게 동작합니다.
+     */
     @Transactional
     public CrewDtos.ApplicationView join(Long userId, Long crewId) {
         Crew crew = lockedCrew(crewId);
@@ -145,6 +151,10 @@ public class CrewService {
                 .map(this::applicationView));
     }
 
+    /**
+     * 크루장은 참가 신청을 승인하거나 거절할 수 있으며, 승인 시점에 정원 초과 여부를 다시 확인합니다.
+     * 이미 처리된 신청은 다시 변경되지 않도록 상태 검증을 수행합니다.
+     */
     @Transactional
     public CrewDtos.ApplicationView review(
             Long ownerId,

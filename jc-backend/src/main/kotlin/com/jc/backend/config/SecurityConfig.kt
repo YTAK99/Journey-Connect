@@ -29,8 +29,9 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Journey Connect REST API의 인증·인가 경계를 한 곳에서 관리합니다.
  *
- * 기존 Java 설정과 Kotlin 설정이 동시에 등록되면 같은 이름의 SecurityFilterChain과 CORS Bean이
+ * <p>기존 Java 설정과 Kotlin 설정이 동시에 등록되면 같은 이름의 SecurityFilterChain과 CORS Bean이
  * 충돌하므로, Kotlin 설정 하나만 애플리케이션의 보안 진입점으로 사용합니다.
+ * 공개 엔드포인트와 인증이 필요한 엔드포인트의 경계를 명확히 분리해 API 접근 정책을 한곳에서 관리합니다.
  */
 @Configuration
 class SecurityConfig(

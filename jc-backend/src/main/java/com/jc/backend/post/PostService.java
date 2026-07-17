@@ -23,10 +23,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 피드, 탐색, 게시물 상세와 사용자 반응의 트랜잭션 경계를 담당합니다.
+ * 피드, 탐색, 게시물 상세, 댓글, 좋아요/북마크의 트랜잭션 경계를 담당합니다.
  *
- * <p>공개 게시물은 누구나 조회할 수 있지만, 비공개 게시물은 작성자만 조회할 수 있습니다.
- * 존재 여부 노출을 줄이기 위해 권한이 없는 비공개 게시물은 404로 응답합니다.
+ * <p>공개 게시물은 누구나 조회할 수 있지만, 비공개 게시물은 작성자만 열람할 수 있습니다.
+ * 권한이 없는 비공개 게시물은 존재 여부를 노출하지 않도록 404로 처리합니다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -95,6 +95,9 @@ public class PostService {
         return summaries(posts.explore(blankToNull(keyword), blankToNull(region), pageable));
     }
 
+    /**
+     * 상세 조회 시 공개/비공개 권한을 확인하고, 조회수는 상세 요청이 들어온 경우에만 증가시킵니다.
+     */
     @Transactional
     public PostDtos.Detail detail(Long postId, Long viewerId) {
         JourneyPost post = readablePost(postId, viewerId);
@@ -139,6 +142,9 @@ public class PostService {
         posts.delete(ownedPost(userId, postId));
     }
 
+    /**
+     * 좋아요는 멱등 연산으로 동작해야 하므로, 중복 요청이 와도 예외 대신 정상 처리로 이어지도록 합니다.
+     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void like(Long userId, Long postId) {
         publishedPost(postId);
@@ -157,6 +163,9 @@ public class PostService {
         likes.deleteByPostIdAndUserId(postId, userId);
     }
 
+    /**
+     * 북마크도 좋아요와 동일한 멱등성 규칙을 유지해 중복 저장을 방지합니다.
+     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void bookmark(Long userId, Long postId) {
         publishedPost(postId);

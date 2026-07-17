@@ -27,6 +27,7 @@ repositories {
 }
 
 dependencies {
+    // Spring Boot, JPA, Security, Validation, OpenAPI를 함께 묶어 API 서버의 기본 실행 환경을 구성합니다.
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-security")

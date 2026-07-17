@@ -24,6 +24,12 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 회원가입, 로그인, 토큰 재발급, 로그아웃 흐름을 담당하는 인증 서비스입니다.
+ *
+ * <p>Access Token은 짧은 수명으로 API 인증에 사용하고, Refresh Token은 해시로 저장한 뒤
+ * 재발급 시점에 회전시키고 사용된 토큰은 즉시 폐기해 재사용을 방지합니다.
+ */
 @Service
 @Transactional(readOnly = true)
 public class AuthService {
@@ -81,8 +87,8 @@ public class AuthService {
     }
 
     /**
-     * 리프레시 토큰은 매번 회전합니다. 잠금 상태에서 기존 토큰을 폐기하므로 같은 토큰의 동시 재사용 중
-     * 한 요청만 성공할 수 있습니다.
+     * Refresh Token 회전 정책에 따라 현재 토큰을 폐기하고 새 토큰 쌍을 발급합니다.
+     * 같은 토큰의 동시 재사용은 행 잠금으로 막아 한 요청만 성공하도록 처리합니다.
      */
     @Transactional
     public AuthDtos.TokenResponse refresh(AuthDtos.RefreshRequest request) {
@@ -112,6 +118,9 @@ public class AuthService {
         return summary(user);
     }
 
+    /**
+     * Access Token과 Refresh Token을 한 번에 발급하고, Refresh Token은 DB에 해시 형태로 저장합니다.
+     */
     private AuthDtos.TokenResponse issueTokenPair(UserAccount user) {
         Instant issuedAt = Instant.now();
         Instant accessExpiresAt = issuedAt.plus(Duration.ofMinutes(accessTokenMinutes));

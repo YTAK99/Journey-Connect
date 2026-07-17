@@ -1,4 +1,5 @@
 -- P2: 지역 표준화/PostGIS, 다중 이미지, 크루 승인 상태, 리프레시 토큰을 추가합니다.
+-- 첫 단계로 PostGIS 확장과 표준 region 테이블을 준비하고, 기존 문자열 지역명을 정규화된 코드로 이관합니다.
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 
@@ -25,6 +26,7 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- 기존 자유 문자열 지역명은 삭제하지 않고 LEGACY 코드로 표준 테이블에 이관합니다.
+-- 이렇게 분리해 두면 기존 데이터가 완전히 사라지지 않으면서도 새 API가 region_id 기준으로 조회할 수 있습니다.
 WITH legacy_names AS (
     SELECT DISTINCT trim(region_name) AS region_name FROM journey_post WHERE trim(region_name) <> ''
     UNION
@@ -109,6 +111,7 @@ FROM journey_post p
 WHERE p.cover_image_url IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM post_image i WHERE i.post_id = p.id);
 
+-- 크루 승인 정책은 기본적으로 필요하도록 설정하고, 참가 신청 상태와 리뷰 정보를 함께 확장합니다.
 ALTER TABLE crew ADD COLUMN IF NOT EXISTS approval_required BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE crew_member ADD COLUMN IF NOT EXISTS reviewed_by BIGINT;
 ALTER TABLE crew_member ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;

@@ -20,6 +20,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 게시물 본문, 이미지, 공개 여부, 조회수와 관련된 상태를 관리하는 엔티티입니다.
+ *
+ * <p>공개 게시물과 비공개 게시물의 구분은 서비스 계층에서 처리하고, 이 엔티티는 저장된 상태를 표현합니다.
+ */
 @Entity
 @Table(
         name = "journey_post",
@@ -75,6 +80,10 @@ public class JourneyPost extends BaseTimeEntity {
         this.content = content;
     }
 
+    /**
+     * 부분 수정은 새 값이 들어온 필드만 반영하고, 빈 문자열은 무시합니다.
+     * 이 규칙은 게시물의 불변 조건을 유지하면서도 업데이트 요청을 유연하게 처리하기 위한 것입니다.
+     */
     public void update(
             String title,
             String content,

@@ -15,6 +15,11 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 
+/**
+ * Refresh Token의 저장 상태와 회전/폐기 정책을 표현하는 엔티티입니다.
+ *
+ * <p>원문 토큰은 저장하지 않고 해시만 보관하며, revokedAt이 설정된 토큰은 더 이상 사용할 수 없습니다.
+ */
 @Entity
 @Table(
         name = "refresh_token",
@@ -51,6 +56,10 @@ public class RefreshToken extends BaseTimeEntity {
         this.expiresAt = expiresAt;
     }
 
+    /**
+     * 이미 사용된 토큰이거나 로그아웃된 토큰은 재사용 불가 상태로 표시합니다.
+     * 같은 토큰의 중복 사용을 막기 위해 기존 값이 없을 때만 폐기 시각을 기록합니다.
+     */
     public void revoke(Instant revokedAt) {
         if (this.revokedAt == null) {
             this.revokedAt = revokedAt;
