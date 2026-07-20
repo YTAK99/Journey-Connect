@@ -1,211 +1,293 @@
-// // React에서 상태(State)를 관리하기 위해 useState를 import
-// // 상태(State)는 사용자가 입력하는 값을 저장하는 공간이다.
-// import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 
-// function WritePost() {
+function WritePost() {
 
-//     // ===========================
-//     // useState
-//     // ===========================
+    const { id } = useParams();
+    const navigate = useNavigate();
 
-//     // 여행 일정 제목을 저장하는 상태 변수
-//     // title : 현재 제목 값
-//     // setTitle : 제목을 변경하는 함수
-//     const [title, setTitle] = useState("");
 
-//     // 여행 일정 내용을 저장하는 상태 변수
-//     const [content, setContent] = useState("");
+    const [title, setTitle] = useState("");
+    const [content, setContent] = useState("");
+    const [location, setLocation] = useState("");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [image, setImage] = useState("");
 
-//     // 여행 지역을 저장하는 상태 변수
-//     const [location, setLocation] = useState("");
+    // 수정 페이지일 경우 기존 데이터 불러오기
+    useEffect(() => {
 
-//     // 여행 시작 날짜를 저장하는 상태 변수
-//     const [startDate, setStartDate] = useState("");
+        if (id) {
 
-//     // 여행 종료 날짜를 저장하는 상태 변수
-//     const [endDate, setEndDate] = useState("");
+            const savedPosts =
+                JSON.parse(localStorage.getItem("posts")) || [];
 
-//     // ===========================
-//     // 등록 버튼 클릭 이벤트
-//     // ===========================
 
-//     const handleSubmit = () => {
+            const editPost = savedPosts.find(
+                (post) => post.id === Number(id)
+            );
 
-//         // 입력값 확인
-//         // 실제 프로젝트에서는 백엔드로 보내기 전에
-//         // 값이 제대로 입력되었는지 확인하는 용도이다.
-//         console.log("제목 :", title);
-//         console.log("내용 :", content);
-//         console.log("여행 지역 :", location);
-//         console.log("시작 날짜 :", startDate);
-//         console.log("종료 날짜 :", endDate);
 
-//         /*
-//         ========================================
+            if (editPost) {
 
-//         백엔드 API가 완성되면 아래 코드로 변경 예정
+                setTitle(editPost.title);
+                setContent(editPost.content);
+                setLocation(editPost.location);
+                setStartDate(editPost.startDate);
+                setEndDate(editPost.endDate);
+                setImage(editPost.image || "");
+            
+            }
+        }
 
-//         createPost({
-//             title,
-//             content,
-//             location,
-//             startDate,
-//             endDate
-//         })
+    }, [id]);
 
-//         ========================================
-//         */
 
-//         alert("여행 일정이 등록되었습니다.");
-//     };
+    const handleImage = (e) => {
 
-//     return (
+        const file = e.target.files[0];
+    
+        if(file){
+    
+            const reader = new FileReader();
+    
+            reader.onload = () => {
+                setImage(reader.result);
+            };
+    
+            reader.readAsDataURL(file);
+    
+        }
+    
+    };
+    // 등록 / 수정 버튼
+    const handleSubmit = () => {
 
-//         // ===========================
-//         // 전체 화면
-//         // ===========================
+        const savedPosts =
+            JSON.parse(localStorage.getItem("posts")) || [];
 
-//         <div className="max-w-4xl mx-auto mt-10 p-8 bg-white rounded-xl shadow-lg">
 
-//             {/* 화면 제목 */}
+        // 수정
+        if (id) {
 
-//             <h1 className="text-3xl font-bold mb-8">
+            const updatedPosts = savedPosts.map((post) => {
 
-//                 여행 일정 작성
+                if (post.id === Number(id)) {
 
-//             </h1>
+                    return {
+                        ...post,
+                        title,
+                        content,
+                        location,
+                        startDate,
+                        endDate,
+                        image
+                    };
 
-//             {/* ===========================
-//                 제목 입력
-//             =========================== */}
+                }
 
-//             <label className="font-semibold">
+                return post;
 
-//                 일정 제목
+            });
 
-//             </label>
 
-//             <input
+            localStorage.setItem(
+                "posts",
+                JSON.stringify(updatedPosts)
+            );
 
-//                 className="w-full border rounded-lg p-3 mt-2 mb-5"
 
-//                 placeholder="여행 일정 제목을 입력하세요."
+            alert("게시글이 수정되었습니다.");
 
-//                 value={title}
+        }
 
-//                 onChange={(e) => setTitle(e.target.value)}
 
-//             />
+        // 새 글 작성
+        else {
 
-//             {/* ===========================
-//                 여행 지역
-//             =========================== */}
+            const newPost = {
 
-//             <label className="font-semibold">
+                id: Date.now(),
+                title,
+                content,
+                location,
+                startDate,
+                endDate,
+                image
 
-//                 여행 지역
+            };
 
-//             </label>
 
-//             <input
+            savedPosts.push(newPost);
 
-//                 className="w-full border rounded-lg p-3 mt-2 mb-5"
 
-//                 placeholder="예) 일본 오사카"
+            localStorage.setItem(
+                "posts",
+                JSON.stringify(savedPosts)
+            );
 
-//                 value={location}
 
-//                 onChange={(e)=>setLocation(e.target.value)}
+            alert("여행 일정이 등록되었습니다.");
 
-//             />
+        }
 
-//             {/* ===========================
-//                 여행 시작 날짜
-//             =========================== */}
 
-//             <label className="font-semibold">
+        navigate("/myposts");
 
-//                 여행 시작 날짜
+    };
 
-//             </label>
 
-//             <input
 
-//                 type="date"
+    return (
 
-//                 className="w-full border rounded-lg p-3 mt-2 mb-5"
+        <div className="max-w-4xl mx-auto mt-10 p-8 bg-white rounded-xl shadow-lg">
 
-//                 value={startDate}
 
-//                 onChange={(e)=>setStartDate(e.target.value)}
+            <h1 className="text-3xl font-bold mb-8">
 
-//             />
+                여행 일정 작성
 
-//             {/* ===========================
-//                 여행 종료 날짜
-//             =========================== */}
+            </h1>
 
-//             <label className="font-semibold">
 
-//                 여행 종료 날짜
 
-//             </label>
+            <label className="font-semibold">
+                일정 제목
+            </label>
 
-//             <input
+            <input
 
-//                 type="date"
+                className="w-full border rounded-lg p-3 mt-2 mb-5"
 
-//                 className="w-full border rounded-lg p-3 mt-2 mb-5"
+                placeholder="여행 일정 제목을 입력하세요."
 
-//                 value={endDate}
+                value={title}
 
-//                 onChange={(e)=>setEndDate(e.target.value)}
+                onChange={(e) => setTitle(e.target.value)}
 
-//             />
+            />
 
-//             {/* ===========================
-//                 여행 일정 내용
-//             =========================== */}
 
-//             <label className="font-semibold">
 
-//                 여행 일정
+            <label className="font-semibold">
+                여행 지역
+            </label>
 
-//             </label>
+            <input
 
-//             <textarea
+                className="w-full border rounded-lg p-3 mt-2 mb-5"
 
-//                 className="w-full h-72 border rounded-lg p-3 mt-2"
+                placeholder="예) 일본 오사카"
 
-//                 placeholder="여행 일정을 자유롭게 작성해주세요."
+                value={location}
 
-//                 value={content}
+                onChange={(e) => setLocation(e.target.value)}
 
-//                 onChange={(e)=>setContent(e.target.value)}
+            />
 
-//             />
 
-//             {/* ===========================
-//                 등록 버튼
-//             =========================== */}
 
-//             <button
+            <label className="font-semibold">
+                여행 시작 날짜
+            </label>
 
-//                 onClick={handleSubmit}
+            <input
 
-//                 className="mt-8 w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
+                type="date"
 
-//             >
+                className="w-full border rounded-lg p-3 mt-2 mb-5"
 
-//                 일정 등록하기
+                value={startDate}
 
-//             </button>
+                onChange={(e) => setStartDate(e.target.value)}
 
-//         </div>
+            />
 
-//     );
 
-// }
 
-// // 다른 파일에서도 사용할 수 있도록 export
-// export default WritePost;
+            <label className="font-semibold">
+                여행 종료 날짜
+            </label>
+
+            <input
+
+                type="date"
+
+                className="w-full border rounded-lg p-3 mt-2 mb-5"
+
+                value={endDate}
+
+                onChange={(e) => setEndDate(e.target.value)}
+
+            />
+
+
+
+            <label className="font-semibold">
+                여행 일정
+            </label>
+
+            <textarea
+
+                className="w-full h-72 border rounded-lg p-3 mt-2"
+
+                placeholder="여행 일정을 자유롭게 작성해주세요."
+
+                value={content}
+
+                onChange={(e) => setContent(e.target.value)}
+
+            />
+
+<label className="font-semibold block mt-5">
+    여행 사진
+</label>
+
+<input
+
+    type="file"
+
+    accept="image/*"
+
+    className="mt-2 mb-5"
+
+    onChange={handleImage}
+
+/>
+
+
+{image && (
+
+    <img
+
+        src={image}
+
+        alt="preview"
+
+        className="w-64 h-40 object-cover rounded-xl mb-5"
+
+    />
+
+)}
+
+            <button
+
+                onClick={handleSubmit}
+
+                className="mt-8 w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
+
+            >
+
+                {id ? "수정 완료" : "일정 등록하기"}
+
+            </button>
+
+
+        </div>
+
+    );
+
+}
+
+
+export default WritePost;

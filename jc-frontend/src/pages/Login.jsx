@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { login } from "../services/auth";
 
 
 function Login() {
@@ -9,26 +10,32 @@ function Login() {
     const [id, setId] = useState("");
     const [pw, setPw] = useState("");
 
+
     const handleLogin = () => {
 
         if (!id || !pw) {
             alert("아이디와 비밀번호를 입력하세요.");
             return;
         }
-    
-        if (id === "admin" && pw === "1234") {
-    
-            localStorage.setItem("accessToken", "fake-token");
-    
+
+
+        const result = login(id, pw);
+
+
+        if (result) {
+
             alert("로그인 성공!");
-    
+
             navigate("/home");
-    
+
         } else {
-    
+
             alert("아이디 또는 비밀번호가 틀렸습니다.");
+
         }
+
     };
+
 
     return (
 
@@ -40,12 +47,14 @@ function Login() {
                     Journey Connect
                 </h1>
 
+
                 <input
                     className="w-full border rounded-lg p-3 mb-4"
                     placeholder="아이디"
                     value={id}
                     onChange={(e) => setId(e.target.value)}
                 />
+
 
                 <input
                     type="password"
@@ -55,6 +64,7 @@ function Login() {
                     onChange={(e) => setPw(e.target.value)}
                 />
 
+
                 <button
                     onClick={handleLogin}
                     className="w-full bg-blue-600 text-white rounded-lg py-3 hover:bg-blue-700"
@@ -62,6 +72,12 @@ function Login() {
                     로그인
                 </button>
 
+                <Link
+    to="/signup"
+    className="block text-center mt-4 text-blue-600"
+>
+    회원가입
+</Link>
             </div>
 
         </div>
@@ -69,5 +85,8 @@ function Login() {
     );
 
 }
+
+
+
 
 export default Login;
