@@ -13,9 +13,29 @@ import {
   Camera,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { logout } from "../services/auth";
+import { getUser } from "../services/auth";
 
 function MyPage() {
     const navigate = useNavigate();
+    
+    const handleLogout = () => {
+
+      const ok = window.confirm("로그아웃 하시겠습니까?");
+  
+      if (!ok) return;
+  
+  
+      logout();
+  
+  
+      alert("로그아웃 되었습니다.");
+  
+      navigate("/login");
+  
+  };
+    
+      // ↓ 여기부터 기존 코드 계속...
   const [open, setOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [alarm, setAlarm] = useState(true);
@@ -23,10 +43,12 @@ function MyPage() {
 
   const [editOpen, setEditOpen] = useState(false);
 
+  const loginUser = getUser();
+
   const [user, setUser] = useState({
-    name: "홍길동",
-    email: "travel@email.com",
-    image: null,
+      name: loginUser?.name || loginUser?.id,
+      email: loginUser?.email,
+      image: null,
   });
 
   const [editName, setEditName] = useState(user.name);
@@ -68,22 +90,19 @@ function MyPage() {
     <div
       className={`min-h-screen ${
         darkMode
-          ? "bg-slate-900 text-white"
-          : "bg-slate-100 text-slate-900"
+        ? "bg-slate-900 text-white"
+        : "bg-background text-text"
       }`}
     >
 <div className="p-8 flex justify-between items-center">
 
-<h1 className="text-3xl font-bold">
+<h1 className="text-3xl font-bold text-title">
   마이페이지
 </h1>
 
 
 <button
-  onClick={() => {
-    alert("로그아웃 되었습니다.");
-    navigate("/");
-  }}
+  onClick={handleLogout}
   className="text-red-500 font-semibold"
 >
   로그아웃
@@ -94,12 +113,12 @@ function MyPage() {
       {/* 프로필 */}
       <div
         className={`mx-8 rounded-3xl p-8 shadow ${
-          darkMode ? "bg-slate-800" : "bg-white"
+          darkMode ? "bg-slate-800" : "bg-card"
         }`}
       >
         <div className="flex items-center gap-6">
 
-          <div className="w-24 h-24 rounded-full bg-cyan-400 overflow-hidden flex items-center justify-center">
+          <div className="w-24 h-24 rounded-full bg-primary overflow-hidden flex items-center justify-center">
 
             {user.image ? (
               <img
@@ -115,20 +134,27 @@ function MyPage() {
 
           <div>
 
-            <h2 className="text-2xl font-bold">
-              {user.name}
+          <h2 className="text-2xl font-bold text-title">              {user.name}
             </h2>
 
-            <p className="text-slate-500">
-              {user.email}
+            <p className="text-muted">              {user.email}
             </p>
 
             <button
-              onClick={() => setEditOpen(true)}
-              className="mt-4 bg-cyan-500 text-white px-4 py-2 rounded-xl hover:bg-cyan-600"
-            >
-              프로필 편집
-            </button>
+  onClick={() => setEditOpen(true)}
+  className="
+    mt-4
+    bg-primary
+    text-white
+    font-semibold
+    px-4
+    py-2
+    rounded-xl
+    hover:bg-primaryHover
+  "
+>
+  프로필 편집
+</button>
 
           </div>
 
@@ -174,7 +200,7 @@ function MyPage() {
 <div
   onClick={() => setOpen(true)}
   className={`rounded-2xl p-5 shadow cursor-pointer hover:scale-[1.02] transition flex items-center gap-4 ${
-    darkMode ? "bg-slate-800" : "bg-white"
+    darkMode ? "bg-slate-800" : "bg-card"
   }`}
 >
 
@@ -199,12 +225,12 @@ function MyPage() {
 
       {/* 설정 사이드바 */}
       <div
-        className={`fixed top-0 right-0 h-screen w-96 shadow-2xl transition-transform duration-300 z-50 ${
-          darkMode
-            ? "bg-slate-900 text-white"
-            : "bg-white text-slate-900"
-        } ${open ? "translate-x-0" : "translate-x-full"}`}
-      >
+  className={`fixed top-0 right-0 h-screen w-96 shadow-2xl transition-transform duration-300 z-50 ${
+    darkMode
+      ? "bg-slate-900 text-white"
+      : "bg-card text-text"
+  } ${open ? "translate-x-0" : "translate-x-full"}`}
+>
         <div className="flex justify-between items-center p-6 border-b">
           <h2 className="text-2xl font-bold">설정</h2>
 
@@ -274,57 +300,64 @@ function MyPage() {
 
           <div className="fixed inset-0 flex justify-center items-center z-50">
 
-            <div className="bg-white w-[450px] rounded-2xl p-8">
+            <div className="bg-card w-[450px] rounded-2xl p-8">
 
-              <h2 className="text-2xl font-bold mb-6 text-black">
-                프로필 편집
-              </h2>
+            <h2 className="text-2xl font-bold mb-6 text-title">
+    프로필 편집
+</h2>
 
               <div className="flex flex-col items-center mb-5">
 
-                <div className="w-28 h-28 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
+              <label
+  htmlFor="profileImage"
+  className="w-28 h-28 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition"
+>
 
-                  {user.image ? (
-                    <img
-                      src={user.image}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Camera size={40} />
-                  )}
+  {user.image ? (
+    <img
+      src={user.image}
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    <Camera size={40} />
+  )}
 
-                </div>
+</label>
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImage}
-                  className="mt-3"
-                />
+
+<input
+  id="profileImage"
+  type="file"
+  accept="image/*"
+  onChange={handleImage}
+  className="hidden"
+/>
+
+          
 
               </div>
 
-              <label className="font-semibold text-black">
+              <label className="font-semibold text-text">
                 닉네임
               </label>
 
               <input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full border rounded-lg p-2 mt-2 mb-4 text-black"
+                className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
               />
 
-              <label className="font-semibold text-black">
+              <label className="font-semibold text-text">
                 이메일
               </label>
 
               <input
                 value={editEmail}
                 onChange={(e) => setEditEmail(e.target.value)}
-                className="w-full border rounded-lg p-2 mt-2 mb-4 text-black"
+                className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
               />
 
-              <label className="font-semibold text-black">
+              <label className="font-semibold text-text">
                 현재 비밀번호
               </label>
 
@@ -332,10 +365,10 @@ function MyPage() {
                 type="password"
                 value={currentPw}
                 onChange={(e) => setCurrentPw(e.target.value)}
-                className="w-full border rounded-lg p-2 mt-2 mb-4 text-black"
+                className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
               />
 
-              <label className="font-semibold text-black">
+              <label className="font-semibold text-text">
                 새 비밀번호
               </label>
 
@@ -343,10 +376,10 @@ function MyPage() {
                 type="password"
                 value={newPw}
                 onChange={(e) => setNewPw(e.target.value)}
-                className="w-full border rounded-lg p-2 mt-2 mb-4 text-black"
+                className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
               />
 
-              <label className="font-semibold text-black">
+              <label className="font-semibold text-text">
                 새 비밀번호 확인
               </label>
 
@@ -354,7 +387,7 @@ function MyPage() {
                 type="password"
                 value={confirmPw}
                 onChange={(e) => setConfirmPw(e.target.value)}
-                className="w-full border rounded-lg p-2 mt-2 text-black"
+                className="w-full border rounded-lg p-2 mt-2 text-text"
               />
 
               <div className="flex justify-end gap-3 mt-8">
@@ -365,13 +398,20 @@ function MyPage() {
                 >
                   취소
                 </button>
-
                 <button
-                  onClick={saveProfile}
-                  className="px-5 py-2 rounded-lg bg-cyan-500 text-white"
-                >
-                  저장
-                </button>
+  onClick={saveProfile}
+  className="
+    px-5
+    py-2
+    rounded-lg
+    bg-primary
+    hover:bg-primaryHover
+    text-white
+    font-semibold
+  "
+>
+  저장
+</button>
 
               </div>
 
@@ -389,11 +429,13 @@ function Menu({ icon, title, dark }) {
   return (
     <div
       className={`rounded-2xl p-5 shadow cursor-pointer hover:scale-[1.02] transition flex items-center gap-4 ${
-        dark ? "bg-slate-800" : "bg-white"
+        dark ? "bg-slate-800" : "bg-card"
       }`}
     >
       {icon}
-      <span className="font-semibold">{title}</span>
+      <span className="font-semibold text-title">
+  {title}
+</span>
     </div>
   );
 }

@@ -9,37 +9,32 @@ function Complete() {
         // ===========================
         // 전체 화면
         // ===========================
-        <div className="h-screen flex justify-center items-center bg-gray-100">
+<div className="h-screen flex justify-center items-center bg-background">
 
-            {/* 완료 메시지 박스 */}
-            <div className="bg-white shadow-xl rounded-xl p-10 text-center w-[500px]">
+<div className="bg-card shadow-md rounded-xl p-10 text-center w-[500px]">
 
-                {/* 성공 아이콘 */}
-                <div className="text-6xl mb-5">
-                    🎉
-                </div>
+    <div className="text-6xl mb-5">
+        🎉
+    </div>
 
-                {/* 제목 */}
-                <h1 className="text-3xl font-bold mb-4">
-                    일정이 성공적으로 등록되었습니다.
-                </h1>
+    <h1 className="text-3xl font-bold mb-4 text-title">
+        일정이 성공적으로 등록되었습니다.
+    </h1>
 
-                {/* 안내 문구 */}
-                <p className="text-gray-500 mb-8">
-                    작성한 여행 일정은 다른 사용자들과 공유됩니다.
-                </p>
+    <p className="text-muted mb-8">
+        작성한 여행 일정은 다른 사용자들과 공유됩니다.
+    </p>
 
-                {/* 마이페이지 이동 버튼 */}
-                <Link
-                    to="/mypage"
-                    className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
-                >
-                    내 일정 보러가기
-                </Link>
+    <Link
+        to="/mypage"
+        className="inline-block bg-primary text-white px-6 py-3 rounded-lg hover:bg-primaryHover"
+    >
+        내 일정 보러가기
+    </Link>
 
-            </div>
+</div>
 
-        </div>
+</div>
 
     );
 }

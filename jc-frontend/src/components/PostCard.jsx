@@ -1,122 +1,147 @@
-// 부모 컴포넌트(MyPage)에서 전달받은 post 데이터를 출력하는 컴포넌트
-// props를 통해 게시글 정보를 받아 화면에 표시한다.
 import { useNavigate } from "react-router-dom";
 
 function PostCard({ post, setPosts }) {
+
     const navigate = useNavigate();
-    // ===========================
-    // 수정 버튼 클릭
-    // ===========================
+
+
     const handleEdit = () => {
 
         navigate(`/write/${post.id}`);
-    
+
     };
 
-    // ===========================
-    // 삭제 버튼 클릭
-    // ===========================
 
     const handleDelete = () => {
 
         const result = window.confirm("정말 삭제하시겠습니까?");
-    
-        if(!result) return;
-    
-    
-        const handleDelete = () => {
 
-            const result = window.confirm("정말 삭제하시겠습니까?");
-        
-            if(!result) return;
-        
-        
-            const updatedPosts = 
-                JSON.parse(localStorage.getItem("posts"))
-                .filter(item => item.id !== post.id);
-        
-        
-            localStorage.setItem(
-                "posts",
-                JSON.stringify(updatedPosts)
-            );
-        
-        
-            setPosts(updatedPosts);
-        
-        };
-    
+        if (!result) return;
+
+
+        const savedPosts =
+            JSON.parse(localStorage.getItem("posts")) || [];
+
+
+        const updatedPosts =
+            savedPosts.filter(item => item.id !== post.id);
+
+
+        localStorage.setItem(
+            "posts",
+            JSON.stringify(updatedPosts)
+        );
+
+
+        setPosts(updatedPosts);
+
     };
+
+
     return (
 
-        // ===========================
-        // 카드 전체 영역
-        // ===========================
+        <div
+            onClick={() => navigate(`/post/${post.id}`)}
+            className="
+                bg-card
+                rounded-xl
+                shadow-md
+                p-6
+                hover:shadow-xl
+                transition
+                cursor-pointer
+            "
+        >
 
-        <div className="bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition">
 
-            {/* ===========================
-                여행 제목
-            =========================== */}
-
-            <h2 className="text-2xl font-bold">
+            <h2 className="
+                text-2xl
+                font-bold
+                text-title
+            ">
 
                 {post.title}
 
             </h2>
+
+
+
             {post.image && (
 
-<img
-    src={post.image}
-    alt="travel"
-    className="w-full h-60 object-cover rounded-xl mt-4"
-/>
+                <img
+                    src={post.image}
+                    alt="travel"
+                    className="
+                        w-full
+                        h-60
+                        object-cover
+                        rounded-xl
+                        mt-4
+                    "
+                />
 
-)}
+            )}
 
-            {/* ===========================
-                여행 지역
-            =========================== */}
 
-            <p className="text-blue-600 mt-2">
+
+            <p className="
+                text-primary
+                mt-3
+                font-medium
+            ">
 
                 📍 {post.location}
 
             </p>
 
-            {/* ===========================
-                여행 날짜
-            =========================== */}
 
-            <p className="text-gray-500 mt-2">
+
+            <p className="
+                text-muted
+                mt-2
+            ">
 
                 📅 {post.startDate} ~ {post.endDate}
 
             </p>
 
-            {/* ===========================
-                여행 일정 내용
-            =========================== */}
 
-            <p className="mt-5 text-gray-700">
+
+            <p className="
+                mt-5
+                text-text
+                leading-relaxed
+            ">
 
                 {post.content}
 
             </p>
 
-            {/* ===========================
-                버튼 영역
-            =========================== */}
 
-            <div className="flex gap-3 mt-6">
 
-                {/* 수정 버튼 */}
+            <div className="
+                flex
+                gap-3
+                mt-6
+            ">
+
+
 
                 <button
 
-                    onClick={handleEdit}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit();
+                    }}
 
-                    className="bg-yellow-400 hover:bg-yellow-500 text-white px-5 py-2 rounded-lg"
+                    className="
+                        bg-primary
+                        hover:bg-primaryHover
+                        text-white
+                        px-5
+                        py-2
+                        rounded-lg
+                    "
 
                 >
 
@@ -124,13 +149,24 @@ function PostCard({ post, setPosts }) {
 
                 </button>
 
-                {/* 삭제 버튼 */}
+
+
 
                 <button
 
-                    onClick={handleDelete}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete();
+                    }}
 
-                    className="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg"
+                    className="
+                        bg-red-500
+                        hover:bg-red-600
+                        text-white
+                        px-5
+                        py-2
+                        rounded-lg
+                    "
 
                 >
 
@@ -138,7 +174,9 @@ function PostCard({ post, setPosts }) {
 
                 </button>
 
+
             </div>
+
 
         </div>
 
@@ -146,5 +184,5 @@ function PostCard({ post, setPosts }) {
 
 }
 
-// 다른 파일에서도 사용할 수 있도록 export
+
 export default PostCard;

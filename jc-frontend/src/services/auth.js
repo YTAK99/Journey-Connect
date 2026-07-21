@@ -77,3 +77,37 @@ export const signup = (user) => {
     );
   
   };
+
+  // 아이디 찾기
+export const findId = (email) => {
+  const users =
+    JSON.parse(localStorage.getItem("users")) || [];
+
+  const user = users.find(
+    (item) => item.email === email
+  );
+
+  return user ? user.id : null;
+};
+
+
+// 비밀번호 찾기
+export const findPassword = (id, email) => {
+  const users =
+    JSON.parse(localStorage.getItem("users")) || [];
+
+  const user = users.find(
+    (item) =>
+      item.id === id &&
+      item.email === email
+  );
+
+  return user ? user.pw : null;
+};
+
+// 로그인 여부 확인
+export const isLogin = () => {
+
+  return localStorage.getItem("loginUser") !== null;
+
+};
