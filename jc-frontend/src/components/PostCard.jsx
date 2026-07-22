@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
+// 게시글 카드 컴포넌트: 수정 및 삭제 액션을 연결한다.
 function PostCard({ post, setPosts }) {
 
     const navigate = useNavigate();

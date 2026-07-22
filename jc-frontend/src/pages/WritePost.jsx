@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getUser } from "../services/auth";
 import { Camera } from "lucide-react";
 
+// 여행 일정 작성 및 수정 페이지다.
 function WritePost() {
 
     const { id } = useParams();

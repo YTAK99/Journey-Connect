@@ -16,6 +16,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../services/auth";
 import { getUser } from "../services/auth";
 
+// 마이페이지: 사용자 정보, 설정, 로그아웃을 관리한다.
 function MyPage() {
     const navigate = useNavigate();
     

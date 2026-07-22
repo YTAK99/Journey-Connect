@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
+// 게시글 상세 내용을 조회하고 삭제하는 페이지다.
 function PostDetail() {
 
   const { id } = useParams();

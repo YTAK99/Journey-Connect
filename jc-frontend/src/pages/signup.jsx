@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signup } from "../services/auth";
 
-
+// 신규 사용자 회원가입 페이지다.
 function Signup(){
 
   const navigate = useNavigate();

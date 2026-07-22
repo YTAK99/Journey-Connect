@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { findPassword } from "../services/auth";
 
+// 아이디와 이메일로 비밀번호를 찾는 페이지다.
 function FindPassword() {
   const [id, setId] = useState("");
   const [account, setAccount] = useState("");

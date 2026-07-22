@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+// 로그인 후 진입하는 홈 화면이다.
 function Home() {
   const navigate = useNavigate();
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { login } from "../services/auth";
 
+// 사용자 로그인 화면이다.
 function Login() {
 
     const navigate = useNavigate();

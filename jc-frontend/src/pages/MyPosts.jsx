@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import PostCard from "../components/PostCard";
 import { getUser } from "../services/auth";
 
+// 사용자가 작성한 게시글 목록을 보여주는 페이지다.
 function MyPosts() {
 
   const [posts, setPosts] = useState([]);

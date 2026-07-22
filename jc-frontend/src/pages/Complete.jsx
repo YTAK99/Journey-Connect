@@ -2,6 +2,7 @@
 // Link를 사용하면 새로고침 없이 다른 페이지로 이동할 수 있다.
 import { Link } from "react-router-dom";
 
+// 일정 등록 완료를 안내하는 완료 페이지다.
 function Complete() {
 
     return (

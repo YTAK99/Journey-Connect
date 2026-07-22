@@ -7,6 +7,7 @@ import { Compass, Globe, Server, CheckCircle2, AlertCircle } from 'lucide-react'
 import apiClient from '../services/apiClient'
 import useLangStore from '../store/useLangStore'
 
+// 백엔드 연동 상태를 테스트하는 페이지다.
 export default function BackendTestPage() {
     // Zustand 전역 언어 상태 가져오기
     const { currentLang, setLang } = useLangStore()
