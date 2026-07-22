@@ -16,18 +16,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../services/auth";
 import { getUser } from "../services/auth";
 
-// 마이페이지: 사용자 정보, 설정, 로그아웃을 관리한다.
 function MyPage() {
     const navigate = useNavigate();
     
-    const handleLogout = () => {
+    const handleLogout = async () => {
 
       const ok = window.confirm("로그아웃 하시겠습니까?");
   
       if (!ok) return;
   
   
-      logout();
+      await logout();
   
   
       alert("로그아웃 되었습니다.");
@@ -47,9 +46,9 @@ function MyPage() {
   const loginUser = getUser();
 
   const [user, setUser] = useState({
-      name: loginUser?.name || loginUser?.id,
-      email: loginUser?.email,
-      image: null,
+      name: loginUser?.nickname || loginUser?.email || "사용자",
+      email: loginUser?.email || "",
+      image: loginUser?.profileImageUrl || null,
   });
 
   const [editName, setEditName] = useState(user.name);
@@ -104,8 +103,9 @@ function MyPage() {
 
 <button
   onClick={handleLogout}
-  className="text-red-500 font-semibold"
+  className="flex items-center gap-2 text-red-500 font-semibold hover:text-red-600 transition"
 >
+  <LogOut size={20} />
   로그아웃
 </button>
 
@@ -196,6 +196,14 @@ function MyPage() {
   dark={darkMode}
 />
 
+{/* 내 여행 지도 */}
+<div onClick={() => alert("지도 기능은 준비 중입니다.")}>
+  <Menu
+    icon={<Map />}
+    title="내 여행 지도"
+    dark={darkMode}
+  />
+</div>
 
 {/* 설정 */}
 <div

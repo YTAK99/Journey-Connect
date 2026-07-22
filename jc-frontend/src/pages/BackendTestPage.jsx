@@ -7,7 +7,6 @@ import { Compass, Globe, Server, CheckCircle2, AlertCircle } from 'lucide-react'
 import apiClient from '../services/apiClient'
 import useLangStore from '../store/useLangStore'
 
-// 백엔드 연동 상태를 테스트하는 페이지다.
 export default function BackendTestPage() {
     // Zustand 전역 언어 상태 가져오기
     const { currentLang, setLang } = useLangStore()
@@ -37,7 +36,41 @@ export default function BackendTestPage() {
 
     // 컴포넌트가 켜질 때, 혹은 유저가 언어를 바꿀 때마다 백엔드 호출
     useEffect(() => {
-        fetchBackendData(currentLang)
+        let active = true
+
+        const loadBackendData = async () => {
+            await Promise.resolve()
+
+            if (!active) return
+
+            setLoading(true)
+            setError(false)
+
+            try {
+                const response = await apiClient.get(`/test/welcome`, {
+                    params: { lang: currentLang }
+                })
+
+                if (active) {
+                    setApiData(response.data)
+                }
+            } catch (err) {
+                console.error('백엔드 연동 실패 ㅠㅠ :', err)
+                if (active) {
+                    setError(true)
+                }
+            } finally {
+                if (active) {
+                    setLoading(false)
+                }
+            }
+        }
+
+        loadBackendData()
+
+        return () => {
+            active = false
+        }
     }, [currentLang])
 
     return (
