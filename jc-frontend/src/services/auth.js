@@ -1,113 +1,61 @@
-// src/services/auth.js
+import apiClient from "./apiClient";
 
-// 회원가입
-export const signup = (user) => {
+const saveAuth = (tokenResponse) => {
+  localStorage.setItem("accessToken", tokenResponse.accessToken);
+  localStorage.setItem("refreshToken", tokenResponse.refreshToken);
+  localStorage.setItem("loginUser", JSON.stringify(tokenResponse.user));
 
-    const users =
-      JSON.parse(localStorage.getItem("users")) || [];
-  
-    // 아이디 중복 체크
-    const exists = users.find(
-      (item) => item.id === user.id
-    );
-  
-    if (exists) {
-      return false;
+  return tokenResponse.user;
+};
+
+export const signup = async ({ email, password, nickname }) => {
+  const response = await apiClient.post("/auth/signup", {
+    email,
+    password,
+    nickname,
+  });
+
+  return saveAuth(response.data.data);
+};
+
+export const login = async (email, password) => {
+  const response = await apiClient.post("/auth/login", {
+    email,
+    password,
+  });
+
+  return saveAuth(response.data.data);
+};
+
+export const logout = async () => {
+  const refreshToken = localStorage.getItem("refreshToken");
+
+  try {
+    if (refreshToken) {
+      await apiClient.post("/auth/logout", { refreshToken });
     }
-  
-  
-    users.push(user);
-  
-    localStorage.setItem(
-      "users",
-      JSON.stringify(users)
-    );
-  
-    return true;
-  };
-  
-  
-  
-  // 로그인
-  export const login = (id, pw) => {
-  
-    const users =
-      JSON.parse(localStorage.getItem("users")) || [];
-  
-  
-    const user = users.find(
-      (item) =>
-        item.id === id &&
-        item.pw === pw
-    );
-  
-  
-    if(user){
-  
-      localStorage.setItem(
-        "loginUser",
-        JSON.stringify(user)
-      );
-  
-      return true;
-    }
-  
-  
-    return false;
-  };
-  
-  
-  
-  // 로그아웃
-  export const logout = () => {
-  
-    localStorage.removeItem(
-      "loginUser"
-    );
-  
-  };
-  
-  
-  
-  // 현재 로그인 사용자
-  export const getUser = () => {
-  
-    return JSON.parse(
-      localStorage.getItem("loginUser")
-    );
-  
-  };
-
-  // 아이디 찾기
-export const findId = (email) => {
-  const users =
-    JSON.parse(localStorage.getItem("users")) || [];
-
-  const user = users.find(
-    (item) => item.email === email
-  );
-
-  return user ? user.id : null;
+  } finally {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("loginUser");
+  }
 };
 
+export const fetchCurrentUser = async () => {
+  const response = await apiClient.get("/auth/me");
+  const user = response.data.data;
 
-// 비밀번호 찾기
-export const findPassword = (id, email) => {
-  const users =
-    JSON.parse(localStorage.getItem("users")) || [];
-
-  const user = users.find(
-    (item) =>
-      item.id === id &&
-      item.email === email
-  );
-
-  return user ? user.pw : null;
+  localStorage.setItem("loginUser", JSON.stringify(user));
+  return user;
 };
 
-// 로그인 여부 확인
-export const isLogin = () => {
-
-  return localStorage.getItem("loginUser") !== null;
-
+export const getUser = () => {
+  const storedUser = localStorage.getItem("loginUser");
+  return storedUser ? JSON.parse(storedUser) : null;
 };
+
+export const isLogin = () => Boolean(localStorage.getItem("accessToken"));
+
+// 현재 백엔드에 아이디/비밀번호 찾기 API가 없어 기존 화면 호환용으로 유지합니다.
+export const findId = () => null;
+export const findPassword = () => null;
