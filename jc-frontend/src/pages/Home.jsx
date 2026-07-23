@@ -1,7 +1,7 @@
 import HomeSearchBar from '../components/HomeSearchBar';
 import { Link } from "react-router-dom";
 
-function Home() {
+export default function Home() {
     return (
         <div className="w-screen h-screen bg-[url('/home_img_1.png')] bg-cover bg-center bg-no-repeat relative">
             {/* 어두운 오버레이 (선택사항: 배경이 밝아서 텍스트가 안 보일 때 쓰면 글씨가 확 살아납니다) */}
@@ -16,14 +16,14 @@ function Home() {
                     {/*    */}
                     {/*</p>*/}
                     <h1 className="text-4xl md:text-4xl font-extrabold text-white leading-tight drop-shadow-lg">
-                        여행 정보 공유 사이트<br />
+                        여행 정보 공유 사이트<br/>
                         JC
                     </h1>
                 </div>
 
                 {/* 2. 검색창 (문구와 버튼 사이) */}
                 <div className="w-full max-w-md mb-8">
-                    <HomeSearchBar />
+                    <HomeSearchBar/>
                 </div>
 
                 {/* 3. 시작하러 가기 버튼 */}
@@ -36,5 +36,3 @@ function Home() {
         </div>
     );
 }
-
-export default Home;

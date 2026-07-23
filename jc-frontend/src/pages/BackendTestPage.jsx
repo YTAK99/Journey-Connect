@@ -38,7 +38,6 @@ export default function BackendTestPage() {
     useEffect(() => {
         fetchBackendData(currentLang)
     }, [currentLang])
-
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-[#F0F8FF]">
             <div className="w-full max-w-md p-6 bg-white rounded-2xl shadow-xl">
