@@ -13,7 +13,7 @@ export default function FeedCard() {
                         <h3 className="text-base font-semibold text-gray-900 leading-5">
                             나멋짐
                         </h3>
-                        <p className="text-sm text-gray-500 leading-5">노을</p>
+                        <p className="text-sm text-gray-500 leading-5">궁남지</p>
                     </div>
                 </div>
             </div>
