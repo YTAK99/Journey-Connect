@@ -7,14 +7,14 @@ export default function FeedPage() {
   const { selectedRegion, setSelectedRegion } = useRegionStore();
 
   return (
-    <main className="min-h-screen bg-sky-50">
-      <div className="pt-24 pb-6">
-        <section className="mx-auto max-w-screen-xl space-y-4 bg-white px-6 py-5">
+    <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
+      <div className="pt-20 pb-4">
+        <section className="mx-auto max-w-screen-xl space-y-2 bg-white px-6 py-3 dark:bg-slate-900">
           <LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />
           <StoryList />
         </section>
 
-        <section className="mx-auto max-w-screen-xl px-4 pt-6">
+        <section className="mx-auto max-w-screen-xl px-4 pt-3">
           <FeedCard selectedRegion={selectedRegion} />
         </section>
       </div>

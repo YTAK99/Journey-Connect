@@ -76,3 +76,7 @@ out/
 Thumbs.db
 Ehthumbs.db
 Desktop.ini
+
+# Local run logs
+bootrun-google.out.log
+dev-server-google.out.log

@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Camera } from "lucide-react";
+import { Camera, MapPin, RefreshCw } from "lucide-react";
+import { RegionPicker } from "../components/LocationWeather";
+import { REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
 import { isLogin } from "../services/auth";
 import { createPost, getPost, updatePost } from "../services/postApi";
+import useLangStore from "../store/useLangStore";
 
 function WritePost() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentLang } = useLangStore();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [location, setLocation] = useState("");
@@ -16,6 +20,7 @@ function WritePost() {
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(Boolean(id));
   const [submitting, setSubmitting] = useState(false);
+  const [regionPickerOpen, setRegionPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!isLogin()) {
@@ -30,7 +35,7 @@ function WritePost() {
       .then((post) => {
         setTitle(post.title || "");
         setContent(post.content || "");
-        setLocation(post.regionName || post.region?.name || "");
+        setLocation(post.regionName || post.region?.displayName || post.region?.name || "");
         setImageUrl(post.coverImageUrl || "");
       })
       .catch((error) => {
@@ -40,6 +45,10 @@ function WritePost() {
       .finally(() => setLoading(false));
   }, [id, navigate]);
 
+  const handleRegionSelect = (region) => {
+    setLocation(currentLang === "ko" ? region.label.ko : region.label.en);
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) {
       alert("일정 제목을 입력해주세요.");
@@ -47,7 +56,7 @@ function WritePost() {
     }
 
     if (!location.trim()) {
-      alert("여행 지역을 입력해주세요.");
+      alert("여행 지역을 선택해주세요.");
       return;
     }
 
@@ -98,15 +107,15 @@ function WritePost() {
   }
 
   return (
-    <main className="min-h-screen bg-sky-50 pt-24 pb-10">
-      <section className="mx-auto max-w-4xl rounded-xl bg-card p-8 shadow-md">
+    <main className="min-h-screen bg-sky-50 pt-24 pb-10 dark:bg-slate-950">
+      <section className="mx-auto max-w-4xl rounded-xl bg-card p-8 shadow-md dark:border dark:border-slate-800">
         <h1 className="mb-8 text-3xl font-bold text-title">
           {id ? "여행 일정 수정" : "여행 일정 작성"}
         </h1>
 
         <label className="font-semibold text-text">일정 제목</label>
         <input
-          className="mb-5 mt-2 w-full rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-primary"
+          className="mb-5 mt-2 w-full rounded-lg border border-gray-200 bg-white p-3 focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           placeholder="여행 일정 제목을 입력하세요"
           value={title}
           maxLength={120}
@@ -114,18 +123,25 @@ function WritePost() {
         />
 
         <label className="font-semibold text-text">여행 지역</label>
-        <input
-          className="mb-5 mt-2 w-full rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-primary"
-          placeholder="예: 일본 오사카"
-          value={location}
-          maxLength={100}
-          onChange={(event) => setLocation(event.target.value)}
-        />
+        <div className="mb-5 mt-2 flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800">
+          <MapPin size={18} className="shrink-0 text-primary" />
+          <span className={`min-w-0 flex-1 text-sm ${location ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}`}>
+            {location || (currentLang === "ko" ? "지역을 선택해주세요" : "Select a region")}
+          </span>
+          <button
+            type="button"
+            onClick={() => setRegionPickerOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            <RefreshCw size={14} />
+            {currentLang === "ko" ? "지역 변경" : "Change Region"}
+          </button>
+        </div>
 
         <label className="font-semibold text-text">여행 시작 날짜</label>
         <input
           type="date"
-          className="mb-5 mt-2 w-full rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-primary"
+          className="mb-5 mt-2 w-full rounded-lg border border-gray-200 bg-white p-3 focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           value={startDate}
           onChange={(event) => setStartDate(event.target.value)}
         />
@@ -133,14 +149,14 @@ function WritePost() {
         <label className="font-semibold text-text">여행 종료 날짜</label>
         <input
           type="date"
-          className="mb-5 mt-2 w-full rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-primary"
+          className="mb-5 mt-2 w-full rounded-lg border border-gray-200 bg-white p-3 focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           value={endDate}
           onChange={(event) => setEndDate(event.target.value)}
         />
 
         <label className="font-semibold text-text">여행 일정</label>
         <textarea
-          className="mt-2 h-72 w-full rounded-lg border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-primary"
+          className="mt-2 h-72 w-full rounded-lg border border-gray-200 bg-white p-3 focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           placeholder="여행 일정을 자유롭게 작성해주세요."
           value={content}
           onChange={(event) => setContent(event.target.value)}
@@ -151,7 +167,7 @@ function WritePost() {
           <Camera className="absolute left-3 top-3 text-gray-400" size={20} />
           <input
             type="url"
-            className="w-full rounded-lg border border-gray-200 py-3 pl-10 pr-3 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-10 pr-3 focus:outline-none focus:ring-2 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             placeholder="https://example.com/travel.jpg (선택 사항)"
             value={imageUrl}
             maxLength={500}
@@ -179,6 +195,15 @@ function WritePost() {
           {submitting ? "저장 중..." : id ? "수정 완료" : "일정 등록하기"}
         </button>
       </section>
+
+      {regionPickerOpen && (
+        <RegionPicker
+          currentRegion={REGIONS.find((region) => location === region.label.ko || location === region.label.en) || REGIONS[0]}
+          onSelect={handleRegionSelect}
+          onSearch={setLocation}
+          onClose={() => setRegionPickerOpen(false)}
+        />
+      )}
     </main>
   );
 }

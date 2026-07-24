@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import HomeSearchBar from "../components/HomeSearchBar";
 
 export default function Home() {
   return (
@@ -13,10 +12,6 @@ export default function Home() {
             <br />
             Journey Connect
           </h1>
-        </div>
-
-        <div className="w-full max-w-md mb-8">
-          <HomeSearchBar />
         </div>
 
         <Link

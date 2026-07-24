@@ -41,7 +41,7 @@ function PostCard({ post, setPosts, editable = false }) {
   return (
     <article
       onClick={() => navigate(`/post/${post.id}`)}
-      className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+      className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
     >
       <div className="relative">
         <img src={image} alt={post.title} className="h-60 w-full object-cover" />
@@ -62,8 +62,8 @@ function PostCard({ post, setPosts, editable = false }) {
       </div>
 
       <div className="p-4">
-        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900">{post.title}</h3>
-        <p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600">{post.content}</p>
+        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100">{post.title}</h3>
+        <p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{post.content}</p>
 
         <div className="flex gap-2 text-xs font-medium text-blue-600">
           {[location, post.category || "여행"].slice(0, 2).map((tag) => (

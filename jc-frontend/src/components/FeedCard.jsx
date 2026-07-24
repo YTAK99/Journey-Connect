@@ -81,7 +81,7 @@ function FeedItem({ post }) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-lg overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md">
+    <article className="mx-auto w-full max-w-lg overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
       <div className="px-5 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -91,15 +91,15 @@ function FeedItem({ post }) {
               className="h-10 w-10 rounded-full object-cover"
             />
             <div>
-              <h3 className="text-base font-semibold leading-5 text-gray-900">
+              <h3 className="text-base font-semibold leading-5 text-gray-900 dark:text-slate-100">
                 {post.author?.nickname || "여행자"}
               </h3>
-              <p className="text-sm leading-5 text-gray-500">
+              <p className="text-sm leading-5 text-gray-500 dark:text-slate-400">
                 {location} · {getRelativeDate(post.createdAt)}
               </p>
             </div>
           </div>
-          <button type="button" className="text-gray-500 hover:text-gray-900" aria-label="더보기">
+          <button type="button" className="text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100" aria-label="더보기">
             <MoreHorizontal size={18} />
           </button>
         </div>
@@ -119,16 +119,16 @@ function FeedItem({ post }) {
           <button
             type="button"
             onClick={toggleLike}
-            className={`flex items-center gap-1 text-gray-700 transition-colors hover:text-red-500 ${
+            className={`flex items-center gap-1 text-gray-700 transition-colors hover:text-red-500 dark:text-slate-300 ${
               liked ? "text-red-500" : ""
             }`}
           >
             <Heart size={24} fill={liked ? "currentColor" : "none"} strokeWidth={1.5} />
           </button>
-          <button type="button" className="flex items-center gap-1 text-gray-700 transition-colors hover:text-blue-500">
+          <button type="button" className="flex items-center gap-1 text-gray-700 transition-colors hover:text-blue-500 dark:text-slate-300">
             <MessageCircle size={24} strokeWidth={1.5} />
           </button>
-          <button type="button" className="text-gray-700 transition-colors hover:text-teal-600">
+          <button type="button" className="text-gray-700 transition-colors hover:text-teal-600 dark:text-slate-300">
             <Send size={23} strokeWidth={1.5} />
           </button>
         </div>
@@ -136,7 +136,7 @@ function FeedItem({ post }) {
         <button
           type="button"
           onClick={toggleBookmark}
-          className={`text-gray-700 transition-colors hover:text-yellow-500 ${bookmarked ? "text-yellow-500" : ""}`}
+          className={`text-gray-700 transition-colors hover:text-yellow-500 dark:text-slate-300 ${bookmarked ? "text-yellow-500" : ""}`}
           aria-label="북마크"
         >
           <Bookmark size={24} fill={bookmarked ? "currentColor" : "none"} strokeWidth={1.5} />
@@ -144,7 +144,7 @@ function FeedItem({ post }) {
       </div>
 
       <div className="px-5 pt-2">
-        <p className="text-sm font-semibold text-gray-900">좋아요 {likeCount}개</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">좋아요 {likeCount}개</p>
         <div className="mt-2 flex gap-2 text-xs font-medium text-blue-600">
           {[location, category].map((tag) => (
             <span key={tag}>#{String(tag).replace(/\s/g, "")}</span>
@@ -153,18 +153,18 @@ function FeedItem({ post }) {
       </div>
 
       <div className="p-7">
-        <h4 className="text-lg font-bold leading-6 text-gray-900">{post.title}</h4>
-        <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600">
+        <h4 className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100">{post.title}</h4>
+        <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600 dark:text-slate-300">
           {post.content || "내용 미리보기가 없습니다."}
         </p>
 
-        <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50 p-3">
+        <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50 p-3 dark:border-teal-900/60 dark:bg-teal-950/30">
           <button type="button" onClick={() => setShowSummary((open) => !open)} className="flex w-full items-center gap-2 text-left">
             <Sparkles size={14} className="text-teal-600" />
             <span className="text-xs font-semibold text-teal-700">AI Summary</span>
-            <span className="ml-auto text-xs text-gray-500">{showSummary ? "접기" : "보기"}</span>
+            <span className="ml-auto text-xs text-gray-500 dark:text-slate-400">{showSummary ? "접기" : "보기"}</span>
           </button>
-          {showSummary && <p className="mt-2 text-xs leading-5 text-gray-700">{summary}</p>}
+          {showSummary && <p className="mt-2 text-xs leading-5 text-gray-700 dark:text-slate-300">{summary}</p>}
         </div>
       </div>
     </article>
@@ -194,13 +194,13 @@ export default function FeedCard({ selectedRegion }) {
   });
   const displayPosts = visiblePosts.length > 0 ? visiblePosts : posts;
 
-  if (loading) return <div className="py-10 text-center text-gray-500">피드를 불러오는 중입니다.</div>;
+  if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">피드를 불러오는 중입니다.</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
 
   if (posts.length === 0) {
     return (
-      <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md">
-        <p className="mb-4 text-gray-500">아직 등록된 글이 없습니다.</p>
+      <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <p className="mb-4 text-gray-500 dark:text-slate-400">아직 등록된 글이 없습니다.</p>
         <button
           type="button"
           onClick={() => navigate("/write")}
@@ -218,7 +218,7 @@ export default function FeedCard({ selectedRegion }) {
       {displayPosts.map((post) => (
         <FeedItem key={post.id} post={post} />
       ))}
-      <div className="py-8 text-center text-sm text-gray-500">모든 게시물을 불러왔습니다.</div>
+      <div className="py-8 text-center text-sm text-gray-500 dark:text-slate-400">모든 게시물을 불러왔습니다.</div>
     </div>
   );
 }

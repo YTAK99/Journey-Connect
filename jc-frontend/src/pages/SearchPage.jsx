@@ -57,27 +57,27 @@ export default function SearchPage() {
   }, [keyword, posts, selectedRegion]);
 
   return (
-    <main className="min-h-screen bg-sky-50">
-      <div className="pt-24 pb-6">
-        <section className="mx-auto max-w-screen-xl space-y-4 bg-white px-6 py-5">
+    <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
+      <div className="pt-20 pb-4">
+        <section className="mx-auto max-w-screen-xl space-y-2 bg-white px-6 py-3 dark:bg-slate-900">
           <LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />
         </section>
 
-        <section className="mx-auto max-w-screen-xl px-4 py-4">
+        <section className="mx-auto max-w-screen-xl px-4 py-3">
           <div className="mb-4 flex flex-col gap-1">
-            <h1 className="text-xl font-bold text-gray-900">탐색</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">탐색</h1>
             {keyword && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 헤더 검색어: <span className="font-medium text-teal-700">{searchParams.get("q")}</span>
               </p>
             )}
           </div>
 
           {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-          {loading && <p className="py-10 text-center text-gray-500">탐색 카드를 불러오는 중입니다.</p>}
+          {loading && <p className="py-10 text-center text-gray-500 dark:text-slate-400">탐색 카드를 불러오는 중입니다.</p>}
 
           {!loading && (
-            <div className="grid grid-cols-1 gap-4 border-b border-gray-100 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 border-b border-gray-100 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-3">
               {filteredPosts.map((post) => (
                 <PostCard key={post.id} post={post} setPosts={setPosts} />
               ))}
@@ -85,7 +85,7 @@ export default function SearchPage() {
           )}
 
           {!loading && filteredPosts.length === 0 && (
-            <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
+            <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
               선택한 지역에 맞는 탐색 결과가 없습니다.
             </p>
           )}
