@@ -41,6 +41,7 @@ export default function App() {
                     <Route path="/feedpage" element={<FeedPage />} />
                     <Route path="/searchpage" element={<SearchPage />} />
                     <Route path="/mypage" element={<MyPage />} />
+
                     <Route path="/write" element={<WritePost />} />
                     <Route path="/write/:id" element={<WritePost />} />
                     <Route path="/myposts" element={<MyPosts />} />

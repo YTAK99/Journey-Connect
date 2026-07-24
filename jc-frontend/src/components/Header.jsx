@@ -14,34 +14,15 @@ export default function Header() {
 
                 {/* 오른쪽 버튼 영역 (사용자 메뉴 + 햄버거 버튼) - 맨 오른쪽 유지 (md:order-3) */}
                 <div className="flex items-center md:order-3 space-x-3">
+                    <Link to="/mypage"
+                          className="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-300 overflow-hidden">
+                        <img className="w-8 h-8 rounded-full" src="user_1.jpg" alt="사용자 프로필" />
+                    </Link>
                     <button
                         type="button"
                         className="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-300"
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    >
-                        <img className="w-8 h-8 rounded-full" src="user_1.jpg" alt="사용자 프로필" />
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
                     </button>
-
-                    {/*/!* 사용자 드롭다운 메뉴 (전체 포함) *!/*/}
-                    {/*{isDropdownOpen && (*/}
-                    {/*    <div className="absolute top-16 right-4 z-50 bg-white border border-gray-100 rounded-lg shadow-lg w-44">*/}
-                    {/*        <div className="px-4 py-3 text-sm border-b border-gray-100">*/}
-                    {/*            <span className="block font-medium">userNickName</span>*/}
-                    {/*            <span className="block truncate text-gray-500">user@MBC.co.kr</span>*/}
-                    {/*        </div>*/}
-                    {/*        <ul className="p-2 text-sm text-gray-700">*/}
-                    {/*            <li><Link to="/mypage" className="block p-2 hover:bg-gray-100 rounded"*/}
-                    {/*                      onClick={() => setIsDropdownOpen(false)}>마이페이지*/}
-                    {/*            </Link>*/}
-                    {/*            <li><Link to="/language" className="block p-2 hover:bg-gray-100 rounded"*/}
-                    {/*                      onClick={() => setIsDropdownOpen(false)}>언어*/}
-                    {/*            </Link>*/}
-                    {/*            <li><Link to="/logout" className="block p-2 hover:bg-gray-100 rounded"*/}
-                    {/*                        onClick={() => setIsDropdownOpen(false)}>로그아웃*/}
-                    {/*            </Link></li>*/}
-                    {/*        </ul>*/}
-                    {/*    </div>*/}
-                    {/*)}*/}
 
                     {/* 모바일용 햄버거 버튼 */}
                     <button

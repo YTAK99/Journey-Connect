@@ -1,17 +1,5 @@
 import { useState } from "react";
-import {
-  User,
-  Heart,
-  Map,
-  FileText,
-  Settings,
-  Globe,
-  Moon,
-  Bell,
-  LogOut,
-  X,
-  Camera,
-} from "lucide-react";
+import { User, Heart, Map, FileText, Settings, Globe, Moon, Bell, LogOut, X, Camera } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../services/auth";
 import { getUser } from "../services/auth";
