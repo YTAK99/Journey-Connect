@@ -258,10 +258,11 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
 
   return (
     <>
-      <div className="border-b border-gray-100 px-4 py-4 dark:border-slate-800">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      {/* 날씨·비행 정보 로직은 그대로 두고 지역 요약 영역의 세로 간격만 줄입니다. */}
+      <div className="border-b border-gray-100 px-4 py-3 dark:border-slate-800">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
               <div>
                 <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-slate-100">
                   <MapPin size={18} className="text-teal-600" />
@@ -285,13 +286,13 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
               </div>
             </div>
 
-            <div className="mt-2 flex flex-col gap-1.5 text-xs text-gray-600 dark:text-slate-300 sm:flex-row sm:flex-wrap">
-              <span className="inline-flex w-full items-center gap-1.5 rounded-md bg-yellow-50 px-2.5 py-1.5 dark:bg-yellow-950/30 sm:w-auto">
+            <div className="mt-1.5 flex flex-col gap-1 text-xs text-gray-600 dark:text-slate-300 sm:flex-row sm:flex-wrap">
+              <span className="inline-flex w-full items-center gap-1.5 rounded-md bg-yellow-50 px-2.5 py-1 dark:bg-yellow-950/30 sm:w-auto">
                 <Sun size={15} className="shrink-0 text-yellow-500" />
                 <span className="font-medium text-gray-800 dark:text-slate-100">{display.temperature}C</span>
                 <span className="text-gray-500 dark:text-slate-300">{display.condition}</span>
               </span>
-              <span className="inline-flex w-full items-center gap-1.5 rounded-md bg-sky-50 px-2.5 py-1.5 text-sky-700 dark:bg-sky-950/40 dark:text-sky-200 sm:w-auto">
+              <span className="inline-flex w-full items-center gap-1.5 rounded-md bg-sky-50 px-2.5 py-1 text-sky-700 dark:bg-sky-950/40 dark:text-sky-200 sm:w-auto">
                 <Plane size={15} className="shrink-0" />
                 <span className="font-medium">
                   {currentLang === "ko" ? `${display.flightOrigin} 기준 ${display.flightTime}` : `${display.flightTime} from ${display.flightOrigin}`}

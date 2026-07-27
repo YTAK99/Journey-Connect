@@ -158,7 +158,8 @@ export default function Header() {
 
   return (
     <nav className="fixed start-0 top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
-      <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between p-4">
+      {/* 고정 헤더의 세로 패딩만 줄여 모든 기능을 유지하면서 화면 점유 높이를 낮춥니다. */}
+      <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between px-4 py-3">
         <Link to="/feed" className="self-center whitespace-nowrap text-xl font-semibold text-gray-900 dark:text-slate-50">
           JC
         </Link>

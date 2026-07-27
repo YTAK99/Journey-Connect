@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Send, Sparkles } from "lucide-react";
+import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, getFeed, getFeedItems, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
@@ -38,7 +38,7 @@ const getRelativeDate = (createdAt) => {
 };
 
 function FeedItem({ post }) {
-  // 게시물 한 건의 작성자·본문·반응 정보를 카드로 표현하고 낙관적 반응 상태를 관리합니다.
+  // 게시물 한 건의 작성자·본문·반응 정보를 카드로 표현하고 좋아요·북마크 상태를 관리합니다.
   const navigate = useNavigate();
   const [liked, setLiked] = useState(Boolean(post.liked));
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
@@ -128,9 +128,6 @@ function FeedItem({ post }) {
           </button>
           <button type="button" className="flex items-center gap-1 text-gray-700 transition-colors hover:text-blue-500 dark:text-slate-300">
             <MessageCircle size={24} strokeWidth={1.5} />
-          </button>
-          <button type="button" className="text-gray-700 transition-colors hover:text-teal-600 dark:text-slate-300">
-            <Send size={23} strokeWidth={1.5} />
           </button>
         </div>
 

@@ -12,8 +12,9 @@ export default function FeedPage() {
 
   return (
     <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
-      <div className="pt-20 pb-4">
-        <section className="mx-auto max-w-screen-xl space-y-2 bg-white px-6 py-3 dark:bg-slate-900">
+      <div className="pb-4 pt-20">
+        {/* 고정 헤더와 지역 영역 사이의 여백은 유지하고, 카드 내부의 세로 간격만 줄입니다. */}
+        <section className="mx-auto max-w-screen-xl space-y-1 bg-white px-6 py-2 dark:bg-slate-900">
           <LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />
           <StoryList />
         </section>

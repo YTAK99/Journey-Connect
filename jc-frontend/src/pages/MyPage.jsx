@@ -1,15 +1,11 @@
 import { useState } from "react";
-import { Bell, Camera, FileText, Heart, LogOut, Map, Moon, Settings, User, X } from "lucide-react";
+import { Camera, FileText, Heart, LogOut, Map, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { getUser, logout } from "../services/auth";
 
-function MenuItem({ icon, title, dark }) {
+function MenuItem({ icon, title }) {
   return (
-    <div
-      className={`flex cursor-pointer items-center gap-4 rounded-lg p-5 shadow-sm transition hover:shadow ${
-        dark ? "bg-slate-800" : "bg-card"
-      }`}
-    >
+    <div className="flex cursor-pointer items-center gap-4 rounded-lg bg-card p-5 shadow-sm transition hover:shadow dark:bg-slate-800">
       {icon}
       <span className="font-semibold text-title">{title}</span>
     </div>
@@ -17,12 +13,9 @@ function MenuItem({ icon, title, dark }) {
 }
 
 function MyPage() {
-  // 저장된 로그인 사용자 정보를 프로필 화면에 반영하고 로컬 미리보기·테마 설정을 제공합니다.
+  // 저장된 로그인 사용자 정보를 프로필 화면에 반영하고 로컬 프로필 미리보기를 제공합니다.
   const navigate = useNavigate();
   const loginUser = getUser();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [alarm, setAlarm] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [user, setUser] = useState({
     name: loginUser?.nickname || loginUser?.email || "사용자",
@@ -50,7 +43,7 @@ function MyPage() {
   };
 
   return (
-    <main className={`min-h-screen pt-20 ${darkMode ? "bg-slate-900 text-white" : "bg-background text-text"}`}>
+    <main className="min-h-screen bg-background pt-20 text-text dark:bg-slate-900 dark:text-white">
       <div className="flex items-center justify-between p-8">
         <h1 className="text-3xl font-bold text-title">마이페이지</h1>
         <button
@@ -63,7 +56,7 @@ function MyPage() {
         </button>
       </div>
 
-      <section className={`mx-8 rounded-lg p-8 shadow-sm ${darkMode ? "bg-slate-800" : "bg-card"}`}>
+      <section className="mx-8 rounded-lg bg-card p-8 shadow-sm dark:bg-slate-800">
         <div className="flex items-center gap-6">
           <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-primary">
             {user.image ? (
@@ -87,51 +80,16 @@ function MyPage() {
       </section>
 
       <section className="mx-8 mt-8 flex flex-col gap-5">
+        {/* 설정은 공통 헤더에서 관리하므로 마이페이지에는 콘텐츠 메뉴만 노출합니다. */}
         <Link to="/write">
-          <MenuItem icon={<FileText />} title="글 작성" dark={darkMode} />
+          <MenuItem icon={<FileText />} title="글 작성" />
         </Link>
         <Link to="/my-posts">
-          <MenuItem icon={<FileText />} title="내가 작성한 글" dark={darkMode} />
+          <MenuItem icon={<FileText />} title="내가 작성한 글" />
         </Link>
-        <MenuItem icon={<Heart />} title="찜한 여행" dark={darkMode} />
-        <MenuItem icon={<Map />} title="내 여행 지도" dark={darkMode} />
-        <div onClick={() => setSettingsOpen(true)}>
-          <MenuItem icon={<Settings />} title="설정" dark={darkMode} />
-        </div>
+        <MenuItem icon={<Heart />} title="찜한 여행" />
+        <MenuItem icon={<Map />} title="내 여행 지도" />
       </section>
-
-      {settingsOpen && <div className="fixed inset-0 bg-black/40" onClick={() => setSettingsOpen(false)} />}
-
-      <aside
-        className={`fixed right-0 top-0 z-50 h-screen w-96 max-w-full shadow-2xl transition-transform duration-300 ${
-          darkMode ? "bg-slate-900 text-white" : "bg-card text-text"
-        } ${settingsOpen ? "translate-x-0" : "translate-x-full"}`}
-      >
-        <div className="flex items-center justify-between border-b p-6">
-          <h2 className="text-2xl font-bold">설정</h2>
-          <button type="button" onClick={() => setSettingsOpen(false)} aria-label="닫기">
-            <X />
-          </button>
-        </div>
-
-        <div className="space-y-8 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Moon />
-              다크모드
-            </div>
-            <input type="checkbox" checked={darkMode} onChange={() => setDarkMode((value) => !value)} />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Bell />
-              알림
-            </div>
-            <input type="checkbox" checked={alarm} onChange={() => setAlarm((value) => !value)} />
-          </div>
-        </div>
-      </aside>
 
       {editOpen && (
         <>
