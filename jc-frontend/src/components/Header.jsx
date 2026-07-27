@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom'
+import { Settings } from 'lucide-react';
+import SettingsSidebar from './settingsSidebar';
 
 export default function Header() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false); //사이드바(설정) 열림/닫힘
 
     return (
         <nav className="bg-white fixed w-full z-20 top-0 start-0 border-b border-gray-200">
@@ -18,18 +20,20 @@ export default function Header() {
                           className="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-300 overflow-hidden">
                         <img className="w-8 h-8 rounded-full" src="user_1.jpg" alt="사용자 프로필" />
                     </Link>
+                    {/*사이드바 (설정)버튼*/}
                     <button
                         type="button"
-                        className="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-300"
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="p-2 text-gray-600 rounded-lg hover:bg-gray-100 transition flex items-center justify-center"
+                        title="설정">
+                        <Settings size={22}/>
                     </button>
 
                     {/* 모바일용 햄버거 버튼 */}
                     <button
                         type="button"
                         className="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200"
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    >
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}>
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeWidth="2" d="M5 7h14M5 12h14M5 17h14"/>
                         </svg>
@@ -61,7 +65,13 @@ export default function Header() {
                         <input type="text" className="block w-full ps-10 p-2 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500" placeholder="Search..." />
                     </div>
                 </div>
+
             </div>
+            <SettingsSidebar
+                open={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                onclose={() => setIsSidebarOpen(false)}
+            />
         </nav>
     );
 }

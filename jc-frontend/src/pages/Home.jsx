@@ -1,4 +1,4 @@
-import HomeSearchBar from '../components/HomeSearchBar';
+// import HomeSearchBar from '../components/HomeSearchBar';
 import { Link } from "react-router-dom";
 
 export default function Home() {
@@ -21,16 +21,16 @@ export default function Home() {
                     </h1>
                 </div>
 
-                {/* 2. 검색창 (문구와 버튼 사이) */}
-                <div className="w-full max-w-md mb-8">
-                    <HomeSearchBar/>
-                </div>
+                {/*/!* 2. 검색창 (문구와 버튼 사이) *!/*/}
+                {/*<div className="w-full max-w-md mb-8">*/}
+                {/*    <HomeSearchBar/>*/}
+                {/*</div>*/}
 
                 {/* 3. 시작하러 가기 버튼 */}
                 <Link
                     to="/login"
                     className="px-8 py-4 text-base md:text-lg font-bold text-white bg-blue-600 rounded-xl shadow-xl hover:bg-blue-700 hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300">
-                    click me
+                    여행 하러 가기
                 </Link>
             </div>
         </div>

@@ -7,7 +7,7 @@ export default function SearchPage() {
         <div className="min-h-screen bg-sky-50">
             <Header />
 
-            <div className="pt-24 pb-6">
+            <div className="pt-20 pb-6">
 
                 <div className="max-w-screen-xl mx-auto px-6 py-5 bg-white border-gray-100 space-y-4">
                     <LocationWeather />

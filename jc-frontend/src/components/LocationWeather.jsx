@@ -23,7 +23,7 @@ export default function LocationWeather() {
     };
 
     return (
-        <div className="max-w-screen-xl mx-auto px-4 py-4 flex items-center justify-between border-b border-gray-100">
+        <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between border-b border-gray-100">
             {/* 왼쪽 영역: 국가/도시, 실시간 시각, 날씨 정보 */}
             <div className="flex items-center space-x-4">
                 {/* 지역 이름 */}

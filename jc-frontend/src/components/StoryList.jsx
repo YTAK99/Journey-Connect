@@ -12,7 +12,7 @@ export default function StoryList() {
 
     return (
         <div className="w-full py-2">
-            <div className="flex items-center space-x-6 overflow-x-auto scrollbar-hide py-2">
+            <div className="flex items-center space-x-6 overflow-x-auto scrollbar-hide py-1">
 
                 {/* 1. 스토리 올리기 버튼 */}
                 <div className="flex flex-col items-center cursor-pointer flex-shrink-0 group">
