@@ -25,7 +25,7 @@ import java.util.List;
  *
  * <p>공개 게시물과 비공개 게시물의 구분은 서비스 계층에서 처리하고, 이 엔티티는 저장된 상태를 표현합니다.
  */
-@Entity
+@Entity // 게시물 객체를 journey_post 테이블의 행으로 관리합니다.
 @Table(
         name = "journey_post",
         indexes = {

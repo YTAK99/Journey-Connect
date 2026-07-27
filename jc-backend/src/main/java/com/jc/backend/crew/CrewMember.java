@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 
+/** 크루별 사용자 참가 상태와 승인 이력을 표현합니다. */
 @Entity
 @Table(
         name = "crew_member",
@@ -28,7 +29,7 @@ public class CrewMember extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) // 접근할 때 관계를 조회해 불필요한 조인을 줄입니다.
     @JoinColumn(name = "crew_id", nullable = false)
     private Crew crew;
 

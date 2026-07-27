@@ -54,6 +54,7 @@ const matchesRegion = (item, region) => {
 };
 
 export default function CrewPage() {
+  // 서버 목록을 우선 사용하되 개발 중 API 장애 시에도 레이아웃을 확인할 수 있도록 예시 목록을 유지합니다.
   const [searchParams] = useSearchParams();
   const { selectedRegion, setSelectedRegion } = useRegionStore();
   const [crews, setCrews] = useState([]);
@@ -96,6 +97,7 @@ export default function CrewPage() {
   }, [crews, keyword, selectedRegion]);
 
   const handleJoin = async (crew) => {
+    // 승인형 크루는 신청 상태가 되고, 즉시 참가형 크루는 바로 승인될 수 있습니다.
     if (String(crew.id).startsWith("sample-")) {
       setJoined((current) => (current.includes(crew.id) ? current.filter((id) => id !== crew.id) : [...current, crew.id]));
       return;

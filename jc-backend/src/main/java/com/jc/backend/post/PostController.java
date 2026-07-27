@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-@Validated
+/** 피드·탐색·게시물·좋아요·북마크·댓글 요청을 담당하는 게시물 API 진입점입니다. */
+@Validated // @RequestParam의 @Min/@Max 같은 메서드 파라미터 제약을 활성화합니다.
 @RestController
 @RequestMapping("/api/v1")
 public class PostController {
@@ -37,6 +38,7 @@ public class PostController {
     @GetMapping("/feed")
     ApiResponse<CursorPageResponse<PostDtos.Summary>> feed(
             @RequestParam(required = false) String cursor,
+            // 클라이언트가 과도한 건수를 요청하지 못하도록 1~100 범위에서 검증합니다.
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return ApiResponse.ok(postService.feed(cursor, size));
     }

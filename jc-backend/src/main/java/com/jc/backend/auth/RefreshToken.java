@@ -20,7 +20,7 @@ import java.time.Instant;
  *
  * <p>원문 토큰은 저장하지 않고 해시만 보관하며, revokedAt이 설정된 토큰은 더 이상 사용할 수 없습니다.
  */
-@Entity
+@Entity // 이 클래스를 JPA가 refresh_token 테이블과 연결해 영속화합니다.
 @Table(
         name = "refresh_token",
         uniqueConstraints = @UniqueConstraint(name = "uk_refresh_token_hash", columnNames = "token_hash"),

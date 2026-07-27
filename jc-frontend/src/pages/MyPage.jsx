@@ -17,6 +17,7 @@ function MenuItem({ icon, title, dark }) {
 }
 
 function MyPage() {
+  // 저장된 로그인 사용자 정보를 프로필 화면에 반영하고 로컬 미리보기·테마 설정을 제공합니다.
   const navigate = useNavigate();
   const loginUser = getUser();
   const [settingsOpen, setSettingsOpen] = useState(false);

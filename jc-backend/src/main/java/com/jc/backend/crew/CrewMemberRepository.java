@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/** 참가 상태 확인과 크루별 승인 인원 집계를 담당하는 JPA 저장소입니다. */
 public interface CrewMemberRepository extends JpaRepository<CrewMember, Long> {
 
     Optional<CrewMember> findByCrewIdAndUserId(Long crewId, Long userId);
@@ -21,6 +22,7 @@ public interface CrewMemberRepository extends JpaRepository<CrewMember, Long> {
 
     long countByCrewIdAndStatusIn(Long crewId, Collection<CrewMemberStatus> statuses);
 
+    // 인터페이스 프로젝션으로 크루별 집계값만 받아 엔티티 전체 로딩을 피합니다.
     @Query("""
             select m.crew.id as crewId, count(m.id) as total
             from CrewMember m
@@ -32,7 +34,7 @@ public interface CrewMemberRepository extends JpaRepository<CrewMember, Long> {
             @Param("crewIds") List<Long> crewIds,
             @Param("statuses") Collection<CrewMemberStatus> statuses);
 
-    @EntityGraph(attributePaths = {"crew", "user", "reviewedBy"})
+    @EntityGraph(attributePaths = {"crew", "user", "reviewedBy"}) // 응답 변환에 필요한 관계를 한 번에 로딩합니다.
     Page<CrewMember> findByCrewIdAndStatusOrderByCreatedAtAsc(
             Long crewId,
             CrewMemberStatus status,

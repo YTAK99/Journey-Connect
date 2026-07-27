@@ -16,6 +16,7 @@ const languageOptions = [
 ];
 
 const getInitialDarkMode = () => {
+  // 저장된 사용자 선택을 우선하고, 없으면 운영체제의 다크 모드 설정을 따릅니다.
   const saved = localStorage.getItem("theme");
   if (saved) return saved === "dark";
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
@@ -87,6 +88,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
 }
 
 export default function Header() {
+  // 전역 내비게이션과 검색, 언어·테마·로그인 메뉴를 묶어 모든 주요 화면에서 공유합니다.
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -98,6 +100,7 @@ export default function Header() {
   const { currentLang, setLang } = useLangStore();
 
   useEffect(() => {
+    // Tailwind의 dark 변형이 동작하도록 루트 요소 클래스와 저장값을 함께 갱신합니다.
     document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", isDark ? "dark" : "light");
   }, [isDark]);

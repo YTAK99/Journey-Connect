@@ -10,6 +10,7 @@ import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
 
 function WritePost() {
+  // URL에 게시물 id가 있으면 수정 모드, 없으면 새 글 작성 모드로 같은 폼을 재사용합니다.
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
@@ -26,6 +27,7 @@ function WritePost() {
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
 
   useEffect(() => {
+    // 쓰기 화면은 인증이 필요하며, 수정 모드에서는 기존 값을 먼저 폼에 채웁니다.
     if (!isLogin()) {
       alert("로그인이 필요합니다.");
       navigate("/login", { replace: true });
@@ -77,6 +79,7 @@ function WritePost() {
       startDate || endDate ? `\n\n여행 기간: ${startDate || "미정"} ~ ${endDate || "미정"}` : "";
 
     const trimmedImageUrl = imageUrl.trim();
+    // 화면의 날짜 입력은 아직 별도 API 필드가 없어 본문에 합치고, 이미지는 대표/목록 형식으로 맞춥니다.
     const request = {
       title: title.trim(),
       content: `${content.trim()}${dateText}`,

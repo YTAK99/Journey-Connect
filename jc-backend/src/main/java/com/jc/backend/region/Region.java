@@ -16,7 +16,7 @@ import org.locationtech.jts.geom.Point;
  *
  * <p>PostGIS Point 타입의 중심 좌표를 함께 보관해 지도 기반 검색과 지역 필터링에 사용할 수 있습니다.
  */
-@Entity
+@Entity // 애플리케이션 지역 코드와 좌표를 region 테이블에 매핑합니다.
 @Table(
         name = "region",
         uniqueConstraints = @UniqueConstraint(name = "uk_region_code", columnNames = "code"),

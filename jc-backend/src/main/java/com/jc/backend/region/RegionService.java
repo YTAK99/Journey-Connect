@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 지역 코드 해석과 PostGIS 기반 주변 지역 검색 규칙을 담당합니다. */
 @Service
 @Transactional(readOnly = true)
 public class RegionService {
@@ -36,6 +37,7 @@ public class RegionService {
                     "검색 반경은 0km 초과 500km 이하여야 합니다.");
         }
         int safeLimit = Math.min(Math.max(limit, 1), 100);
+        // 저장소 쿼리는 미터 단위를 사용하므로 API의 km 입력을 변환합니다.
         return regions.findNearby(latitude, longitude, radiusKm * 1000, safeLimit)
                 .stream()
                 .map(this::view)

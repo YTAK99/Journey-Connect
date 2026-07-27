@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/** 엔티티를 직접 노출하지 않고 크루 API에 필요한 입력·출력 필드만 정의합니다. */
 public final class CrewDtos {
 
     private CrewDtos() {}

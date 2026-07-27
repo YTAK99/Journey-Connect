@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 지역 검색과 좌표 기반 주변 지역 조회를 제공하는 읽기 전용 API입니다. */
 @Validated
 @RestController
 @RequestMapping("/api/v1/regions")

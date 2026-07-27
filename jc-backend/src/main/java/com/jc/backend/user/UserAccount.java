@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+/** 인증 주체와 공개 프로필 정보를 함께 보관하는 사용자 엔티티입니다. */
 @Entity
 @Table(
         name = "user_account",

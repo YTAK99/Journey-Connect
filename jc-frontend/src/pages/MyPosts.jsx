@@ -6,6 +6,7 @@ import { isLogin } from "../services/auth";
 import { getFeedItems } from "../services/postApi";
 
 function MyPosts() {
+  // 현재 사용자 id로 공개 게시물을 조회하고, 카드에 작성자용 편집 기능을 활성화합니다.
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);

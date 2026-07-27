@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+/** 사용자별 저장 게시물을 나타내며 같은 게시물의 중복 북마크를 허용하지 않습니다. */
 @Entity
 @Table(
         name = "bookmark",

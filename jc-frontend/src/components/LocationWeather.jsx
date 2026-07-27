@@ -42,6 +42,7 @@ const createCustomRegion = (name, summary = null) => ({
 });
 
 export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
+  // 고정 지역 목록과 Google 자동완성 결과를 하나의 선택 UI로 합칩니다.
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
@@ -181,6 +182,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
 }
 
 export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionChange = () => {} }) {
+  // 선택 지역이 바뀔 때 장소·날씨·현지 시각·예상 비행 정보를 백엔드에서 묶어 조회합니다.
   const { currentLang } = useLangStore();
   const [tick, setTick] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);

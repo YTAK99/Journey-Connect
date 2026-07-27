@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 멤버 상태 검증을 함께 사용해 경쟁 조건을 줄입니다.
  */
 @Service
-@Transactional(readOnly = true)
+@Transactional(readOnly = true) // 목록·상세는 읽기 최적화하고 상태 변경 메서드에서만 쓰기를 허용합니다.
 public class CrewService {
 
     private static final Collection<CrewMemberStatus> ACTIVE_STATUSES =
@@ -92,6 +92,7 @@ public class CrewService {
      */
     @Transactional
     public CrewDtos.ApplicationView join(Long userId, Long crewId) {
+        // 크루 행 잠금 뒤 정원을 다시 세어 동시 신청이 capacity를 넘지 않게 합니다.
         Crew crew = lockedCrew(crewId);
         ensureRecruiting(crew);
         UserAccount applicant = user(userId);

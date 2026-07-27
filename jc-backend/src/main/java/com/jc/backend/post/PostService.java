@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 권한이 없는 비공개 게시물은 존재 여부를 노출하지 않도록 404로 처리합니다.
  */
 @Service
-@Transactional(readOnly = true)
+@Transactional(readOnly = true) // 서비스 기본은 조회 전용이며 생성·수정 메서드가 개별적으로 덮어씁니다.
 public class PostService {
 
     private final JourneyPostRepository posts;
@@ -147,6 +147,7 @@ public class PostService {
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void like(Long userId, Long postId) {
+        // 중복 삽입 충돌만 독립 트랜잭션에서 처리하도록 바깥 트랜잭션을 만들지 않습니다.
         publishedPost(postId);
         user(userId);
         try {
@@ -168,6 +169,7 @@ public class PostService {
      */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void bookmark(Long userId, Long postId) {
+        // 좋아요와 같은 멱등 처리 전략을 사용해 이미 존재하는 북마크도 성공으로 간주합니다.
         publishedPost(postId);
         user(userId);
         try {

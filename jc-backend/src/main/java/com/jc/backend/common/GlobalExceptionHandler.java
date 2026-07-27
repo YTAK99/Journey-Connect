@@ -17,7 +17,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** API 계층에서 예상 가능한 예외를 하나의 JSON 형식으로 변환합니다. */
-@RestControllerAdvice
+@RestControllerAdvice // 모든 REST 컨트롤러 예외를 가로채 공통 JSON 오류 형식으로 변환합니다.
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(DomainException.class)
@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorResponse.of(exception.getCode(), exception.getMessage()));
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ExceptionHandler(MethodArgumentNotValidException.class) // @Valid 요청 본문의 필드 오류를 처리합니다.
     ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
         Map<String, String> fields = new LinkedHashMap<>();
         for (FieldError error : exception.getBindingResult().getFieldErrors()) {
@@ -37,7 +37,7 @@ public class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(ConstraintViolationException.class)
+    @ExceptionHandler(ConstraintViolationException.class) // @Validated 메서드 파라미터 오류를 처리합니다.
     ResponseEntity<ApiErrorResponse> handleConstraintViolation(ConstraintViolationException exception) {
         Map<String, String> fields = new LinkedHashMap<>();
         exception.getConstraintViolations().forEach(violation ->

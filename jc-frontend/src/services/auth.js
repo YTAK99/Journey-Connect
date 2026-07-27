@@ -1,5 +1,6 @@
 import apiClient, { unwrapApiResponse } from "./apiClient";
 
+// 인증 성공 응답을 한 번에 저장해 이후 API 요청과 화면의 사용자 표시에 함께 사용합니다.
 const saveAuth = (tokenResponse) => {
   localStorage.setItem("accessToken", tokenResponse.accessToken);
   localStorage.setItem("refreshToken", tokenResponse.refreshToken);
@@ -31,6 +32,7 @@ export const logout = async () => {
   const refreshToken = localStorage.getItem("refreshToken");
 
   try {
+    // 서버에는 리프레시 토큰 폐기를 요청하고, 실패하더라도 로컬 로그인 정보는 반드시 지웁니다.
     if (refreshToken) {
       await apiClient.post("/auth/logout", { refreshToken });
     }

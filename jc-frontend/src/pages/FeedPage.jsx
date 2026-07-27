@@ -5,6 +5,7 @@ import useRegionStore from "../store/useRegionStore";
 import { useSearchParams } from "react-router-dom";
 
 export default function FeedPage() {
+  // 헤더 검색어와 전역 선택 지역을 날씨·스토리·피드 영역에 내려주는 조합 페이지입니다.
   const [searchParams] = useSearchParams();
   const { selectedRegion, setSelectedRegion } = useRegionStore();
   const keyword = (searchParams.get("q") || "").trim();

@@ -4,6 +4,7 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { signup } from "../services/auth";
 
 function Signup() {
+  // 클라이언트 입력 확인 후 회원가입하며, 성공 응답의 토큰으로 즉시 로그인 상태가 됩니다.
   const navigate = useNavigate();
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");

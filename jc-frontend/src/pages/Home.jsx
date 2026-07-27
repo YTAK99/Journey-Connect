@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 export default function Home() {
+  // 비로그인 사용자의 서비스 진입점으로 검색과 로그인/가입 경로를 안내합니다.
   return (
     <div className="w-screen h-screen bg-[url('/home_img_1.png')] bg-cover bg-center bg-no-repeat relative">
       <div className="absolute inset-0 bg-black/30" />

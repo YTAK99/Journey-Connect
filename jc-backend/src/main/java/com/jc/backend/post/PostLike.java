@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
+/** 사용자와 게시물의 좋아요 관계이며 복합 유니크 제약으로 중복 좋아요를 막습니다. */
 @Entity
 @Table(
         name = "post_like",

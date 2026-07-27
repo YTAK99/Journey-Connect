@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 프론트에 API 키를 노출하지 않고 Google 장소·날씨 정보를 중계하는 REST 진입점입니다. */
 @RestController
 @RequestMapping("/api/v1/google")
 public class GoogleLocationController {

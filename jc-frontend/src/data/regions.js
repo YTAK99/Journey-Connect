@@ -1,5 +1,6 @@
 import { Coffee, Landmark, Mountain, Navigation, ShoppingBag, Star, Utensils, Waves } from "lucide-react";
 
+// 화면 기본 선택지입니다. 백엔드 regionCode와 맞추기 위해 id를 안정적인 지역 코드로 사용합니다.
 export const REGIONS = [
   {
     id: "seoul",
@@ -85,6 +86,7 @@ export const REGIONS = [
 ];
 
 export const getLocalTime = (timezone) => {
+  // 브라우저 위치와 무관하게 선택 지역의 IANA 타임존 기준 시각을 계산합니다.
   try {
     return new Date().toLocaleTimeString("en-US", {
       timeZone: timezone,

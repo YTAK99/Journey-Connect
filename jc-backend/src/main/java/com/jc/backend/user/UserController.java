@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 내 프로필과 사용자별 게시물·북마크 조회를 연결하는 사용자 API입니다. */
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {

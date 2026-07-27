@@ -20,7 +20,7 @@ import java.time.LocalDate;
  *
  * <p>region_id는 실제 식별자로 사용하고, region_name은 기존 응답 호환과 표시용으로 함께 유지합니다.
  */
-@Entity
+@Entity // 크루의 상태와 모집 조건을 crew 테이블에 저장하는 JPA 엔티티입니다.
 @Table(name = "crew", indexes = @Index(name = "idx_crew_region", columnList = "region_id"))
 public class Crew extends BaseTimeEntity {
 

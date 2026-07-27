@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+/** 게시물에 달린 댓글과 작성자 관계를 저장하는 JPA 엔티티입니다. */
 @Entity
 @Table(name = "post_comment", indexes = @Index(name = "idx_comment_post", columnList = "post_id"))
 public class Comment extends BaseTimeEntity {

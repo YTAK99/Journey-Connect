@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 재발급 시점에 회전시키고 사용된 토큰은 즉시 폐기해 재사용을 방지합니다.
  */
 @Service
-@Transactional(readOnly = true)
+@Transactional(readOnly = true) // 조회를 기본값으로 두고 데이터가 바뀌는 메서드만 쓰기 트랜잭션을 엽니다.
 public class AuthService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -92,6 +92,7 @@ public class AuthService {
      */
     @Transactional
     public AuthDtos.TokenResponse refresh(AuthDtos.RefreshRequest request) {
+        // 기존 토큰을 잠금 조회·폐기한 뒤 새 토큰 쌍을 발급하는 회전(rotation) 방식입니다.
         Instant now = Instant.now();
         RefreshToken current = refreshTokens.findByTokenHashForUpdate(hash(request.refreshToken()))
                 .orElseThrow(this::invalidRefreshToken);

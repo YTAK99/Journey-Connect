@@ -38,6 +38,7 @@ const getRelativeDate = (createdAt) => {
 };
 
 function FeedItem({ post }) {
+  // 게시물 한 건의 작성자·본문·반응 정보를 카드로 표현하고 낙관적 반응 상태를 관리합니다.
   const navigate = useNavigate();
   const [liked, setLiked] = useState(Boolean(post.liked));
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
@@ -172,6 +173,7 @@ function FeedItem({ post }) {
 }
 
 export default function FeedCard({ selectedRegion, keyword = "" }) {
+  // 커서 피드를 가져온 뒤 현재 지역과 헤더 검색어에 맞는 카드만 보여줍니다.
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);

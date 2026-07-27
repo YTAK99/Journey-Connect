@@ -8,7 +8,8 @@ import io.swagger.v3.oas.models.security.SecurityScheme
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
-@Configuration
+/** OpenAPI 문서 메타데이터와 Swagger UI의 JWT 인증 입력 방식을 설정합니다. */
+@Configuration // 애플리케이션 시작 시 아래 @Bean 정의를 Spring 컨테이너에 등록합니다.
 class SwaggerConfig {
 
     /** Swagger UI에서 Bearer JWT를 직접 입력해 보호 API를 호출할 수 있도록 설정합니다. */

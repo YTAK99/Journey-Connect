@@ -39,7 +39,7 @@ class SecurityConfig(
 ) {
 
     @Bean
-    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder()
+    fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder() // 비밀번호 원문 대신 단방향 BCrypt 해시를 저장합니다.
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
@@ -100,16 +100,19 @@ class SecurityConfig(
 
     @Bean
     fun jwtEncoder(@Value("\${app.security.jwt-secret}") secret: String): JwtEncoder =
+        // 인증 서비스가 HMAC 서명된 Access Token을 만들 때 사용합니다.
         NimbusJwtEncoder(ImmutableSecret<SecurityContext>(secretKey(secret)))
 
     @Bean
     fun jwtDecoder(@Value("\${app.security.jwt-secret}") secret: String): JwtDecoder =
+        // Resource Server 필터가 Bearer Token의 서명과 만료를 검증할 때 사용합니다.
         NimbusJwtDecoder.withSecretKey(secretKey(secret)).build()
 
     @Bean
     fun corsConfigurationSource(
         @Value("\${app.cors.allowed-origins}") allowedOrigins: List<String>,
     ): CorsConfigurationSource {
+        // 브라우저 프론트가 다른 origin에서 API를 호출할 수 있는 범위를 설정합니다.
         val configuration = CorsConfiguration().apply {
             this.allowedOrigins = allowedOrigins
             allowedMethods = listOf("GET", "POST", "PATCH", "DELETE", "OPTIONS")

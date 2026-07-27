@@ -11,6 +11,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+/** 게시물의 다중 이미지를 표시 순서와 함께 별도 테이블로 관리합니다. */
 @Entity
 @Table(name = "post_image", indexes = @Index(name = "idx_post_image_order", columnList = "post_id, sort_order"))
 public class PostImage {

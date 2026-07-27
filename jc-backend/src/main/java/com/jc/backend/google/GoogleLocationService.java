@@ -16,7 +16,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
-@Service
+/** 장소 검색 결과에 현재 날씨·현지 시각·인천 출발 이동 추정치를 조합합니다. */
+@Service // 비즈니스 로직 컴포넌트로 등록해 컨트롤러가 생성자 주입으로 사용합니다.
 public class GoogleLocationService {
 
     private static final DateTimeFormatter LOCAL_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -38,6 +39,7 @@ public class GoogleLocationService {
     }
 
     public GoogleLocationDtos.LocationSummary lookup(String query, String languageCode) {
+        // 필수 장소를 먼저 찾고, 같은 좌표로 각 부가 정보를 조회해 단일 화면 응답으로 합칩니다.
         if (query == null || query.isBlank()) {
             throw new DomainException(HttpStatus.BAD_REQUEST, "QUERY_REQUIRED", "검색할 지역명을 입력해주세요.");
         }
@@ -96,6 +98,7 @@ public class GoogleLocationService {
     }
 
     private GoogleLocationDtos.Weather tryFindWeather(double latitude, double longitude, String language) {
+        // 날씨 장애만으로 전체 위치 화면이 실패하지 않도록 오류를 weather.error 필드로 낮춥니다.
         try {
             return findWeather(latitude, longitude, language);
         } catch (DomainException exception) {
@@ -156,6 +159,7 @@ public class GoogleLocationService {
     }
 
     private GoogleLocationDtos.FlightEstimate estimateFlight(double latitude, double longitude, String language) {
+        // 실제 항공편 검색이 아니라 대권거리와 평균 속도를 이용한 UI 안내용 근사치입니다.
         double distanceKm = haversineKm(
                 INCHEON_AIRPORT_LATITUDE,
                 INCHEON_AIRPORT_LONGITUDE,

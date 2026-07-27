@@ -15,6 +15,7 @@ export default function SearchPage() {
   const keyword = (searchParams.get("q") || "").trim().toLowerCase();
 
   useEffect(() => {
+    // 화면을 벗어난 뒤 늦게 도착한 응답이 상태를 갱신하지 않도록 active 플래그를 사용합니다.
     let active = true;
 
     const fetchFeed = async () => {
@@ -41,6 +42,7 @@ export default function SearchPage() {
   }, []);
 
   const filteredPosts = useMemo(() => {
+    // 현재 API에는 통합 검색 조건이 제한적이므로 받아온 피드를 지역과 검색어로 한 번 더 거릅니다.
     const regionTerms = [selectedRegion.label.ko, selectedRegion.label.en, selectedRegion.id]
       .filter(Boolean)
       .map((term) => String(term).toLowerCase());

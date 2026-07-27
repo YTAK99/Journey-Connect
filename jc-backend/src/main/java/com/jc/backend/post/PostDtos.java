@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/** 게시물 도메인의 요청 DTO와 목록·상세 응답 DTO를 엔티티에서 분리해 관리합니다. */
 public final class PostDtos {
 
     private PostDtos() {}
@@ -15,6 +16,7 @@ public final class PostDtos {
             @NotBlank @Size(max = 500) String imageUrl,
             @Size(max = 200) String altText) {}
 
+    // List 내부의 @Valid가 각 이미지 URL과 대체 텍스트 제약까지 연쇄 검증합니다.
     public record CreateRequest(
             @NotBlank @Size(max = 120) String title,
             @NotBlank String content,

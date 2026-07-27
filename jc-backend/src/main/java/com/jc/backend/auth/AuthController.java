@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController
+/** 회원가입·로그인·토큰 갱신 등 인증 HTTP 요청을 서비스 계층으로 전달합니다. */
+@RestController // 반환 객체를 JSON 응답 본문으로 직렬화하는 MVC 컨트롤러입니다.
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
@@ -23,7 +24,7 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    @ResponseStatus(HttpStatus.CREATED)
+    @ResponseStatus(HttpStatus.CREATED) // 생성 성공을 기본 200이 아닌 HTTP 201로 표현합니다.
     ApiResponse<AuthDtos.TokenResponse> signup(@Valid @RequestBody AuthDtos.SignupRequest request) {
         return ApiResponse.created(authService.signup(request));
     }

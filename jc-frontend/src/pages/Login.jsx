@@ -4,6 +4,7 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { login } from "../services/auth";
 
 export default function Login() {
+  // 로그인 성공 시 토큰 저장은 auth 서비스에 맡기고 피드 화면으로 이동합니다.
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

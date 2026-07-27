@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 크루 목록·생성·참가 신청·승인 절차를 노출하는 REST 진입점입니다. */
 @RestController
 @RequestMapping("/api/v1/crews")
 public class CrewController {
@@ -42,6 +43,7 @@ public class CrewController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<CrewDtos.View> create(
+            // SecurityConfig가 검증한 JWT를 주입받아 요청 사용자를 별도 파라미터 없이 식별합니다.
             @AuthenticationPrincipal Jwt token,
             @Valid @RequestBody CrewDtos.CreateRequest request) {
         return ApiResponse.created(crewService.create(userId(token), request));

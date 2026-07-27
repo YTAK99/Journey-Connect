@@ -5,6 +5,7 @@ import { getUser } from "../services/auth";
 import { deletePost, getPost } from "../services/postApi";
 
 function PostDetail() {
+  // 경로의 게시물 id로 상세를 조회하고 작성자에게만 수정·삭제 진입점을 제공합니다.
   const { id } = useParams();
   const navigate = useNavigate();
   const [post, setPost] = useState(null);

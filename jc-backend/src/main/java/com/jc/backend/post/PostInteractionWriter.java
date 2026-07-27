@@ -31,7 +31,7 @@ public class PostInteractionWriter {
         this.users = users;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // 유니크 충돌이 바깥 작업을 rollback-only로 만들지 않게 분리합니다.
     public void addLike(Long postId, Long userId) {
         if (likes.existsByPostIdAndUserId(postId, userId)) {
             return;
@@ -41,7 +41,7 @@ public class PostInteractionWriter {
                 users.getReferenceById(userId)));
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // 북마크 삽입도 독립 커밋/롤백 경계를 사용합니다.
     public void addBookmark(Long postId, Long userId) {
         if (bookmarks.existsByPostIdAndUserId(postId, userId)) {
             return;
