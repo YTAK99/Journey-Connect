@@ -4,7 +4,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:journey_db}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD:여기에비밀번호입력}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -22,13 +22,13 @@ server:
 
 app:
   security:
-    jwt-secret: ${JWT_SECRET}
+    jwt-secret: ${JWT_SECRET:journey-connect-local-dev-secret-32bytes}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}
     refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:30}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   google:
-    api-key: ${GOOGLE_API_KEY:}
+    api-key: ${GOOGLE_API_KEY:여기에구글API키입력}
 
 springdoc:
   api-docs:
