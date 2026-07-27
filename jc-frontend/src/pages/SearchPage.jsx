@@ -47,10 +47,7 @@ export default function SearchPage() {
 
     return posts.filter((post) => {
       const searchableRegion = `${post.regionName || ""} ${post.region?.name || ""} ${post.regionCode || ""}`.toLowerCase();
-      const regionMatched = regionTerms.some((term) => searchableRegion.includes(term));
-      if (!regionMatched) return false;
-
-      if (!keyword) return true;
+      if (!keyword) return regionTerms.some((term) => searchableRegion.includes(term));
       const searchable = `${post.title || ""} ${post.content || ""} ${searchableRegion}`.toLowerCase();
       return searchable.includes(keyword);
     });

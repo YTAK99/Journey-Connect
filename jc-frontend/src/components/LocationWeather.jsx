@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock, Loader2, MapPin, Plane, RefreshCw, Search, Sun, X } from "lucide-react";
 import { getLocalTime, REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
-import { getGoogleLocationSummary } from "../services/googleLocationApi";
+import { getGoogleLocationSuggestions, getGoogleLocationSummary } from "../services/googleLocationApi";
 import useLangStore from "../store/useLangStore";
 
 const getLocalDate = (timezone, lang) => {
@@ -24,8 +24,27 @@ const getRegionQuery = (region, lang) => {
   return `${label} ${region.country}`;
 };
 
+const createCustomRegion = (name, summary = null) => ({
+  id: `custom:${(summary?.place?.latitude ?? name)}:${(summary?.place?.longitude ?? name)}`,
+  label: { ko: summary?.place?.name || name, en: summary?.place?.name || name },
+  country: summary?.place?.formattedAddress || "",
+  timezone: summary?.timeZone?.id || "UTC",
+  weather: {
+    temp: Math.round(summary?.weather?.temperatureDegrees ?? 0),
+    conditionKo: summary?.weather?.conditionText || "날씨 정보 확인 중",
+    conditionEn: summary?.weather?.conditionText || "Weather unavailable",
+  },
+  flightTime: {
+    ko: summary?.flight?.label || "이동 시간 확인 중",
+    en: summary?.flight?.label || "Checking travel time",
+  },
+  custom: true,
+});
+
 export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
   const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
   const { currentLang } = useLangStore();
   const filtered = REGIONS.filter((region) => {
     const q = query.toLowerCase();
@@ -38,6 +57,35 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
     onSearch(query.trim());
     onClose();
   };
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
+      return undefined;
+    }
+
+    let active = true;
+    const timer = setTimeout(() => {
+      setSuggestionLoading(true);
+      getGoogleLocationSuggestions(trimmed, currentLang === "ko" ? "ko" : "en")
+        .then((items) => {
+          if (active) setSuggestions(Array.isArray(items) ? items : []);
+        })
+        .catch(() => {
+          if (active) setSuggestions([]);
+        })
+        .finally(() => {
+          if (active) setSuggestionLoading(false);
+        });
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [currentLang, query]);
+
+  const visibleSuggestions = query.trim().length >= 2 ? suggestions : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -69,8 +117,28 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
         </form>
 
         <div className="max-h-72 space-y-1 overflow-y-auto">
+          {visibleSuggestions.map((suggestion) => (
+            <button
+              key={suggestion.placeId}
+              type="button"
+              onClick={() => {
+                onSearch(suggestion.description);
+                onClose();
+              }}
+              className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-slate-800"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-teal-700 dark:bg-slate-800">
+                <MapPin size={17} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-gray-900 dark:text-slate-100">{suggestion.mainText}</span>
+                <span className="block truncate text-xs text-gray-500 dark:text-slate-400">{suggestion.secondaryText}</span>
+              </span>
+            </button>
+          ))}
+          {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500">{currentLang === "ko" ? "지역 추천을 찾는 중..." : "Finding suggestions..."}</p>}
           {filtered.map((region) => {
-            const Icon = region.icon;
+            const Icon = region.icon || MapPin;
             const active = region.id === currentRegion.id;
             return (
               <button
@@ -78,7 +146,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
                 type="button"
                 onClick={() => {
                   onSelect(region);
-                  onSearch(getRegionQuery(region, currentLang));
+                  onSearch(getRegionQuery(region, currentLang), region);
                   onClose();
                 }}
                 className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
@@ -119,6 +187,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   const [request, setRequest] = useState(() => ({
     id: 0,
     query: getRegionQuery(selectedRegion, currentLang),
+    persistDynamic: false,
   }));
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -134,7 +203,10 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
 
     getGoogleLocationSummary(request.query, currentLang === "ko" ? "ko" : "en")
       .then((data) => {
-        if (!ignore) setSummary(data);
+        if (!ignore) {
+          setSummary(data);
+          if (request.persistDynamic) onRegionChange(createCustomRegion(request.query, data));
+        }
       })
       .catch((error) => {
         if (!ignore) {
@@ -149,14 +221,16 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     return () => {
       ignore = true;
     };
-  }, [currentLang, request]);
+  }, [currentLang, onRegionChange, request]);
 
-  const runSearch = (nextQuery) => {
+  const runSearch = (nextQuery, presetRegion = null) => {
     setLoading(true);
     setErrorMessage("");
+    if (!presetRegion) onRegionChange(createCustomRegion(nextQuery));
     setRequest((value) => ({
       id: value.id + 1,
       query: nextQuery,
+      persistDynamic: !presetRegion,
     }));
   };
 

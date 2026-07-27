@@ -10,6 +10,12 @@ public final class GoogleLocationDtos {
             TimeZone timeZone,
             FlightEstimate flight) {}
 
+    public record LocationSuggestion(
+            String placeId,
+            String mainText,
+            String secondaryText,
+            String description) {}
+
     public record Place(
             String name,
             String formattedAddress,

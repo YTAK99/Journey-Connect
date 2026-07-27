@@ -1,6 +1,7 @@
 package com.jc.backend.google;
 
 import com.jc.backend.common.ApiResponse;
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,5 +22,12 @@ public class GoogleLocationController {
             @RequestParam String query,
             @RequestParam(defaultValue = "ko") String languageCode) {
         return ApiResponse.ok(googleLocationService.lookup(query, languageCode));
+    }
+
+    @GetMapping("/location-suggestions")
+    ApiResponse<List<GoogleLocationDtos.LocationSuggestion>> locationSuggestions(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "ko") String languageCode) {
+        return ApiResponse.ok(googleLocationService.suggest(query, languageCode));
     }
 }

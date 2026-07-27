@@ -171,7 +171,7 @@ function FeedItem({ post }) {
   );
 }
 
-export default function FeedCard({ selectedRegion }) {
+export default function FeedCard({ selectedRegion, keyword = "" }) {
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -187,12 +187,14 @@ export default function FeedCard({ selectedRegion }) {
   }, []);
 
   const regionName = selectedRegion?.label?.ko;
+  const normalizedKeyword = keyword.trim().toLowerCase();
   const visiblePosts = posts.filter((post) => {
-    if (!regionName) return true;
     const name = post.regionName || post.region?.name || "";
-    return !name || name.includes(regionName);
+    if (!normalizedKeyword) return !regionName || !name || name.includes(regionName);
+    const searchable = `${post.title || ""} ${post.content || ""} ${name} ${post.category || ""} ${post.author?.nickname || ""}`.toLowerCase();
+    return searchable.includes(normalizedKeyword);
   });
-  const displayPosts = visiblePosts.length > 0 ? visiblePosts : posts;
+  const displayPosts = normalizedKeyword ? visiblePosts : visiblePosts.length > 0 ? visiblePosts : posts;
 
   if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">피드를 불러오는 중입니다.</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
@@ -209,6 +211,14 @@ export default function FeedCard({ selectedRegion }) {
           <Plus size={18} />
           글쓰기
         </button>
+      </div>
+    );
+  }
+
+  if (displayPosts.length === 0) {
+    return (
+      <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <p className="text-gray-500 dark:text-slate-400">검색어가 포함된 게시물이 없습니다.</p>
       </div>
     );
   }

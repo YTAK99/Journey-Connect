@@ -21,6 +21,7 @@ application-*.properties
 
 # Gradle 관련 파일
 .gradle/
+.kotlin/
 /build/
 
 # 저장소/라이브러리 캐시

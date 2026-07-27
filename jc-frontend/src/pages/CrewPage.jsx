@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Plus, Users } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import LocationWeather from "../components/LocationWeather";
 import { getApiErrorMessage } from "../services/apiClient";
 import { isLogin } from "../services/auth";
@@ -53,11 +54,13 @@ const matchesRegion = (item, region) => {
 };
 
 export default function CrewPage() {
+  const [searchParams] = useSearchParams();
   const { selectedRegion, setSelectedRegion } = useRegionStore();
   const [crews, setCrews] = useState([]);
   const [joined, setJoined] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const keyword = (searchParams.get("q") || "").trim().toLowerCase();
 
   useEffect(() => {
     let active = true;
@@ -84,8 +87,13 @@ export default function CrewPage() {
   }, []);
 
   const visibleCrews = useMemo(() => {
-    return crews.filter((crew) => matchesRegion(crew, selectedRegion));
-  }, [crews, selectedRegion]);
+    return crews.filter((crew) => {
+      if (!keyword) return matchesRegion(crew, selectedRegion);
+
+      const searchable = `${crew.title || ""} ${crew.description || ""} ${crew.regionName || ""} ${crew.region?.name || ""}`.toLowerCase();
+      return searchable.includes(keyword);
+    });
+  }, [crews, keyword, selectedRegion]);
 
   const handleJoin = async (crew) => {
     if (String(crew.id).startsWith("sample-")) {

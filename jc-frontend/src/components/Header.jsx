@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";
@@ -88,6 +88,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -111,8 +112,10 @@ export default function Header() {
   const submitSearch = (event) => {
     event.preventDefault();
     const query = searchText.trim();
+    const searchablePaths = ["/feed", "/explore", "/crew"];
+    const targetPath = searchablePaths.includes(location.pathname) ? location.pathname : "/explore";
     setIsMenuOpen(false);
-    navigate(query ? `/explore?q=${encodeURIComponent(query)}` : "/explore");
+    navigate(query ? `${targetPath}?q=${encodeURIComponent(query)}` : targetPath);
   };
 
   const navLinkClass = ({ isActive }) =>

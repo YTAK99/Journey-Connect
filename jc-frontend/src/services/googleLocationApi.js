@@ -7,3 +7,11 @@ export const getGoogleLocationSummary = async (query, languageCode = "ko") => {
 
   return unwrapApiResponse(response);
 };
+
+export const getGoogleLocationSuggestions = async (query, languageCode = "ko") => {
+  const response = await apiClient.get("/google/location-suggestions", {
+    params: { query, languageCode },
+  });
+
+  return unwrapApiResponse(response);
+};

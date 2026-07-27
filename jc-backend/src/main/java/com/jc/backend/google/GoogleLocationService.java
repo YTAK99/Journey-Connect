@@ -6,6 +6,8 @@ import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -49,6 +51,41 @@ public class GoogleLocationService {
         GoogleLocationDtos.TimeZone timeZone = findTimeZone(place.latitude(), place.longitude(), language);
         GoogleLocationDtos.FlightEstimate flight = estimateFlight(place.latitude(), place.longitude(), language);
         return new GoogleLocationDtos.LocationSummary(place, weather, timeZone, flight);
+    }
+
+    public List<GoogleLocationDtos.LocationSuggestion> suggest(String query, String languageCode) {
+        if (query == null || query.trim().length() < 2) {
+            return List.of();
+        }
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new DomainException(HttpStatus.INTERNAL_SERVER_ERROR, "GOOGLE_API_KEY_MISSING", "Google API key is not configured.");
+        }
+
+        URI uri = UriComponentsBuilder
+                .fromUriString("https://maps.googleapis.com/maps/api/place/autocomplete/json")
+                .queryParam("input", query.trim())
+                .queryParam("types", "(cities)")
+                .queryParam("language", normalizeLanguage(languageCode))
+                .queryParam("key", apiKey)
+                .build()
+                .toUri();
+
+        JsonNode body = get(uri, "Places Autocomplete");
+        if (!"OK".equals(body.path("status").asText()) && !"ZERO_RESULTS".equals(body.path("status").asText())) {
+            throw new DomainException(HttpStatus.BAD_GATEWAY, "PLACE_SUGGESTION_FAILED", "Could not load location suggestions.");
+        }
+
+        List<GoogleLocationDtos.LocationSuggestion> suggestions = new ArrayList<>();
+        for (JsonNode prediction : body.path("predictions")) {
+            JsonNode formatting = prediction.path("structured_formatting");
+            suggestions.add(new GoogleLocationDtos.LocationSuggestion(
+                    prediction.path("place_id").asText(),
+                    formatting.path("main_text").asText(prediction.path("description").asText()),
+                    formatting.path("secondary_text").asText(""),
+                    prediction.path("description").asText()));
+            if (suggestions.size() == 6) break;
+        }
+        return suggestions;
     }
 
     private String normalizeLanguage(String languageCode) {

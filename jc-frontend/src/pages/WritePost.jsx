@@ -7,14 +7,17 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { isLogin } from "../services/auth";
 import { createPost, getPost, updatePost } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
+import useRegionStore from "../store/useRegionStore";
 
 function WritePost() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
+  const { selectedRegion } = useRegionStore();
+  const selectedRegionName = currentLang === "ko" ? selectedRegion.label.ko : selectedRegion.label.en;
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState(() => (id ? "" : selectedRegionName));
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -198,7 +201,9 @@ function WritePost() {
 
       {regionPickerOpen && (
         <RegionPicker
-          currentRegion={REGIONS.find((region) => location === region.label.ko || location === region.label.en) || REGIONS[0]}
+          currentRegion={
+            [selectedRegion, ...REGIONS].find((region) => location === region.label.ko || location === region.label.en) || selectedRegion
+          }
           onSelect={handleRegionSelect}
           onSearch={setLocation}
           onClose={() => setRegionPickerOpen(false)}
