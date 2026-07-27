@@ -1,6 +1,6 @@
 export default function FeedCard() {
     return (
-        <div className="w-full max-w-full md:max-w-lg mx-auto bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
+        <div className="w-full max-w-full md:max-w-xl mx-auto bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
             {/* Profile Header */}
             <div className="pt-5 pb-3 px-5">
                 <div className="flex items-center gap-3">
@@ -19,7 +19,7 @@ export default function FeedCard() {
             </div>
 
             {/* 메인 이미지 */}
-            <div className="w-full h-64 overflow-hidden px-5">
+            <div className="w-object-contain h-[390px] overflow-hidden px-5">
                 <img
                     src="/ex_1.jpg"
                     alt="예시이미지1"
@@ -28,7 +28,7 @@ export default function FeedCard() {
             </div>
 
             {/* 좋아요, 댓글, 북마크 */}
-            <div className="flex items-center justify-between px-5 pt-4">
+            <div className="flex items-center justify-between px-6 pt-5">
                 <div className="flex items-center gap-4">
                     {/* 하트 */}
                     <button className="text-gray-700 hover:text-red-500 transition-colors">
@@ -46,8 +46,8 @@ export default function FeedCard() {
             </div>
 
             {/* 좋아요 수 및 해시태그 영역 */}
-            <div className="px-5 pt-2">
-                <p className="text-sm font-semibold text-gray-900">좋아요 914개</p>
+            <div className="px-6 pt-2">
+                <p className="text-base font-semibold text-gray-900">좋아요 914개</p>
 
                 {/* 해시태그 목록 */}
                 <div className="flex gap-2 mt-2 text-xs font-medium text-blue-600">

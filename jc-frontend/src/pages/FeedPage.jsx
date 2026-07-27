@@ -9,7 +9,7 @@ export default function FeedPage() {
             <Header />
 
             {/* 헤더에 가리지 않도록 상단 여백 유지 */}
-            <div className="pt-24 pb-6">
+            <div className="pt-20 pb-5">
 
                 {/* 날씨와 스토리 컴포넌트를 하나로 묶어주는 메인 하얀색 카드 */}
                 <div className="max-w-screen-xl mx-auto px-6 py-5 bg-white border-gray-100 space-y-4">

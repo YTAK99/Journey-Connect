@@ -18,53 +18,36 @@ export default function Login() {
             return;
         }
 
-
         const result = login(id, pw);
 
-
         if (result) {
-
-    
-        
             alert("로그인 성공!");
-        
             navigate("/feedpage");
-        
         } else {
-
             alert("아이디 또는 비밀번호가 틀렸습니다.");
-
         }
-
     };
 
 
     return (
-
         <div className="flex justify-center items-center h-screen bg-gray-100">
 
             <div className="w-96 bg-white rounded-xl shadow-lg p-8">
-
                 <h1 className="text-3xl font-bold text-center mb-8">
                     Journey Connect
                 </h1>
-
-
                 <input
                     className="w-full border rounded-lg p-3 mb-4"
                     placeholder="아이디"
                     value={id}
-                    onChange={(e) => setId(e.target.value)}
-                />
-
+                    onChange={(e) => setId(e.target.value)}/>
 
                 <input
                     type="password"
                     className="w-full border rounded-lg p-3 mb-6"
                     placeholder="비밀번호"
                     value={pw}
-                    onChange={(e) => setPw(e.target.value)}
-                />
+                    onChange={(e) => setPw(e.target.value)}/>
 
 <button
     onClick={handleLogin}
@@ -93,15 +76,11 @@ export default function Login() {
 
 <Link
     to="/signup"
-    className="block text-center mt-4 text-blue-600 hover:underline"
->
+    className="block text-center mt-4 text-blue-600 hover:underline">
     회원가입
 </Link>
             </div>
-
         </div>
-        
-
     );
 
 }
