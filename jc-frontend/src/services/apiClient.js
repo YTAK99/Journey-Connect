@@ -9,11 +9,15 @@ const apiClient = axios.create({
   },
 });
 
+// 로그인처럼 인증 전에도 호출하는 공개 API에는 이전 세션의 만료된 토큰을 전달하지 않습니다.
+const publicAuthPaths = new Set(["/auth/login", "/auth/signup", "/auth/refresh", "/auth/logout"]);
+
 apiClient.interceptors.request.use((config) => {
   // 로그인 뒤 저장된 JWT를 매 요청의 Authorization 헤더에 자동으로 붙입니다.
   const token = localStorage.getItem("accessToken");
+  const requestPath = config.url?.split("?")[0];
 
-  if (token) {
+  if (token && !publicAuthPaths.has(requestPath)) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 

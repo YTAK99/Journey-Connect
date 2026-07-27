@@ -26,8 +26,6 @@ export default function Login() {
 
     
         
-            alert("로그인 성공!");
-        
             navigate("/feedpage");
         
         } else {

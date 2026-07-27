@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
@@ -96,6 +96,7 @@ export default function Header() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchText, setSearchText] = useState(searchParams.get("q") || "");
   const [isDark, setIsDark] = useState(getInitialDarkMode);
+  const settingsRef = useRef(null);
   const user = getUser();
   const { currentLang, setLang } = useLangStore();
 
@@ -104,6 +105,20 @@ export default function Header() {
     document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", isDark ? "dark" : "light");
   }, [isDark]);
+
+  useEffect(() => {
+    if (!settingsOpen) return undefined;
+
+    // 설정 버튼과 패널 밖을 누르면 열린 메뉴를 즉시 닫아 화면을 가리지 않게 합니다.
+    const closeSettingsOnOutsideClick = (event) => {
+      if (!settingsRef.current?.contains(event.target)) {
+        setSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeSettingsOnOutsideClick);
+    return () => document.removeEventListener("pointerdown", closeSettingsOnOutsideClick);
+  }, [settingsOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -162,7 +177,7 @@ export default function Header() {
             )}
           </button>
 
-          <div className="relative">
+          <div ref={settingsRef} className="relative">
             <button
               type="button"
               onClick={() => setSettingsOpen((open) => !open)}
