@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /** API 계층에서 예상 가능한 예외를 하나의 JSON 형식으로 변환합니다. */
 @RestControllerAdvice // 모든 REST 컨트롤러 예외를 가로채 공통 JSON 오류 형식으로 변환합니다.
@@ -72,5 +73,11 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiErrorResponse> handleNoResource(NoResourceFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiErrorResponse.of("RESOURCE_NOT_FOUND", "요청한 경로를 찾을 수 없습니다."));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException exception) {
+        return ResponseEntity.badRequest()
+                .body(ApiErrorResponse.of("IMAGE_TOO_LARGE", "이미지는 한 장당 5MB, 전체 50MB 이하로 업로드해주세요."));
     }
 }

@@ -42,6 +42,16 @@ export const updatePost = async (postId, post) => {
   return unwrap(response);
 };
 
+export const uploadPostImages = async (files) => {
+  const formData = new FormData();
+  files.forEach((file) => formData.append("files", file));
+  const response = await apiClient.post("/uploads/images", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 60000,
+  });
+  return unwrap(response);
+};
+
 export const deletePost = async (postId) => {
   await apiClient.delete(`/posts/${postId}`);
 };

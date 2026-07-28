@@ -240,6 +240,8 @@ CREATE TABLE public.posts (
   main_region_id bigint REFERENCES public.regions(id) ON DELETE RESTRICT,
   title varchar(150) NOT NULL DEFAULT '',
   content text NOT NULL DEFAULT '',
+  travel_start_date date,
+  travel_end_date date,
   view_count bigint NOT NULL DEFAULT 0 CHECK (view_count >= 0),
   visibility varchar(20) NOT NULL DEFAULT 'public'
     CHECK (visibility IN ('public', 'followers', 'private')),
@@ -263,6 +265,11 @@ CREATE TABLE public.posts (
     (status = 'deleted' AND deleted_at IS NOT NULL AND purge_after IS NOT NULL AND purge_after > deleted_at)
     OR
     (status <> 'deleted' AND deleted_at IS NULL AND purge_after IS NULL)
+  ),
+  CONSTRAINT posts_travel_dates_check CHECK (
+    travel_start_date IS NULL
+    OR travel_end_date IS NULL
+    OR travel_end_date >= travel_start_date
   )
 );
 

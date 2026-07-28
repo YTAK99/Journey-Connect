@@ -4,6 +4,7 @@ import com.jc.backend.region.RegionDtos;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,7 +24,10 @@ public final class PostDtos {
             @Size(max = 50) String regionCode,
             @Size(max = 100) String regionName,
             @Size(max = 500) String coverImageUrl,
-            @Size(max = 10) List<@Valid ImageRequest> images) {}
+            @Size(max = 10) List<@Valid ImageRequest> images,
+            LocalDate travelStartDate,
+            LocalDate travelEndDate,
+            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {}
 
     public record UpdateRequest(
             @Size(max = 120) String title,
@@ -32,6 +36,9 @@ public final class PostDtos {
             @Size(max = 100) String regionName,
             @Size(max = 500) String coverImageUrl,
             @Size(max = 10) List<@Valid ImageRequest> images,
+            LocalDate travelStartDate,
+            LocalDate travelEndDate,
+            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags,
             Boolean published) {}
 
     public record CommentRequest(@NotBlank @Size(max = 1000) String content) {}
@@ -46,6 +53,7 @@ public final class PostDtos {
             String regionCode,
             String regionName,
             String coverImageUrl,
+            List<String> tags,
             long viewCount,
             long likeCount,
             long bookmarkCount,
@@ -60,6 +68,9 @@ public final class PostDtos {
             String regionName,
             String coverImageUrl,
             List<ImageView> images,
+            LocalDate travelStartDate,
+            LocalDate travelEndDate,
+            List<String> tags,
             long viewCount,
             long likeCount,
             long bookmarkCount,

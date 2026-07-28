@@ -130,7 +130,7 @@ export default function Header() {
   const submitSearch = (event) => {
     event.preventDefault();
     const query = searchText.trim();
-    const searchablePaths = ["/feed", "/explore", "/crew"];
+    const searchablePaths = ["/feed", "/explore"];
     const targetPath = searchablePaths.includes(location.pathname) ? location.pathname : "/explore";
     setIsMenuOpen(false);
     navigate(query ? `${targetPath}?q=${encodeURIComponent(query)}` : targetPath);

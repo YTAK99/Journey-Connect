@@ -43,6 +43,8 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.hibernate.orm:hibernate-spatial")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17")
+    // 리치 텍스트 본문에서 허용한 HTML만 저장해 XSS를 서버에서도 차단합니다.
+    implementation("com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20240325.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")

@@ -3,6 +3,8 @@ import { Bookmark, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, deletePost, unbookmarkPost } from "../services/postApi";
+import { richTextToPlainText } from "../utils/richText";
+import TagChips from "./TagChips";
 
 const fallbackImage = "/ex_2.jpg";
 
@@ -64,13 +66,9 @@ function PostCard({ post, setPosts, editable = false }) {
 
       <div className="p-4">
         <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100">{post.title}</h3>
-        <p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{post.content}</p>
+        <p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{richTextToPlainText(post.content)}</p>
 
-        <div className="flex gap-2 text-xs font-medium text-blue-600">
-          {[location, post.category || "여행"].slice(0, 2).map((tag) => (
-            <span key={tag}>#{String(tag).replace(/\s/g, "")}</span>
-          ))}
-        </div>
+        <TagChips tags={post.tags || []} />
 
         {editable && (
           <div className="mt-4 flex gap-2">

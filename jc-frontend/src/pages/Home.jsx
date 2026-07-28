@@ -6,13 +6,22 @@ export default function Home() {
     <div className="w-screen h-screen bg-[url('/home_img_1.png')] bg-cover bg-center bg-no-repeat relative">
       <div className="absolute inset-0 bg-black/30" />
 
+      <div className="absolute left-12 top-8 z-10 flex items-baseline gap-3 text-white md:left-24 md:top-10">
+        <span className="text-xl font-bold md:text-2xl">Journey Connect</span>
+        <span className="text-sm text-white/50">|</span>
+        <span className="text-sm text-white/60">JC</span>
+      </div>
+
       <div className="relative z-10 flex flex-col items-start justify-center min-h-screen px-12 md:px-24">
-        <div className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight drop-shadow-lg">
-            여행 정보를 공유하는 공간
-            <br />
-            Journey Connect
+        <div>
+          <h1 className="flex flex-col gap-3 text-4xl font-extrabold leading-tight text-white drop-shadow-lg md:gap-4 md:text-5xl">
+            <span>여행 정보를 공유하는 공간</span>
+            <span>Journey Connect</span>
           </h1>
+
+          <p className="mb-8 mt-5 text-sm leading-relaxed text-white/60 md:text-base">
+            지역별 여행정보를 한눈에 — 진짜 여행자들의 실전 정보
+          </p>
         </div>
 
         <Link

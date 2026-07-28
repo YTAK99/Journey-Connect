@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../services/apiClient";
-import { bookmarkPost, getFeed, getFeedItems, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
+import { bookmarkPost, getExplore, getFeed, getFeedItems, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
+import { richTextToPlainText } from "../utils/richText";
+import TagChips from "./TagChips";
 
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
@@ -18,15 +20,6 @@ const matchesRegion = (post, selectedRegion) => {
     .map((name) => String(name).toLowerCase().replace(/\s/g, ""));
 
   return selectedNames.some((name) => postRegion.includes(name) || name.includes(postRegion));
-};
-
-const inferCategory = (post) => {
-  const text = `${post.title || ""} ${post.content || ""}`.toLowerCase();
-  if (text.includes("카페") || text.includes("coffee")) return "카페";
-  if (text.includes("맛집") || text.includes("식당")) return "맛집";
-  if (text.includes("숙소") || text.includes("호텔")) return "숙소";
-  if (text.includes("액티비티")) return "액티비티";
-  return "여행";
 };
 
 const getRelativeDate = (createdAt) => {
@@ -58,7 +51,6 @@ function FeedItem({ post }) {
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
   const [showSummary, setShowSummary] = useState(false);
   const location = post.regionName || post.region?.name || post.location || "지역 미정";
-  const category = post.category || inferCategory(post);
   const summary =
     post.aiSummary ||
     post.summary ||
@@ -156,17 +148,13 @@ function FeedItem({ post }) {
 
       <div className="px-5 pt-2">
         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">좋아요 {likeCount}개</p>
-        <div className="mt-2 flex gap-2 text-xs font-medium text-blue-600">
-          {[location, category].map((tag) => (
-            <span key={tag}>#{String(tag).replace(/\s/g, "")}</span>
-          ))}
-        </div>
+        <TagChips tags={post.tags || []} className="mt-2" />
       </div>
 
       <div className="p-7">
         <h4 className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100">{post.title}</h4>
         <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600 dark:text-slate-300">
-          {post.content || "내용 미리보기가 없습니다."}
+          {richTextToPlainText(post.content) || "내용 미리보기가 없습니다."}
         </p>
 
         <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50 p-3 dark:border-teal-900/60 dark:bg-teal-950/30">
@@ -190,13 +178,16 @@ export default function FeedCard({ selectedRegion, keyword = "" }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getFeed({ size: 20 })
+    const request = keyword.trim()
+      ? getExplore({ keyword: keyword.trim(), size: 100 })
+      : getFeed({ size: 20 });
+    request
       .then((feed) => setPosts(getFeedItems(feed)))
       .catch((requestError) => {
         setError(getApiErrorMessage(requestError, "피드를 불러오지 못했습니다."));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [keyword]);
 
   const regionName = selectedRegion?.label?.ko || selectedRegion?.label?.en;
   const normalizedKeyword = keyword.trim().toLowerCase();
@@ -204,7 +195,7 @@ export default function FeedCard({ selectedRegion, keyword = "" }) {
     const name = post.regionName || post.region?.name || "";
     if (!matchesRegion(post, selectedRegion)) return false;
     if (!normalizedKeyword) return true;
-    const searchable = `${post.title || ""} ${post.content || ""} ${name} ${post.category || ""} ${post.author?.nickname || ""}`.toLowerCase();
+    const searchable = `${post.title || ""} ${richTextToPlainText(post.content || "")} ${name} ${post.category || ""} ${(post.tags || []).join(" ")} ${post.author?.nickname || ""}`.toLowerCase();
     return searchable.includes(normalizedKeyword);
   });
   const displayPosts = visiblePosts;

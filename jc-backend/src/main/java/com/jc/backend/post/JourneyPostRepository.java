@@ -30,13 +30,17 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
             from JourneyPost p
             where p.published = true
               and (
-                    :keyword is null
+                    :keyword = ''
                     or lower(p.title) like lower(concat('%', :keyword, '%'))
                     or lower(p.content) like lower(concat('%', :keyword, '%'))
                     or lower(p.regionName) like lower(concat('%', :keyword, '%'))
+                    or exists (
+                        select t.id from p.tags t
+                        where lower(t.name) like lower(concat('%', :keyword, '%'))
+                    )
               )
               and (
-                    :region is null
+                    :region = ''
                     or lower(p.region.code) = lower(:region)
                     or lower(p.regionName) = lower(:region)
               )

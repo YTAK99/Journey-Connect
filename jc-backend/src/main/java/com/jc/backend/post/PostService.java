@@ -10,6 +10,7 @@ import com.jc.backend.region.RegionService;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
 import java.util.Collections;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -40,6 +41,8 @@ public class PostService {
     private final PostInteractionWriter interactionWriter;
     private final RegionService regionService;
     private final CursorCodec cursorCodec;
+    private final RichTextSanitizer richTextSanitizer;
+    private final TagService tagService;
 
     public PostService(
             JourneyPostRepository posts,
@@ -49,7 +52,9 @@ public class PostService {
             UserRepository users,
             PostInteractionWriter interactionWriter,
             RegionService regionService,
-            CursorCodec cursorCodec) {
+            CursorCodec cursorCodec,
+            RichTextSanitizer richTextSanitizer,
+            TagService tagService) {
         this.posts = posts;
         this.likes = likes;
         this.bookmarks = bookmarks;
@@ -58,6 +63,8 @@ public class PostService {
         this.interactionWriter = interactionWriter;
         this.regionService = regionService;
         this.cursorCodec = cursorCodec;
+        this.richTextSanitizer = richTextSanitizer;
+        this.tagService = tagService;
     }
 
     /** 신규 피드 API: 전체 개수 쿼리 없이 size + 1 방식으로 다음 페이지 여부를 계산합니다. */
@@ -92,7 +99,7 @@ public class PostService {
             String keyword,
             String region,
             Pageable pageable) {
-        return summaries(posts.explore(blankToNull(keyword), blankToNull(region), pageable));
+        return summaries(posts.explore(blankToEmpty(keyword), blankToEmpty(region), pageable));
     }
 
     /**
@@ -112,7 +119,10 @@ public class PostService {
                 user(userId),
                 region,
                 request.title().trim(),
-                request.content());
+                richTextSanitizer.sanitizeRequired(request.content()));
+        validateTravelDates(request.travelStartDate(), request.travelEndDate());
+        post.updateTravelDates(request.travelStartDate(), request.travelEndDate());
+        post.replaceTags(tagService.resolve(request.tags()));
         post.replaceImages(imageData(request.images(), request.coverImageUrl()));
         return detailView(posts.save(post), userId);
     }
@@ -126,7 +136,15 @@ public class PostService {
         Region region = hasText(request.regionCode()) || hasText(request.regionName())
                 ? regionService.require(request.regionCode(), request.regionName())
                 : null;
-        post.update(request.title(), request.content(), region, request.published());
+        String sanitizedContent = request.content() == null
+                ? null
+                : richTextSanitizer.sanitizeRequired(request.content());
+        post.update(request.title(), sanitizedContent, region, request.published());
+        validateTravelDates(request.travelStartDate(), request.travelEndDate());
+        post.updateTravelDates(request.travelStartDate(), request.travelEndDate());
+        if (request.tags() != null) {
+            post.replaceTags(tagService.resolve(request.tags()));
+        }
 
         // images가 전달되면 전체 교체합니다. 빈 배열은 이미지 전체 삭제를 의미합니다.
         if (request.images() != null) {
@@ -321,6 +339,7 @@ public class PostService {
                 post.getRegion().getCode(),
                 post.getRegionName(),
                 post.getCoverImageUrl(),
+                tagNames(post),
                 post.getViewCount(),
                 likeCounts.getOrDefault(post.getId(), 0L),
                 bookmarkCounts.getOrDefault(post.getId(), 0L),
@@ -342,6 +361,9 @@ public class PostService {
                 post.getRegionName(),
                 post.getCoverImageUrl(),
                 post.getImages().stream().map(this::imageView).toList(),
+                post.getTravelStartDate(),
+                post.getTravelEndDate(),
+                tagNames(post),
                 post.getViewCount(),
                 likes.countByPostId(post.getId()),
                 bookmarks.countByPostId(post.getId()),
@@ -409,5 +431,22 @@ public class PostService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String blankToEmpty(String value) {
+        return value == null || value.isBlank() ? "" : value.trim();
+    }
+
+    private List<String> tagNames(JourneyPost post) {
+        return post.getTags().stream().map(Tag::getName).toList();
+    }
+
+    private void validateTravelDates(LocalDate startDate, LocalDate endDate) {
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_TRAVEL_DATES",
+                    "종료 날짜는 시작 날짜보다 빠를 수 없습니다.");
+        }
     }
 }

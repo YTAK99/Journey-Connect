@@ -14,11 +14,16 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.time.LocalDate;
+import org.hibernate.annotations.BatchSize;
 
 /**
  * 게시물 본문, 이미지, 공개 여부, 조회수와 관련된 상태를 관리하는 엔티티입니다.
@@ -63,6 +68,21 @@ public class JourneyPost extends BaseTimeEntity {
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder asc, id asc")
     private List<PostImage> images = new ArrayList<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "post_tag",
+            joinColumns = @JoinColumn(name = "post_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    @OrderColumn(name = "sort_order")
+    @BatchSize(size = 100)
+    private List<Tag> tags = new ArrayList<>();
+
+    @Column(name = "travel_start_date")
+    private LocalDate travelStartDate;
+
+    @Column(name = "travel_end_date")
+    private LocalDate travelEndDate;
 
     @Column(nullable = false)
     private long viewCount;
@@ -113,6 +133,16 @@ public class JourneyPost extends BaseTimeEntity {
         coverImageUrl = images.isEmpty() ? null : images.get(0).getImageUrl();
     }
 
+    public void updateTravelDates(LocalDate travelStartDate, LocalDate travelEndDate) {
+        this.travelStartDate = travelStartDate;
+        this.travelEndDate = travelEndDate;
+    }
+
+    public void replaceTags(List<Tag> newTags) {
+        tags.clear();
+        tags.addAll(newTags);
+    }
+
     public void increaseView() {
         viewCount++;
     }
@@ -147,6 +177,18 @@ public class JourneyPost extends BaseTimeEntity {
 
     public List<PostImage> getImages() {
         return Collections.unmodifiableList(images);
+    }
+
+    public LocalDate getTravelStartDate() {
+        return travelStartDate;
+    }
+
+    public List<Tag> getTags() {
+        return Collections.unmodifiableList(tags);
+    }
+
+    public LocalDate getTravelEndDate() {
+        return travelEndDate;
     }
 
     public long getViewCount() {
