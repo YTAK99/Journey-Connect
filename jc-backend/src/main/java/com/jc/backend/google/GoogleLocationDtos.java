@@ -1,5 +1,7 @@
 package com.jc.backend.google;
 
+import java.util.List;
+
 public final class GoogleLocationDtos {
 
     private GoogleLocationDtos() {}
@@ -20,6 +22,7 @@ public final class GoogleLocationDtos {
             String placeId,
             String displayName,
             String formattedAddress,
+            List<String> addressComponentNames,
             String countryCode,
             double latitude,
             double longitude) {}

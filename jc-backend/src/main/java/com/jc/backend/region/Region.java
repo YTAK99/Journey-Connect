@@ -43,6 +43,10 @@ public class Region extends BaseTimeEntity {
     @Column(name = "google_place_id", length = 255, unique = true)
     private String googlePlaceId;
 
+    /** 도시부터 국가까지 한글·영문 주소 계층을 합친 검색 전용 문자열입니다. */
+    @Column(name = "search_text", nullable = false, columnDefinition = "text")
+    private String searchText = "";
+
     /** WGS84 좌표이며 경도(x), 위도(y) 순서로 저장합니다. */
     @Column(columnDefinition = "geometry(Point,4326)")
     private Point center;
@@ -50,15 +54,26 @@ public class Region extends BaseTimeEntity {
     protected Region() {}
 
     public Region(String code, String countryCode, String displayName, Point center) {
-        this(code, countryCode, displayName, center, null);
+        this(code, countryCode, displayName, center, null, "");
     }
 
     public Region(String code, String countryCode, String displayName, Point center, String googlePlaceId) {
+        this(code, countryCode, displayName, center, googlePlaceId, "");
+    }
+
+    public Region(
+            String code,
+            String countryCode,
+            String displayName,
+            Point center,
+            String googlePlaceId,
+            String searchText) {
         this.code = code.trim().toUpperCase();
         this.countryCode = countryCode.trim().toUpperCase();
         this.displayName = displayName.trim();
         this.center = center;
         this.googlePlaceId = googlePlaceId;
+        this.searchText = searchText == null ? "" : searchText.trim();
     }
 
     public Long getId() {
@@ -79,6 +94,14 @@ public class Region extends BaseTimeEntity {
 
     public String getGooglePlaceId() {
         return googlePlaceId;
+    }
+
+    public String getSearchText() {
+        return searchText;
+    }
+
+    void updateSearchText(String searchText) {
+        this.searchText = searchText == null ? "" : searchText.trim();
     }
 
     public Point getCenter() {

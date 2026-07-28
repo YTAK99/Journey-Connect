@@ -6,6 +6,8 @@ application.yml
 application.properties
 application-*.yml
 application-*.properties
+!jc-backend/src/test/resources/application.properties
+!jc-backend/src/test/resources/application-test.yml
 .env
 .env.local
 .env.development.local

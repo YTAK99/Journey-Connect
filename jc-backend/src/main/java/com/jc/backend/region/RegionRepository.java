@@ -13,6 +13,16 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
 
     Optional<Region> findFirstByDisplayNameIgnoreCase(String displayName);
 
+    @Query(value = """
+            select r.*
+            from region r
+            join region_translation rt on rt.region_id = r.id
+            where lower(rt.display_name) = lower(:displayName)
+            order by case when r.google_place_id is not null then 0 else 1 end, r.id
+            limit 1
+            """, nativeQuery = true)
+    Optional<Region> findFirstByTranslatedNameIgnoreCase(@Param("displayName") String displayName);
+
     Optional<Region> findByGooglePlaceId(String googlePlaceId);
 
     List<Region> findTop50ByDisplayNameContainingIgnoreCaseOrderByDisplayNameAsc(String keyword);
@@ -21,19 +31,20 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
 
     @Modifying
     @Query(value = """
-            insert into region (code, country_code, display_name, created_at, updated_at)
-            values (:code, :countryCode, :displayName, current_timestamp, current_timestamp)
+            insert into region (code, country_code, display_name, search_text, created_at, updated_at)
+            values (:code, :countryCode, :displayName, :searchText, current_timestamp, current_timestamp)
             on conflict (code) do nothing
             """, nativeQuery = true)
     int insertIfMissing(
             @Param("code") String code,
             @Param("countryCode") String countryCode,
-            @Param("displayName") String displayName);
+            @Param("displayName") String displayName,
+            @Param("searchText") String searchText);
 
     @Modifying
     @Query(value = """
-            insert into region (code, country_code, display_name, google_place_id, center, created_at, updated_at)
-            values (:code, :countryCode, :displayName, :placeId,
+            insert into region (code, country_code, display_name, google_place_id, search_text, center, created_at, updated_at)
+            values (:code, :countryCode, :displayName, :placeId, :searchText,
                     ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326), current_timestamp, current_timestamp)
             on conflict do nothing
             """, nativeQuery = true)
@@ -42,6 +53,7 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
             @Param("countryCode") String countryCode,
             @Param("displayName") String displayName,
             @Param("placeId") String placeId,
+            @Param("searchText") String searchText,
             @Param("latitude") double latitude,
             @Param("longitude") double longitude);
 

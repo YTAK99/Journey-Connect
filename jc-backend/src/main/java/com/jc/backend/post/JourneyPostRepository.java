@@ -34,6 +34,8 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
                     or lower(p.title) like lower(concat('%', :keyword, '%'))
                     or lower(p.content) like lower(concat('%', :keyword, '%'))
                     or lower(p.regionName) like lower(concat('%', :keyword, '%'))
+                    or lower(p.region.searchText) like lower(concat('%', :keyword, '%'))
+                    or (:keywordCountryCode <> '' and p.region.countryCode = :keywordCountryCode)
                     or exists (
                         select t.id from p.tags t
                         where lower(t.name) like lower(concat('%', :keyword, '%'))
@@ -43,12 +45,16 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
                     :region = ''
                     or lower(p.region.code) = lower(:region)
                     or lower(p.regionName) = lower(:region)
+                    or lower(p.region.searchText) like lower(concat('%', :region, '%'))
+                    or (:regionCountryCode <> '' and p.region.countryCode = :regionCountryCode)
               )
             order by p.createdAt desc, p.id desc
             """)
     Page<JourneyPost> explore(
             @Param("keyword") String keyword,
             @Param("region") String region,
+            @Param("keywordCountryCode") String keywordCountryCode,
+            @Param("regionCountryCode") String regionCountryCode,
             Pageable pageable);
 
     /**

@@ -14,5 +14,6 @@ public final class RegionDtos {
             Double latitude,
             Double longitude,
             String googlePlaceId,
-            Map<String, String> localizedNames) {}
+            Map<String, String> localizedNames,
+            String searchText) {}
 }

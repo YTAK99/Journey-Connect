@@ -5,7 +5,9 @@ export const getLocalizedRegionName = (item, lang = "ko", fallback = "지역 미
 
 export const getRegionSearchText = (item) => {
   const names = item?.regionNames || item?.region?.localizedNames || {};
-  return `${Object.values(names).join(" ")} ${item?.regionName || ""} ${item?.regionCode || ""}`.trim();
+  const hierarchy = item?.regionSearchText || item?.region?.searchText || "";
+  const country = item?.region?.countryCode || item?.countryCode || "";
+  return `${Object.values(names).join(" ")} ${item?.regionName || ""} ${item?.regionCode || ""} ${hierarchy} ${country}`.trim();
 };
 
 export const toRegionPreference = (region, lang = "ko") => {

@@ -1,14 +1,26 @@
+import { useCallback } from "react";
 import FeedCard from "../components/FeedCard";
 import LocationWeather from "../components/LocationWeather";
 import StoryList from "../components/StoryList";
 import useRegionStore from "../store/useRegionStore";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function FeedPage() {
   // 헤더 검색어와 전역 선택 지역을 날씨·스토리·피드 영역에 내려주는 조합 페이지입니다.
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { selectedRegion, setSelectedRegion } = useRegionStore();
   const keyword = (searchParams.get("q") || "").trim();
+  const search = searchParams.toString();
+  const handleEmptyResult = useCallback(() => {
+    navigate(
+      {
+        pathname: "/explore",
+        search: search ? `?${search}` : "",
+      },
+      { replace: true },
+    );
+  }, [navigate, search]);
 
   return (
     <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
@@ -20,7 +32,7 @@ export default function FeedPage() {
         </section>
 
         <section className="mx-auto max-w-screen-xl px-4 pt-3">
-          <FeedCard selectedRegion={selectedRegion} keyword={keyword} />
+          <FeedCard selectedRegion={selectedRegion} keyword={keyword} onEmptyResult={handleEmptyResult} />
         </section>
       </div>
     </main>

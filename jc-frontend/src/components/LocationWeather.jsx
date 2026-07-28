@@ -179,7 +179,6 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
             </p>
           )}
           {filtered.map((region) => {
-            const Icon = region.icon || MapPin;
             const active = region.id === currentRegion.id;
             return (
               <button
@@ -190,12 +189,12 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
                   active ? "bg-teal-50 dark:bg-teal-950/40" : "hover:bg-gray-50 dark:hover:bg-slate-800"
                 }`}
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-primary">
-                  <Icon size={17} />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-50 text-xs font-bold tracking-wide text-primary dark:bg-teal-950/50 dark:text-teal-300">
+                  {region.country}
                 </span>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                    {region.country} {currentLang === "ko" ? region.label.ko : region.label.en}
+                    {currentLang === "ko" ? region.label.ko : region.label.en}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-1">

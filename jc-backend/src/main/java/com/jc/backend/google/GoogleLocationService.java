@@ -109,7 +109,12 @@ public class GoogleLocationService {
             throw new DomainException(HttpStatus.NOT_FOUND, "PLACE_NOT_FOUND", "지역을 찾을 수 없습니다.");
         }
         String countryCode = "ZZ";
+        List<String> addressComponentNames = new ArrayList<>();
         for (JsonNode component : result.path("address_components")) {
+            String longName = component.path("long_name").asText("").trim();
+            if (!longName.isBlank() && !addressComponentNames.contains(longName)) {
+                addressComponentNames.add(longName);
+            }
             for (JsonNode type : component.path("types")) {
                 if ("country".equals(type.asText())) {
                     countryCode = component.path("short_name").asText("ZZ").toUpperCase(Locale.ROOT);
@@ -121,6 +126,7 @@ public class GoogleLocationService {
                 result.path("place_id").asText(placeId.trim()),
                 result.path("name").asText(placeId.trim()),
                 result.path("formatted_address").asText(""),
+                List.copyOf(addressComponentNames),
                 countryCode,
                 location.path("lat").asDouble(),
                 location.path("lng").asDouble());

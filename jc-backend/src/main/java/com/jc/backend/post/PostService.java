@@ -99,7 +99,14 @@ public class PostService {
             String keyword,
             String region,
             Pageable pageable) {
-        return summaries(posts.explore(blankToEmpty(keyword), blankToEmpty(region), pageable));
+        String normalizedKeyword = blankToEmpty(keyword);
+        String normalizedRegion = blankToEmpty(region);
+        return summaries(posts.explore(
+                normalizedKeyword,
+                normalizedRegion,
+                regionService.countryCodeForSearch(normalizedKeyword),
+                regionService.countryCodeForSearch(normalizedRegion),
+                pageable));
     }
 
     /**
@@ -340,6 +347,7 @@ public class PostService {
                 post.getRegion().getGooglePlaceId(),
                 post.getRegionName(),
                 regionService.localizedNames(post.getRegion()),
+                regionService.searchText(post.getRegion()),
                 post.getCoverImageUrl(),
                 tagNames(post),
                 post.getViewCount(),

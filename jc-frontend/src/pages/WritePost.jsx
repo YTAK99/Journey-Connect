@@ -102,7 +102,7 @@ function WritePost() {
   const [content, setContent] = useState("");
   const [location, setLocation] = useState(() => (id ? "" : selectedRegionName));
   const [selectedRegionCode, setSelectedRegionCode] = useState(() => (id ? null : selectedRegion.code || null));
-  const [selectedRegionPlaceId, setSelectedRegionPlaceId] = useState(null);
+  const [selectedRegionPlaceId, setSelectedRegionPlaceId] = useState(() => (id ? null : selectedRegion.placeId || null));
   const [selectedRegionNames, setSelectedRegionNames] = useState(() => (id ? {} : selectedRegion.label || {}));
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");

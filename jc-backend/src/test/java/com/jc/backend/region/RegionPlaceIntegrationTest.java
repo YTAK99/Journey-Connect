@@ -22,8 +22,9 @@ class RegionPlaceIntegrationTest {
         String code = "GOOGLE-" + suffix;
         String placeId = "place-" + suffix;
 
-        regions.insertGoogleRegionIfMissing(code, "US", "Honolulu", placeId, 21.3099, -157.8581);
-        regions.insertGoogleRegionIfMissing(code, "US", "Honolulu", placeId, 21.3099, -157.8581);
+        String searchText = "호놀룰루 하와이 미국 Honolulu Hawaii United States";
+        regions.insertGoogleRegionIfMissing(code, "US", "Honolulu", placeId, searchText, 21.3099, -157.8581);
+        regions.insertGoogleRegionIfMissing(code, "US", "Honolulu", placeId, searchText, 21.3099, -157.8581);
         Region region = regions.findByGooglePlaceId(placeId).orElseThrow();
         regions.upsertTranslation(region.getId(), "ko", "호놀룰루");
         regions.upsertTranslation(region.getId(), "en", "Honolulu");
@@ -37,5 +38,6 @@ class RegionPlaceIntegrationTest {
                 .filter(item -> placeId.equals(item.getGooglePlaceId())))
                 .hasSize(1);
         assertThat(names).containsEntry("ko", "호놀룰루").containsEntry("en", "Honolulu");
+        assertThat(region.getSearchText()).contains("하와이", "Hawaii", "United States");
     }
 }

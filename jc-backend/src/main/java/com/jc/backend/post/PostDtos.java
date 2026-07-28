@@ -57,6 +57,7 @@ public final class PostDtos {
             String regionPlaceId,
             String regionName,
             Map<String, String> regionNames,
+            String regionSearchText,
             String coverImageUrl,
             List<String> tags,
             long viewCount,

@@ -4,9 +4,12 @@ import com.jc.backend.common.DomainException;
 import com.jc.backend.google.GoogleLocationDtos;
 import com.jc.backend.google.GoogleLocationService;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -17,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class RegionService {
+
+    private static final Set<String> ISO_COUNTRY_CODES = Set.copyOf(Arrays.asList(Locale.getISOCountries()));
 
     private final RegionRepository regions;
     private final GoogleLocationService googleLocations;
@@ -62,8 +67,10 @@ public class RegionService {
     @Transactional
     public Region require(String code, String legacyName, String googlePlaceId) {
         if (googlePlaceId != null && !googlePlaceId.isBlank()) {
-            return regions.findByGooglePlaceId(googlePlaceId.trim())
-                    .orElseGet(() -> registerGooglePlace(googlePlaceId.trim()));
+            String normalizedPlaceId = googlePlaceId.trim();
+            return regions.findByGooglePlaceId(normalizedPlaceId)
+                    .map(region -> ensureGoogleSearchText(region, normalizedPlaceId))
+                    .orElseGet(() -> registerGooglePlace(normalizedPlaceId));
         }
         if (code != null && !code.isBlank()) {
             String normalizedCode = code.trim().toUpperCase(Locale.ROOT);
@@ -75,7 +82,9 @@ public class RegionService {
         }
         if (legacyName != null && !legacyName.isBlank()) {
             String displayName = normalizeDisplayName(legacyName);
-            return regions.findFirstByDisplayNameIgnoreCase(displayName)
+            return regions.findFirstByTranslatedNameIgnoreCase(displayName)
+                    .or(() -> regions.findFirstByDisplayNameIgnoreCase(displayName))
+                    .map(this::ensureGoogleSearchText)
                     .orElseGet(() -> registerMissing(customCode(displayName), "ZZ", displayName));
         }
         throw new DomainException(
@@ -88,11 +97,13 @@ public class RegionService {
         GoogleLocationDtos.ResolvedPlace korean = googleLocations.resolvePlace(placeId, "ko");
         GoogleLocationDtos.ResolvedPlace english = googleLocations.resolvePlace(placeId, "en");
         String code = googleCode(placeId);
+        String searchText = googleSearchText(korean, english);
         regions.insertGoogleRegionIfMissing(
                 code,
                 english.countryCode(),
                 normalizeDisplayName(english.displayName()),
                 placeId,
+                searchText,
                 english.latitude(),
                 english.longitude());
         Region region = regions.findByGooglePlaceId(placeId)
@@ -100,9 +111,31 @@ public class RegionService {
                         HttpStatus.INTERNAL_SERVER_ERROR,
                         "REGION_REGISTRATION_FAILED",
                         "지역을 등록하지 못했습니다."));
+        if (region.getSearchText() == null || region.getSearchText().isBlank()) {
+            region.updateSearchText(searchText);
+        }
         regions.upsertTranslation(region.getId(), "ko", normalizeDisplayName(korean.displayName()));
         regions.upsertTranslation(region.getId(), "en", normalizeDisplayName(english.displayName()));
         return region;
+    }
+
+    private Region ensureGoogleSearchText(Region region, String placeId) {
+        if (region.getSearchText() != null && !region.getSearchText().isBlank()) {
+            return region;
+        }
+        GoogleLocationDtos.ResolvedPlace korean = googleLocations.resolvePlace(placeId, "ko");
+        GoogleLocationDtos.ResolvedPlace english = googleLocations.resolvePlace(placeId, "en");
+        region.updateSearchText(googleSearchText(korean, english));
+        regions.upsertTranslation(region.getId(), "ko", normalizeDisplayName(korean.displayName()));
+        regions.upsertTranslation(region.getId(), "en", normalizeDisplayName(english.displayName()));
+        return region;
+    }
+
+    private Region ensureGoogleSearchText(Region region) {
+        String placeId = region.getGooglePlaceId();
+        return placeId == null || placeId.isBlank()
+                ? region
+                : ensureGoogleSearchText(region, placeId);
     }
 
     private Region registerMissing(String code, String countryCode, String displayName) {
@@ -120,7 +153,11 @@ public class RegionService {
         }
 
         String normalizedName = normalizeDisplayName(displayName);
-        regions.insertIfMissing(code, countryCode, normalizedName);
+        regions.insertIfMissing(
+                code,
+                countryCode,
+                normalizedName,
+                joinSearchText(normalizedName, code, countryCode, countryAliases(countryCode)));
         return regions.findByCodeIgnoreCase(code)
                 .orElseThrow(() -> new DomainException(
                         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -187,7 +224,33 @@ public class RegionService {
                 latitude,
                 longitude,
                 region.getGooglePlaceId(),
-                localizedNames(region));
+                localizedNames(region),
+                searchText(region));
+    }
+
+    public String searchText(Region region) {
+        return joinSearchText(
+                region.getSearchText(),
+                region.getDisplayName(),
+                region.getCode(),
+                region.getCountryCode(),
+                countryAliases(region.getCountryCode()));
+    }
+
+    public String countryCodeForSearch(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String normalized = value.trim();
+        String upper = normalized.toUpperCase(Locale.ROOT);
+        if (ISO_COUNTRY_CODES.contains(upper)) {
+            return upper;
+        }
+        return ISO_COUNTRY_CODES.stream()
+                .filter(code -> countryAliases(code).stream()
+                        .anyMatch(name -> name.equalsIgnoreCase(normalized)))
+                .findFirst()
+                .orElse("");
     }
 
     public Map<String, String> localizedNames(Region region) {
@@ -196,6 +259,58 @@ public class RegionService {
                         RegionTranslationProjection::getLanguageCode,
                         RegionTranslationProjection::getDisplayName,
                         (first, ignored) -> first));
+    }
+
+    private String googleSearchText(
+            GoogleLocationDtos.ResolvedPlace korean,
+            GoogleLocationDtos.ResolvedPlace english) {
+        return joinSearchText(
+                korean.displayName(),
+                korean.formattedAddress(),
+                korean.addressComponentNames(),
+                english.displayName(),
+                english.formattedAddress(),
+                english.addressComponentNames(),
+                english.countryCode(),
+                countryAliases(english.countryCode()));
+    }
+
+    private List<String> countryAliases(String countryCode) {
+        if (countryCode == null) {
+            return List.of();
+        }
+        String normalized = countryCode.trim().toUpperCase(Locale.ROOT);
+        if (!ISO_COUNTRY_CODES.contains(normalized)) {
+            return List.of();
+        }
+        Locale country = Locale.of("", normalized);
+        return List.of(
+                country.getDisplayCountry(Locale.KOREAN),
+                country.getDisplayCountry(Locale.ENGLISH));
+    }
+
+    private String joinSearchText(Object... values) {
+        LinkedHashSet<String> parts = new LinkedHashSet<>();
+        for (Object value : values) {
+            if (value instanceof Iterable<?> iterable) {
+                for (Object item : iterable) {
+                    addSearchPart(parts, item);
+                }
+            } else {
+                addSearchPart(parts, value);
+            }
+        }
+        return String.join(" ", parts);
+    }
+
+    private void addSearchPart(Set<String> parts, Object value) {
+        if (value == null) {
+            return;
+        }
+        String normalized = value.toString().trim().replaceAll("\\s+", " ");
+        if (!normalized.isBlank()) {
+            parts.add(normalized);
+        }
     }
 
     private void validateCoordinates(double latitude, double longitude) {

@@ -10,6 +10,7 @@ import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionRepository;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,14 +36,14 @@ class PostApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        likes.deleteAll();
-        posts.deleteAll();
-        regions.deleteAll();
-        users.deleteAll();
-
-        owner = users.save(new UserAccount("api-owner@example.com", "hash", "api-owner"));
-        reactor = users.save(new UserAccount("api-reactor@example.com", "hash", "api-reactor"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+        // 개발용 seed 및 다른 통합 테스트의 crew가 region/user를 참조하므로 전체 삭제 대신
+        // 테스트마다 고유한 데이터만 추가해 외래키와 실행 순서에 영향을 받지 않게 합니다.
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        owner = users.save(new UserAccount(
+                "api-owner-" + suffix + "@example.com", "hash", "api-owner-" + suffix));
+        reactor = users.save(new UserAccount(
+                "api-reactor-" + suffix + "@example.com", "hash", "api-reactor-" + suffix));
+        Region seoul = regions.save(new Region("TEST-SEOUL-" + suffix, "KR", "Seoul", null));
 
         JourneyPost draft = new JourneyPost(owner, seoul, "draft", "private");
         draft.update(null, null, null, false);
@@ -74,5 +75,31 @@ class PostApiIntegrationTest {
 
         org.assertj.core.api.Assertions.assertThat(likes.countByPostId(published.getId()))
                 .isEqualTo(1);
+    }
+
+    @Test
+    void cityPostIsFoundByStateAndCountryNames() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String postTitle = "island trip " + suffix;
+        Region honolulu = regions.save(new Region(
+                "GOOGLE-HONOLULU-" + suffix,
+                "US",
+                "Honolulu",
+                null,
+                "honolulu-place-" + suffix,
+                "호놀룰루 하와이 Honolulu Hawaii"));
+        posts.save(new JourneyPost(owner, honolulu, postTitle, "ocean story"));
+
+        for (String keyword : new String[] {"하와이", "Hawaii", "미국", "United States"}) {
+            mockMvc.perform(get("/api/v1/explore").param("keyword", keyword))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items[*].title").value(
+                            org.hamcrest.Matchers.hasItem(postTitle)));
+        }
+
+        mockMvc.perform(get("/api/v1/explore").param("keyword", "일본"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[*].title").value(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(postTitle))));
     }
 }

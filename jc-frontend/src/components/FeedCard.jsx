@@ -160,7 +160,7 @@ function FeedItem({ post }) {
   );
 }
 
-export default function FeedCard({ selectedRegion, keyword = "" }) {
+export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }) {
   // 커서 피드를 가져온 뒤 현재 지역과 헤더 검색어에 맞는 카드만 보여줍니다.
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
@@ -191,8 +191,15 @@ export default function FeedCard({ selectedRegion, keyword = "" }) {
   });
   const displayPosts = visiblePosts;
 
+  useEffect(() => {
+    if (!loading && !error && displayPosts.length === 0) {
+      onEmptyResult?.();
+    }
+  }, [displayPosts.length, error, loading, onEmptyResult]);
+
   if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">피드를 불러오는 중입니다.</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
+  if (displayPosts.length === 0) return null;
 
   if (posts.length === 0) {
     return (
