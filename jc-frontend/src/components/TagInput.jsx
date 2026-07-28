@@ -22,6 +22,7 @@ const copy = {
 };
 
 const cleanTag = (value) => value.trim().replace(/^#+/, "").trim().replace(/\s+/g, " ");
+// 대소문자와 공백만 다른 태그를 같은 값으로 판단하되 화면에는 사용자가 입력한 표기를 유지합니다.
 const normalizeTag = (value) => value.toLocaleLowerCase().replace(/\s+/g, "");
 
 export default function TagInput({ tags, onChange, lang = "ko" }) {
@@ -45,6 +46,7 @@ export default function TagInput({ tags, onChange, lang = "ko" }) {
   };
 
   const handleKeyDown = (event) => {
+    // Enter·쉼표로 태그를 확정하고, 빈 입력에서 Backspace를 누르면 마지막 태그를 제거합니다.
     if (event.key === "Enter" || event.key === ",") {
       event.preventDefault();
       addTag();

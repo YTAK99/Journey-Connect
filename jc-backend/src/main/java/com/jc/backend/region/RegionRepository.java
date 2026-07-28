@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/** 지역 식별자·번역명 조회와 동시 자동 등록을 위한 원자적 저장 쿼리를 제공합니다. */
 public interface RegionRepository extends JpaRepository<Region, Long> {
 
     Optional<Region> findByCodeIgnoreCase(String code);
@@ -30,6 +31,7 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
     List<Region> findTop50ByOrderByCountryCodeAscDisplayNameAsc();
 
     @Modifying
+    // 같은 장소가 동시에 등록돼도 유일 키 충돌을 오류로 전파하지 않고 기존 행을 재사용합니다.
     @Query(value = """
             insert into region (code, country_code, display_name, search_text, created_at, updated_at)
             values (:code, :countryCode, :displayName, :searchText, current_timestamp, current_timestamp)

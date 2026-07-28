@@ -11,7 +11,7 @@ const getInitialRegion = () => {
     const savedRegion = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (savedRegion?.id && savedRegion?.label) return toRegionPreference(savedRegion);
   } catch {
-    // Ignore an old or malformed value and fall back to the legacy id/default.
+    // 오래되었거나 손상된 저장값은 무시하고 예전 id 형식 또는 기본 지역으로 복구합니다.
   }
 
   const savedId = localStorage.getItem(LEGACY_STORAGE_KEY);

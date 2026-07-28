@@ -37,6 +37,7 @@ const copy = {
 
 const normalizeSearchValue = (value) => String(value || "").toLowerCase().replace(/[\s,]/g, "");
 
+// Google 주소에서 현재 도시명을 덜어내 추천 섹션에 사용할 상위 권역명을 추출합니다.
 const getParentRegionName = (region) => {
   const address = String(region?.country || "").trim();
   if (!address) return "";
@@ -116,6 +117,7 @@ export default function SearchPage() {
   useEffect(() => {
     if (!showEmptyState) return undefined;
 
+    // 검색 결과가 없을 때만 최신 피드를 별도로 받아 동일 권역과 최근 여행기로 재구성합니다.
     let active = true;
     getFeed({ size: 12 })
       .then((result) => {
@@ -131,6 +133,7 @@ export default function SearchPage() {
   }, [recommendationKey, showEmptyState]);
 
   const parentRegionName = useMemo(() => getParentRegionName(selectedRegion), [selectedRegion]);
+  // 동일 권역 추천을 먼저 최대 3개 확보하고, 중복 항목을 제외한 나머지를 최근 글로 보여줍니다.
   const parentPosts = useMemo(() => {
     const normalizedParent = normalizeSearchValue(parentRegionName);
     if (!normalizedParent) return [];

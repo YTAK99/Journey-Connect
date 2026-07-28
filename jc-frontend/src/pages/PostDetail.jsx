@@ -41,6 +41,7 @@ function PostDetail() {
 
   const isKorean = currentLang === "ko";
 
+  // 언어가 바뀌면 오류 문구도 현재 언어를 사용하도록 상세 요청을 다시 구성합니다.
   useEffect(() => {
     getPost(id)
       .then(setPost)
@@ -98,6 +99,7 @@ function PostDetail() {
   const currentUser = getUser();
   const isAuthor = String(currentUser?.id) === String(post.author?.id);
   const location = getLocalizedRegionName(post, currentLang);
+  // 대표 이미지는 상단 히어로에서 이미 사용하므로 본문 갤러리에서는 중복 노출하지 않습니다.
   const galleryImages = (post.images || []).filter((image) => image.imageUrl !== post.coverImageUrl);
   const hasTravelDates = post.travelStartDate || post.travelEndDate;
 
@@ -185,6 +187,7 @@ function PostDetail() {
               </div>
             )}
 
+            {/* 저장 시 백엔드에서 허용된 HTML만 남기므로 정제된 리치 텍스트를 그대로 렌더링합니다. */}
             <div
               className="rich-text-content mx-auto max-w-3xl py-10 text-[1.05rem] leading-8 text-slate-700 dark:text-slate-200 sm:py-14 sm:text-lg sm:leading-9"
               dangerouslySetInnerHTML={{ __html: normalizeEditorContent(post.content || "") }}

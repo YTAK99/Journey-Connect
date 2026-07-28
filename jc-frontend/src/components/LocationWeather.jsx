@@ -54,6 +54,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
     return region.label.ko.includes(query) || region.label.en.toLowerCase().includes(q);
   });
 
+  // 입력 중 매 글자마다 외부 API를 호출하지 않도록 지연하고, 이전 요청의 늦은 응답은 무시합니다.
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
@@ -221,6 +222,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   const { currentLang } = useLangStore();
   const [tick, setTick] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // 같은 검색어를 다시 선택해도 id를 증가시켜 요약 정보를 새로 조회할 수 있게 합니다.
   const [request, setRequest] = useState(() => ({
     id: 0,
     query: getRegionQuery(selectedRegion, currentLang),
@@ -238,6 +240,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   useEffect(() => {
     let ignore = false;
 
+    // 장소 조회가 성공한 동적 지역만 좌표·시간대가 포함된 값으로 전역 상태를 갱신합니다.
     getGoogleLocationSummary(request.query, currentLang === "ko" ? "ko" : "en")
       .then((data) => {
         if (!ignore) {
@@ -279,6 +282,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   const fallbackTime = getLocalTime(selectedRegion.timezone);
   const fallbackFlightTime = currentLang === "ko" ? selectedRegion.flightTime.ko : selectedRegion.flightTime.en;
   const display = useMemo(() => {
+    // 외부 응답에 일부 값이 없더라도 고정 지역의 기본 정보로 화면을 유지합니다.
     const temperature = summary?.weather?.temperatureDegrees;
 
     return {

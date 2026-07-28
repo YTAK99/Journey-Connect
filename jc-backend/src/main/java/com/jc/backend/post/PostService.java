@@ -315,6 +315,7 @@ public class PostService {
     }
 
     private List<PostDtos.Summary> summaries(List<JourneyPost> postsPage) {
+        // 카드마다 집계 쿼리를 실행하지 않도록 현재 페이지의 좋아요·북마크 수를 한 번씩 묶어 조회합니다.
         List<Long> postIds = postsPage.stream().map(JourneyPost::getId).toList();
         if (postIds.isEmpty()) {
             return List.of();
@@ -414,6 +415,7 @@ public class PostService {
     private List<JourneyPost.PostImageData> imageData(
             List<PostDtos.ImageRequest> images,
             String legacyCoverImageUrl) {
+        // 다중 이미지 요청을 우선 사용하고, 이전 클라이언트의 단일 대표 이미지 필드는 호환용으로 변환합니다.
         if (images != null) {
             return images.stream()
                     .map(image -> new JourneyPost.PostImageData(

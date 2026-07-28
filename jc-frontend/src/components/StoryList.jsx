@@ -14,6 +14,7 @@ export default function StoryList({ selectedRegion }) {
   const [stories, setStories] = useState([]);
   const [error, setError] = useState("");
 
+  // 별도 스토리 데이터가 아니라 최신 게시글을 받아 현재 선택 지역의 원형 미리보기로 재사용합니다.
   useEffect(() => {
     let active = true;
 

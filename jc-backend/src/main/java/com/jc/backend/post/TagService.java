@@ -28,6 +28,7 @@ public class TagService {
             throw invalid("태그는 최대 5개까지 입력할 수 있습니다.");
         }
 
+        // 정규화된 이름으로 중복을 막으면서 LinkedHashMap으로 사용자가 입력한 태그 순서를 보존합니다.
         LinkedHashMap<String, String> namesByNormalized = new LinkedHashMap<>();
         for (String requestedTag : requestedTags) {
             String displayName = displayName(requestedTag);
@@ -37,6 +38,7 @@ public class TagService {
             }
         }
 
+        // 동시 요청에도 같은 태그 행을 재사용하도록 먼저 원자적으로 등록한 뒤 한 번에 다시 조회합니다.
         namesByNormalized.forEach((normalizedName, displayName) ->
                 tags.insertIfAbsent(displayName, normalizedName));
 

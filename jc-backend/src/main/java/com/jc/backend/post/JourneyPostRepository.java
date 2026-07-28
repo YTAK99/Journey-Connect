@@ -25,6 +25,7 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
     Page<JourneyPost> findByAuthorIdOrderByCreatedAtDescIdDesc(Long authorId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"author", "region"})
+    // 지역 searchText에는 번역명과 상위 행정구역이 들어 있어 도시 글을 주·도 및 국가명으로도 검색할 수 있습니다.
     @Query("""
             select p
             from JourneyPost p

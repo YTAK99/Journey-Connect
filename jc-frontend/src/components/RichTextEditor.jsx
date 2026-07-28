@@ -74,6 +74,7 @@ function ToolbarButton({ active = false, disabled = false, label, onClick, child
 
 export default function RichTextEditor({ value, onChange, lang = "ko" }) {
   const t = copy[lang] || copy.ko;
+  // 에디터 내부 변경은 HTML로 부모 폼에 전달하며, 저장 전 최종 정제는 백엔드가 담당합니다.
   const editor = useEditor({
     extensions: [StarterKit, TextStyle, FontFamily],
     content: normalizeEditorContent(value),
@@ -106,6 +107,7 @@ export default function RichTextEditor({ value, onChange, lang = "ko" }) {
   });
 
   useEffect(() => {
+    // 수정 글 로딩처럼 외부 value가 뒤늦게 바뀐 경우에만 에디터 내용을 동기화합니다.
     if (!editor) return;
     const normalized = normalizeEditorContent(value);
     if (editor.getHTML() !== normalized) {

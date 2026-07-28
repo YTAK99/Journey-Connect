@@ -4,6 +4,7 @@ export const getLocalizedRegionName = (item, lang = "ko", fallback = "지역 미
 };
 
 export const getRegionSearchText = (item) => {
+  // 도시명뿐 아니라 번역명·상위 행정구역·국가 코드를 한 문자열로 합쳐 지역 계층 검색에 사용합니다.
   const names = item?.regionNames || item?.region?.localizedNames || {};
   const hierarchy = item?.regionSearchText || item?.region?.searchText || "";
   const country = item?.region?.countryCode || item?.countryCode || "";
@@ -11,6 +12,7 @@ export const getRegionSearchText = (item) => {
 };
 
 export const toRegionPreference = (region, lang = "ko") => {
+  // API 지역 응답과 프론트 고정 지역을 전역 저장소가 사용하는 하나의 객체 형식으로 맞춥니다.
   if (!region) return REGIONS[0];
   const code = region.code || region.regionCode || null;
   const preset = code ? REGIONS.find((item) => item.code === code) : null;
@@ -33,6 +35,7 @@ export const toRegionPreference = (region, lang = "ko") => {
 };
 
 export const matchesSelectedRegion = (item, selectedRegion) => {
+  // 안정적인 코드·Place ID를 우선 비교하고, 이전 데이터만 다국어 이름과 계층 검색어로 보완합니다.
   if (!selectedRegion) return true;
   const itemCode = item?.regionCode || item?.region?.code;
   if (itemCode && selectedRegion.code && itemCode.toLowerCase() === selectedRegion.code.toLowerCase()) return true;

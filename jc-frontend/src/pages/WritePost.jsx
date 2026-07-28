@@ -112,6 +112,7 @@ function WritePost() {
   const [submitting, setSubmitting] = useState(false);
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
 
+  // 수정 모드에서는 서버 응답을 현재 폼 구조로 복원하고, 신규 작성은 전역 선택 지역을 초기값으로 사용합니다.
   useEffect(() => {
     if (!isLogin()) {
       alert(copy[useLangStore.getState().currentLang]?.loginRequired || copy.ko.loginRequired);
@@ -155,6 +156,7 @@ function WritePost() {
   }, [id, navigate]);
 
   const handleRegionSelect = (region) => {
+    // 고정 지역은 내부 코드로 식별하고, Google 검색 지역은 아래 검색 콜백에서 Place ID로 식별합니다.
     setLocation(currentLang === "ko" ? region.label.ko : region.label.en);
     setSelectedRegionCode(region.code || null);
     setSelectedRegionPlaceId(null);
@@ -195,6 +197,7 @@ function WritePost() {
 
     try {
       setSubmitting(true);
+      // 기존 서버 이미지는 유지하고 새로 선택한 파일만 업로드한 뒤 원래 배열 순서대로 다시 합칩니다.
       const pendingFiles = images.filter((image) => image.file).map((image) => image.file);
       let resolvedImages = images;
 
@@ -213,6 +216,7 @@ function WritePost() {
         setImages(resolvedImages);
       }
 
+      // 지역 코드와 Place ID를 함께 구분해 보내야 같은 이름의 다른 도시가 하나의 지역으로 합쳐지지 않습니다.
       const request = {
         title: title.trim(),
         content,

@@ -16,7 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 지역 코드 해석과 PostGIS 기반 주변 지역 검색 규칙을 담당합니다. */
+/** 지역 식별자 해석, Google 지역 자동 등록, 다국어 계층 검색과 주변 지역 검색 규칙을 담당합니다. */
 @Service
 @Transactional(readOnly = true)
 public class RegionService {
@@ -66,6 +66,7 @@ public class RegionService {
 
     @Transactional
     public Region require(String code, String legacyName, String googlePlaceId) {
+        // 정확도가 높은 Google Place ID, 내부 코드, 이전 이름 데이터 순으로 기존 지역을 찾거나 등록합니다.
         if (googlePlaceId != null && !googlePlaceId.isBlank()) {
             String normalizedPlaceId = googlePlaceId.trim();
             return regions.findByGooglePlaceId(normalizedPlaceId)
@@ -94,6 +95,7 @@ public class RegionService {
     }
 
     private Region registerGooglePlace(String placeId) {
+        // 한·영 Place Details를 함께 저장해 표시 언어와 상관없이 같은 지역을 검색할 수 있게 합니다.
         GoogleLocationDtos.ResolvedPlace korean = googleLocations.resolvePlace(placeId, "ko");
         GoogleLocationDtos.ResolvedPlace english = googleLocations.resolvePlace(placeId, "en");
         String code = googleCode(placeId);
@@ -120,6 +122,7 @@ public class RegionService {
     }
 
     private Region ensureGoogleSearchText(Region region, String placeId) {
+        // 마이그레이션 이전 Google 지역은 처음 다시 사용될 때 주소 계층과 번역명을 지연 보강합니다.
         if (region.getSearchText() != null && !region.getSearchText().isBlank()) {
             return region;
         }

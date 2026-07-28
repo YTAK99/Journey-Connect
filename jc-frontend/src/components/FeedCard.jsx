@@ -48,6 +48,7 @@ function FeedItem({ post }) {
 
   const toggleLike = async (event) => {
     event.stopPropagation();
+    // 반응을 먼저 화면에 반영하고 API가 실패하면 이전 상태로 되돌리는 낙관적 업데이트입니다.
     const nextLiked = !liked;
     setLiked(nextLiked);
     setLikeCount((count) => Math.max(0, count + (nextLiked ? 1 : -1)));
@@ -192,6 +193,7 @@ export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }
   const displayPosts = visiblePosts;
 
   useEffect(() => {
+    // 정상 조회가 끝난 빈 피드만 탐색 화면으로 넘기고, 로딩·오류 상태에서는 이동하지 않습니다.
     if (!loading && !error && displayPosts.length === 0) {
       onEmptyResult?.();
     }

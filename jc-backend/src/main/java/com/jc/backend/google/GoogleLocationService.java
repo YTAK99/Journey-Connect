@@ -57,6 +57,7 @@ public class GoogleLocationService {
     }
 
     public List<GoogleLocationDtos.LocationSuggestion> suggest(String query, String languageCode) {
+        // 도시·행정구역 중심의 후보만 받아 작성 화면에서 임의 문자열 대신 Place ID를 선택하게 합니다.
         if (query == null || query.trim().length() < 2) {
             return List.of();
         }
@@ -92,6 +93,7 @@ public class GoogleLocationService {
     }
 
     public GoogleLocationDtos.ResolvedPlace resolvePlace(String placeId, String languageCode) {
+        // 표시명과 모든 주소 구성요소를 함께 반환해 도시를 주·도 및 국가명으로도 찾을 수 있게 합니다.
         if (placeId == null || placeId.isBlank()) {
             throw new DomainException(HttpStatus.BAD_REQUEST, "PLACE_ID_REQUIRED", "선택한 지역 정보가 필요합니다.");
         }

@@ -35,12 +35,14 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
   const inputRef = useRef(null);
   const previewUrlsRef = useRef(new Set());
 
+  // 로컬 미리보기 URL은 브라우저 메모리를 점유하므로 삭제하거나 화면을 벗어날 때 반드시 해제합니다.
   useEffect(() => () => {
     previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
     previewUrlsRef.current.clear();
   }, []);
 
   const handleFiles = (event) => {
+    // 서버 검증 전에 개수·MIME 타입·크기를 확인해 잘못된 파일을 빠르게 차단합니다.
     const selected = Array.from(event.target.files || []);
     event.target.value = "";
     if (!selected.length) return;
@@ -78,6 +80,7 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
   };
 
   const makeCover = (index) => {
+    // 배열의 첫 항목을 대표 이미지로 사용하는 작성 요청 규칙에 맞춰 선택 이미지를 맨 앞으로 옮깁니다.
     if (index === 0) return;
     const next = [...images];
     const [selected] = next.splice(index, 1);
