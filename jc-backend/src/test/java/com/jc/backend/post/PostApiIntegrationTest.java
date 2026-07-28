@@ -1,5 +1,7 @@
 package com.jc.backend.post;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
+
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -42,7 +44,7 @@ class PostApiIntegrationTest {
 
         owner = users.save(new UserAccount("api-owner@example.com", "hash", "api-owner"));
         reactor = users.save(new UserAccount("api-reactor@example.com", "hash", "api-reactor"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
 
         JourneyPost draft = new JourneyPost(owner, seoul, "draft", "private");
         draft.update(null, null, null, false);

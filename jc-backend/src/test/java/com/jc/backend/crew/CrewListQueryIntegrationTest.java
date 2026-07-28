@@ -1,5 +1,6 @@
 package com.jc.backend.crew;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jc.backend.common.PageResponse;
@@ -33,8 +34,8 @@ class CrewListQueryIntegrationTest {
     void crewListLoadsOwnersRegionsAndCountsWithFixedNumberOfQueries() {
         UserAccount firstOwner = users.save(new UserAccount("list-owner1@example.com", "hash", "owner1"));
         UserAccount secondOwner = users.save(new UserAccount("list-owner2@example.com", "hash", "owner2"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
-        Region busan = regions.save(new Region("KR-BUSAN", "KR", "Busan", null));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
+        Region busan = region(regions, "KR-BUSAN", "KR", "Busan");
 
         Crew first = crews.save(new Crew(
                 firstOwner,

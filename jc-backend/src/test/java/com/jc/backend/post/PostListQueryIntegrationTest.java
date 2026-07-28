@@ -1,5 +1,6 @@
 package com.jc.backend.post;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jc.backend.common.PageResponse;
@@ -35,9 +36,9 @@ class PostListQueryIntegrationTest {
         UserAccount secondAuthor = users.save(new UserAccount("author2@example.com", "hash", "author2"));
         UserAccount thirdAuthor = users.save(new UserAccount("author3@example.com", "hash", "author3"));
         UserAccount reactor = users.save(new UserAccount("reactor@example.com", "hash", "reactor"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
-        Region busan = regions.save(new Region("KR-BUSAN", "KR", "Busan", null));
-        Region jeju = regions.save(new Region("KR-JEJU", "KR", "Jeju", null));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
+        Region busan = region(regions, "KR-BUSAN", "KR", "Busan");
+        Region jeju = region(regions, "KR-JEJU", "KR", "Jeju");
 
         List<JourneyPost> savedPosts = posts.saveAll(List.of(
                 new JourneyPost(firstAuthor, seoul, "post-1", "content"),

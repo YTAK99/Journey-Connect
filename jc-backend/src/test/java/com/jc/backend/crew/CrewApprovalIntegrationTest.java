@@ -1,9 +1,9 @@
 package com.jc.backend.crew;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jc.backend.common.PageResponse;
-import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionRepository;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
@@ -26,7 +26,7 @@ class CrewApprovalIntegrationTest {
     void approvalRequiredCrewKeepsApplicantPendingUntilOwnerApproves() {
         UserAccount owner = users.save(new UserAccount("approval-owner@example.com", "hash", "approval-owner"));
         UserAccount applicant = users.save(new UserAccount("approval-user@example.com", "hash", "approval-user"));
-        regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+        region(regions, "KR-SEOUL", "KR", "Seoul");
 
         CrewDtos.View crew = crewService.create(owner.getId(), new CrewDtos.CreateRequest(
                 "approval crew",

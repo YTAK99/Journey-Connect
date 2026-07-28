@@ -1,5 +1,6 @@
 package com.jc.backend.post;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jc.backend.common.CursorPageResponse;
@@ -35,7 +36,7 @@ class FeedCursorIntegrationTest {
         users.deleteAll();
 
         UserAccount author = users.save(new UserAccount("cursor@example.com", "hash", "cursor-user"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
         for (int i = 1; i <= 5; i++) {
         posts.save(new JourneyPost(
                 author,
