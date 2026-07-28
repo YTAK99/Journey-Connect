@@ -16,6 +16,14 @@ public final class GoogleLocationDtos {
             String secondaryText,
             String description) {}
 
+    public record ResolvedPlace(
+            String placeId,
+            String displayName,
+            String formattedAddress,
+            String countryCode,
+            double latitude,
+            double longitude) {}
+
     public record Place(
             String name,
             String formattedAddress,

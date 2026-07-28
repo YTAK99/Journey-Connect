@@ -75,3 +75,9 @@ AI 추천, 개인화 알고리즘, 크루, 여행 루트, 타임라인, 알림, 
 - Smoke Test에 국가 코드 중복 차단 검증을 추가했습니다.
 
 전체 변경 이력은 `REVIEW.md`에 누적 기록합니다.
+
+## 현재 Spring 백엔드 지역 다국어 업데이트
+
+현재 Spring 백엔드는 `src/main/resources/db/migration/V7__region_place_identity_and_translations.sql`에서
+Google `placeId`와 `region_translation` 테이블을 관리합니다. 별도 SQL을 직접 실행하지 말고 최신 백엔드를
+시작하면 Flyway가 자동 적용합니다. `flyway_schema_history`에서 버전 `7`의 `success`가 `true`인지 확인하세요.

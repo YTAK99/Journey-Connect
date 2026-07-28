@@ -40,6 +40,9 @@ public class Region extends BaseTimeEntity {
     @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;
 
+    @Column(name = "google_place_id", length = 255, unique = true)
+    private String googlePlaceId;
+
     /** WGS84 좌표이며 경도(x), 위도(y) 순서로 저장합니다. */
     @Column(columnDefinition = "geometry(Point,4326)")
     private Point center;
@@ -47,10 +50,15 @@ public class Region extends BaseTimeEntity {
     protected Region() {}
 
     public Region(String code, String countryCode, String displayName, Point center) {
+        this(code, countryCode, displayName, center, null);
+    }
+
+    public Region(String code, String countryCode, String displayName, Point center, String googlePlaceId) {
         this.code = code.trim().toUpperCase();
         this.countryCode = countryCode.trim().toUpperCase();
         this.displayName = displayName.trim();
         this.center = center;
+        this.googlePlaceId = googlePlaceId;
     }
 
     public Long getId() {
@@ -67,6 +75,10 @@ public class Region extends BaseTimeEntity {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getGooglePlaceId() {
+        return googlePlaceId;
     }
 
     public Point getCenter() {

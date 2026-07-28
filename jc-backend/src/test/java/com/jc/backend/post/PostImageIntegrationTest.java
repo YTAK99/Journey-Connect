@@ -40,7 +40,8 @@ class PostImageIntegrationTest {
                         new PostDtos.ImageRequest("https://example.com/2.jpg", "second")),
                 null,
                 null,
-                List.of("cafe", "Tokyo")));
+                List.of("cafe", "Tokyo"),
+                null));
 
         assertThat(created.coverImageUrl()).isEqualTo("https://example.com/1.jpg");
         assertThat(created.images())
@@ -57,6 +58,7 @@ class PostImageIntegrationTest {
                 null,
                 null,
                 List.of(),
+                null,
                 null,
                 null,
                 null,

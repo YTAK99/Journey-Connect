@@ -114,7 +114,7 @@ public class PostService {
 
     @Transactional
     public PostDtos.Detail create(Long userId, PostDtos.CreateRequest request) {
-        Region region = regionService.require(request.regionCode(), request.regionName());
+        Region region = regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId());
         JourneyPost post = new JourneyPost(
                 user(userId),
                 region,
@@ -133,8 +133,8 @@ public class PostService {
             Long postId,
             PostDtos.UpdateRequest request) {
         JourneyPost post = ownedPost(userId, postId);
-        Region region = hasText(request.regionCode()) || hasText(request.regionName())
-                ? regionService.require(request.regionCode(), request.regionName())
+        Region region = hasText(request.regionCode()) || hasText(request.regionName()) || hasText(request.regionPlaceId())
+                ? regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId())
                 : null;
         String sanitizedContent = request.content() == null
                 ? null
@@ -337,7 +337,9 @@ public class PostService {
                 post.getId(),
                 post.getTitle(),
                 post.getRegion().getCode(),
+                post.getRegion().getGooglePlaceId(),
                 post.getRegionName(),
+                regionService.localizedNames(post.getRegion()),
                 post.getCoverImageUrl(),
                 tagNames(post),
                 post.getViewCount(),
@@ -383,15 +385,7 @@ public class PostService {
     }
 
     private RegionDtos.View regionView(Region region) {
-        Double latitude = region.getCenter() == null ? null : region.getCenter().getY();
-        Double longitude = region.getCenter() == null ? null : region.getCenter().getX();
-        return new RegionDtos.View(
-                region.getId(),
-                region.getCode(),
-                region.getCountryCode(),
-                region.getDisplayName(),
-                latitude,
-                longitude);
+        return regionService.view(region);
     }
 
     private PostDtos.CommentView commentView(Comment comment) {

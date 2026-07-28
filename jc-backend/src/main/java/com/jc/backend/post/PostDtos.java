@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /** 게시물 도메인의 요청 DTO와 목록·상세 응답 DTO를 엔티티에서 분리해 관리합니다. */
 public final class PostDtos {
@@ -27,7 +28,8 @@ public final class PostDtos {
             @Size(max = 10) List<@Valid ImageRequest> images,
             LocalDate travelStartDate,
             LocalDate travelEndDate,
-            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {}
+            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags,
+            @Size(max = 255) String regionPlaceId) {}
 
     public record UpdateRequest(
             @Size(max = 120) String title,
@@ -39,7 +41,8 @@ public final class PostDtos {
             LocalDate travelStartDate,
             LocalDate travelEndDate,
             @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags,
-            Boolean published) {}
+            Boolean published,
+            @Size(max = 255) String regionPlaceId) {}
 
     public record CommentRequest(@NotBlank @Size(max = 1000) String content) {}
 
@@ -51,7 +54,9 @@ public final class PostDtos {
             Long id,
             String title,
             String regionCode,
+            String regionPlaceId,
             String regionName,
+            Map<String, String> regionNames,
             String coverImageUrl,
             List<String> tags,
             long viewCount,
