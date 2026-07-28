@@ -4,7 +4,7 @@ import { dismissAdminReport, getAdminReport, resolveAdminReport } from "../../se
 import { normalizeAdminError } from "../../admin/adminErrors";
 import { adminLabel } from "../../admin/adminPolicies";
 import { formatAdminDate } from "../../admin/adminFormat";
-import { useAdminContext } from "../../admin/AdminContext";
+import { useAdminContext } from "../../admin/useAdminContext";
 import AdminCommandDialog from "../../admin/AdminCommandDialog";
 import { AdminError, AdminLoading, AdminPageHeader, AdminPanel, AdminStatusBadge } from "../../admin/AdminUi";
 
@@ -21,7 +21,13 @@ export default function AdminReportDetailPage() {
     try { setState({ loading: false, item: await getAdminReport(reportId), error: null }); }
     catch (error) { setState({ loading: false, item: null, error: normalizeAdminError(error) }); }
   }, [reportId]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void load();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [load]);
 
   const execute = async (reason) => {
     if (pending || !command) return;

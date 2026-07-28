@@ -26,10 +26,20 @@ export default function AdminRouteGuard({ children }) {
   }, [authenticated]);
 
   useEffect(() => {
-    verify();
-    const handleAuthCleared = () => setState({ status: "anonymous", dashboard: null, error: null });
+    const timerId = window.setTimeout(() => {
+      void verify();
+    }, 0);
+
+    const handleAuthCleared = () => {
+      setState({ status: "anonymous", dashboard: null, error: null });
+    };
+
     window.addEventListener("jc:auth-cleared", handleAuthCleared);
-    return () => window.removeEventListener("jc:auth-cleared", handleAuthCleared);
+
+    return () => {
+      window.clearTimeout(timerId);
+      window.removeEventListener("jc:auth-cleared", handleAuthCleared);
+    };
   }, [verify]);
 
   if (!authenticated || state.status === "anonymous") {

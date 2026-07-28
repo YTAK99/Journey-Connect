@@ -20,7 +20,13 @@ export default function useAdminListQuery(loader, filterNames = []) {
     }
   }, [loader, page, search, filters]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void load();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [load]);
 
   const update = useCallback((values) => {
     const next = new URLSearchParams(params);

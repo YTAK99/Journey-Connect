@@ -4,7 +4,7 @@ import { getAdminUser, suspendAdminUser, unsuspendAdminUser } from "../../servic
 import { normalizeAdminError } from "../../admin/adminErrors";
 import { adminLabel } from "../../admin/adminPolicies";
 import { formatAdminDate } from "../../admin/adminFormat";
-import { useAdminContext } from "../../admin/AdminContext";
+import { useAdminContext } from "../../admin/useAdminContext";
 import AdminCommandDialog from "../../admin/AdminCommandDialog";
 import { AdminError, AdminLoading, AdminPageHeader, AdminPanel, AdminStatusBadge } from "../../admin/AdminUi";
 
@@ -16,7 +16,13 @@ export default function AdminUserDetailPage() {
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState("");
   const load = useCallback(async () => { setState((current) => ({ ...current, loading: true, error: null })); try { setState({ loading: false, item: await getAdminUser(userId), error: null }); } catch (error) { setState({ loading: false, item: null, error: normalizeAdminError(error) }); } }, [userId]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void load();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [load]);
   const execute = async (reason) => { if (pending || !command) return; setPending(true); setNotice(""); try { const result = command === "suspend" ? await suspendAdminUser(userId, reason) : await unsuspendAdminUser(userId, reason); setNotice(result.changed ? "사용자 상태가 갱신되었습니다." : "이미 요청한 상태여서 추가 변경 없이 완료되었습니다."); setCommand(null); await Promise.all([load(), refreshDashboard()]); } catch (error) { setNotice(normalizeAdminError(error).message); } finally { setPending(false); } };
   if (state.loading) return <AdminLoading />;
   if (state.error) return <AdminError message={state.error.message} onRetry={load} />;

@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useMemo, useState } from "react";
 import { getAdminDashboard } from "../services/adminApi";
 import { normalizeAdminError } from "./adminErrors";
 
-const AdminContext = createContext(null);
+export const AdminContext = createContext(null);
 
 export function AdminProvider({ initialDashboard, children }) {
   const [dashboard, setDashboard] = useState(initialDashboard);
@@ -21,12 +21,10 @@ export function AdminProvider({ initialDashboard, children }) {
     }
   }, []);
 
-  const value = useMemo(() => ({ dashboard, dashboardError, refreshDashboard }), [dashboard, dashboardError, refreshDashboard]);
-  return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
-}
+  const value = useMemo(
+    () => ({ dashboard, dashboardError, refreshDashboard }),
+    [dashboard, dashboardError, refreshDashboard],
+  );
 
-export function useAdminContext() {
-  const value = useContext(AdminContext);
-  if (!value) throw new Error("AdminProvider is required");
-  return value;
+  return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
 }
