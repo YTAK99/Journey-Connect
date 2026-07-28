@@ -10,6 +10,9 @@ import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
@@ -32,18 +35,19 @@ class PostListQueryIntegrationTest {
 
     @Test
     void feedLoadsAuthorRegionAndReactionCountsWithFixedNumberOfQueries() {
-        UserAccount firstAuthor = users.save(new UserAccount("post-list-author1@example.com", "hash", "post-list-author1"));
-        UserAccount secondAuthor = users.save(new UserAccount("post-list-author2@example.com", "hash", "post-list-author2"));
-        UserAccount thirdAuthor = users.save(new UserAccount("post-list-author3@example.com", "hash", "post-list-author3"));
-        UserAccount reactor = users.save(new UserAccount("post-list-reactor@example.com", "hash", "post-list-reactor"));
+        String fixtureId = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        UserAccount firstAuthor = users.save(new UserAccount("post-list-a1-" + fixtureId + "@example.com", "hash", "post-list-a1-" + fixtureId));
+        UserAccount secondAuthor = users.save(new UserAccount("post-list-a2-" + fixtureId + "@example.com", "hash", "post-list-a2-" + fixtureId));
+        UserAccount thirdAuthor = users.save(new UserAccount("post-list-a3-" + fixtureId + "@example.com", "hash", "post-list-a3-" + fixtureId));
+        UserAccount reactor = users.save(new UserAccount("post-list-r-" + fixtureId + "@example.com", "hash", "post-list-r-" + fixtureId));
         Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
         Region busan = region(regions, "KR-BUSAN", "KR", "Busan");
         Region jeju = region(regions, "KR-JEJU", "KR", "Jeju");
 
         List<JourneyPost> savedPosts = posts.saveAll(List.of(
-                new JourneyPost(firstAuthor, seoul, "post-1", "content"),
-                new JourneyPost(secondAuthor, busan, "post-2", "content"),
-                new JourneyPost(thirdAuthor, jeju, "post-3", "content")));
+                new JourneyPost(firstAuthor, seoul, "post-1-" + fixtureId, "content"),
+                new JourneyPost(secondAuthor, busan, "post-2-" + fixtureId, "content"),
+                new JourneyPost(thirdAuthor, jeju, "post-3-" + fixtureId, "content")));
         likes.save(new PostLike(savedPosts.get(0), reactor));
         bookmarks.save(new Bookmark(savedPosts.get(0), reactor));
 
@@ -57,14 +61,21 @@ class PostListQueryIntegrationTest {
 
         PageResponse<PostDtos.Summary> result = postService.feed(PageRequest.of(0, 20));
 
-        assertThat(result.items()).hasSize(3);
+        Set<Long> createdIds = savedPosts.stream()
+                .map(JourneyPost::getId)
+                .collect(Collectors.toSet());
+
         assertThat(result.items())
-                .filteredOn(item -> item.title().equals("post-1"))
+                .filteredOn(item -> createdIds.contains(item.id()))
+                .hasSize(3);
+
+        assertThat(result.items())
+                .filteredOn(item -> item.id().equals(savedPosts.get(0).getId()))
                 .singleElement()
                 .satisfies(item -> {
                     assertThat(item.likeCount()).isEqualTo(1);
                     assertThat(item.bookmarkCount()).isEqualTo(1);
-                    assertThat(item.author().nickname()).isEqualTo("post-list-author1");
+                    assertThat(item.author().nickname()).isEqualTo("post-list-a1-" + fixtureId);
                     assertThat(item.regionCode()).isEqualTo("KR-SEOUL");
                 });
 

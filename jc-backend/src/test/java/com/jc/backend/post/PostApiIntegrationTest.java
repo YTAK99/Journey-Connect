@@ -14,15 +14,16 @@ import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@Transactional
 class PostApiIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
@@ -37,12 +38,15 @@ class PostApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        likes.deleteAll();
-        posts.deleteAll();
-        users.deleteAll();
-
-        owner = users.save(new UserAccount("api-owner@example.com", "hash", "api-owner"));
-        reactor = users.save(new UserAccount("api-reactor@example.com", "hash", "api-reactor"));
+        String fixtureId = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        owner = users.save(new UserAccount(
+                "api-owner-" + fixtureId + "@example.com",
+                "hash",
+                "api-owner-" + fixtureId));
+        reactor = users.save(new UserAccount(
+                "api-reactor-" + fixtureId + "@example.com",
+                "hash",
+                "api-reactor-" + fixtureId));
         Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
 
         JourneyPost draft = new JourneyPost(owner, seoul, "draft", "private");
