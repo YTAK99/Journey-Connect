@@ -16,7 +16,7 @@ export default function FeedPage() {
         {/* 고정 헤더와 지역 영역 사이의 여백은 유지하고, 카드 내부의 세로 간격만 줄입니다. */}
         <section className="mx-auto max-w-screen-xl space-y-1 bg-white px-6 py-2 dark:bg-slate-900">
           <LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />
-          <StoryList />
+          <StoryList selectedRegion={selectedRegion} />
         </section>
 
         <section className="mx-auto max-w-screen-xl px-4 pt-3">

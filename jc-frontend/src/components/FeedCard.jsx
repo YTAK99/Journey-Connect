@@ -7,6 +7,19 @@ import { bookmarkPost, getFeed, getFeedItems, likePost, unbookmarkPost, unlikePo
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
 
+const matchesRegion = (post, selectedRegion) => {
+  if (!selectedRegion) return true;
+  if (post.regionCode && post.regionCode.toLowerCase() === selectedRegion.id?.toLowerCase()) return true;
+
+  const postRegion = String(post.regionName || post.region?.name || "").toLowerCase().replace(/\s/g, "");
+  if (!postRegion) return false;
+  const selectedNames = [selectedRegion.label?.ko, selectedRegion.label?.en]
+    .filter(Boolean)
+    .map((name) => String(name).toLowerCase().replace(/\s/g, ""));
+
+  return selectedNames.some((name) => postRegion.includes(name) || name.includes(postRegion));
+};
+
 const inferCategory = (post) => {
   const text = `${post.title || ""} ${post.content || ""}`.toLowerCase();
   if (text.includes("카페") || text.includes("coffee")) return "카페";
@@ -185,15 +198,16 @@ export default function FeedCard({ selectedRegion, keyword = "" }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const regionName = selectedRegion?.label?.ko;
+  const regionName = selectedRegion?.label?.ko || selectedRegion?.label?.en;
   const normalizedKeyword = keyword.trim().toLowerCase();
   const visiblePosts = posts.filter((post) => {
     const name = post.regionName || post.region?.name || "";
-    if (!normalizedKeyword) return !regionName || !name || name.includes(regionName);
+    if (!matchesRegion(post, selectedRegion)) return false;
+    if (!normalizedKeyword) return true;
     const searchable = `${post.title || ""} ${post.content || ""} ${name} ${post.category || ""} ${post.author?.nickname || ""}`.toLowerCase();
     return searchable.includes(normalizedKeyword);
   });
-  const displayPosts = normalizedKeyword ? visiblePosts : visiblePosts.length > 0 ? visiblePosts : posts;
+  const displayPosts = visiblePosts;
 
   if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">피드를 불러오는 중입니다.</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
@@ -217,7 +231,9 @@ export default function FeedCard({ selectedRegion, keyword = "" }) {
   if (displayPosts.length === 0) {
     return (
       <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-gray-500 dark:text-slate-400">검색어가 포함된 게시물이 없습니다.</p>
+        <p className="text-gray-500 dark:text-slate-400">
+          {normalizedKeyword ? "검색어가 포함된 게시물이 없습니다." : `${regionName || "선택한 지역"}의 게시물이 없습니다.`}
+        </p>
       </div>
     );
   }
