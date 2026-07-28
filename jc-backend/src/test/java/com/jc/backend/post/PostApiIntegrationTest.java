@@ -39,7 +39,6 @@ class PostApiIntegrationTest {
     void setUp() {
         likes.deleteAll();
         posts.deleteAll();
-        regions.deleteAll();
         users.deleteAll();
 
         owner = users.save(new UserAccount("api-owner@example.com", "hash", "api-owner"));

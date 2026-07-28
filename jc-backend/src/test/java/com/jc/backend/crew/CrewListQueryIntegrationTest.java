@@ -32,6 +32,9 @@ class CrewListQueryIntegrationTest {
 
     @Test
     void crewListLoadsOwnersRegionsAndCountsWithFixedNumberOfQueries() {
+        members.deleteAll();
+        crews.deleteAll();
+
         UserAccount firstOwner = users.save(new UserAccount("list-owner1@example.com", "hash", "owner1"));
         UserAccount secondOwner = users.save(new UserAccount("list-owner2@example.com", "hash", "owner2"));
         Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");

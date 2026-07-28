@@ -32,7 +32,6 @@ class FeedCursorIntegrationTest {
     void cursorFeedReturnsEveryPostOnceWithoutOffsetCountQueryContract() {
         // 고정 이름 H2 DB나 선행 테스트 데이터에 의존하지 않도록 현재 테스트 데이터를 명시적으로 격리합니다.
         posts.deleteAll();
-        regions.deleteAll();
         users.deleteAll();
 
         UserAccount author = users.save(new UserAccount("cursor@example.com", "hash", "cursor-user"));

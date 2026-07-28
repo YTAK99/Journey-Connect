@@ -33,8 +33,8 @@ class PostVisibilityIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        owner = users.save(new UserAccount("owner@example.com", "hash", "owner"));
-        other = users.save(new UserAccount("other@example.com", "hash", "other"));
+        owner = users.save(new UserAccount("visibility-owner@example.com", "hash", "visibility-owner"));
+        other = users.save(new UserAccount("visibility-other@example.com", "hash", "visibility-other"));
         Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
 
         draft = posts.save(new JourneyPost(owner, seoul, "draft", "private"));

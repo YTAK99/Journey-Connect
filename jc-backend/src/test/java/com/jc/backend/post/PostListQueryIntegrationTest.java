@@ -32,10 +32,10 @@ class PostListQueryIntegrationTest {
 
     @Test
     void feedLoadsAuthorRegionAndReactionCountsWithFixedNumberOfQueries() {
-        UserAccount firstAuthor = users.save(new UserAccount("author1@example.com", "hash", "author1"));
-        UserAccount secondAuthor = users.save(new UserAccount("author2@example.com", "hash", "author2"));
-        UserAccount thirdAuthor = users.save(new UserAccount("author3@example.com", "hash", "author3"));
-        UserAccount reactor = users.save(new UserAccount("reactor@example.com", "hash", "reactor"));
+        UserAccount firstAuthor = users.save(new UserAccount("post-list-author1@example.com", "hash", "post-list-author1"));
+        UserAccount secondAuthor = users.save(new UserAccount("post-list-author2@example.com", "hash", "post-list-author2"));
+        UserAccount thirdAuthor = users.save(new UserAccount("post-list-author3@example.com", "hash", "post-list-author3"));
+        UserAccount reactor = users.save(new UserAccount("post-list-reactor@example.com", "hash", "post-list-reactor"));
         Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
         Region busan = region(regions, "KR-BUSAN", "KR", "Busan");
         Region jeju = region(regions, "KR-JEJU", "KR", "Jeju");
@@ -64,7 +64,7 @@ class PostListQueryIntegrationTest {
                 .satisfies(item -> {
                     assertThat(item.likeCount()).isEqualTo(1);
                     assertThat(item.bookmarkCount()).isEqualTo(1);
-                    assertThat(item.author().nickname()).isEqualTo("author1");
+                    assertThat(item.author().nickname()).isEqualTo("post-list-author1");
                     assertThat(item.regionCode()).isEqualTo("KR-SEOUL");
                 });
 
