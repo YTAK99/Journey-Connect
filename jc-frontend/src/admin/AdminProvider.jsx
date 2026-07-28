@@ -1,8 +1,7 @@
-import { createContext, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { getAdminDashboard } from "../services/adminApi";
 import { normalizeAdminError } from "./adminErrors";
-
-export const AdminContext = createContext(null);
+import { AdminProvider } from "./admin/AdminProvider";
 
 export function AdminProvider({ initialDashboard, children }) {
   const [dashboard, setDashboard] = useState(initialDashboard);
@@ -26,5 +25,9 @@ export function AdminProvider({ initialDashboard, children }) {
     [dashboard, dashboardError, refreshDashboard],
   );
 
-  return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
+  return (
+    <AdminContext.Provider value={value}>
+      {children}
+    </AdminContext.Provider>
+  );
 }
