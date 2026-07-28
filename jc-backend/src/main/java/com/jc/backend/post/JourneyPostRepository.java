@@ -62,8 +62,7 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
             where p.published = true
               and p.moderationStatus = 'visible'
               and (
-                    :cursorCreatedAt is null
-                    or p.createdAt < :cursorCreatedAt
+                    p.createdAt < :cursorCreatedAt
                     or (p.createdAt = :cursorCreatedAt and p.id < :cursorId)
               )
             order by p.createdAt desc, p.id desc
