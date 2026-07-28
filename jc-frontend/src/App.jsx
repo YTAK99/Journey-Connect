@@ -14,30 +14,30 @@ import PostDetail from "./pages/PostDetail";
 import SearchPage from "./pages/SearchPage";
 import Signup from "./pages/Signup";
 import WritePost from "./pages/WritePost";
-import AdminPage from "./pages/AdminPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminLayout from "./admin/AdminLayout";
+import AdminRouteGuard from "./admin/AdminRouteGuard";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminReportsPage from "./pages/admin/AdminReportsPage";
+import AdminReportDetailPage from "./pages/admin/AdminReportDetailPage";
+import AdminPostsPage from "./pages/admin/AdminPostsPage";
+import AdminPostDetailPage from "./pages/admin/AdminPostDetailPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
+import AdminNotFoundPage from "./pages/admin/AdminNotFoundPage";
 
-/** 현재 경로에 따라 공통 헤더 노출 여부를 결정하는 최상위 화면 틀입니다. */
 function Layout({ children }) {
   const location = useLocation();
-  // 자체 전체 화면 레이아웃을 가진 인증·랜딩·관리자 화면에서는 서비스 공통 헤더를 숨깁니다.
   const hideHeaderPaths = ["/", "/login", "/signup", "/find-id", "/find-password", "/test"];
   const isHeaderHidden = hideHeaderPaths.includes(location.pathname) || location.pathname.startsWith("/admin");
-
-  return (
-    <>
-      {!isHeaderHidden && <Header />}
-      {children}
-    </>
-  );
+  return <>{!isHeaderHidden && <Header />}{children}</>;
 }
 
 export default function App() {
-  // 주소와 페이지 컴포넌트의 대응을 한곳에서 관리합니다. 아래쪽 경로들은 이전 URL 호환용입니다.
   return (
     <BrowserRouter>
       <Layout>
         <Routes>
-          {/* 서비스 진입 및 계정 관련 공개 화면 */}
           <Route path="/" element={<Home />} />
           <Route path="/home" element={<Navigate to="/feed" replace />} />
           <Route path="/test" element={<BackendTestPage />} />
@@ -46,8 +46,6 @@ export default function App() {
           <Route path="/find-id" element={<FindId />} />
           <Route path="/find-password" element={<FindPassword />} />
           <Route path="/complete" element={<Complete />} />
-
-          {/* 로그인 후 사용하는 여행 콘텐츠 화면 */}
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/explore" element={<SearchPage />} />
           <Route path="/crew" element={<CrewPage />} />
@@ -57,10 +55,18 @@ export default function App() {
           <Route path="/write/:id" element={<WritePost />} />
           <Route path="/post/:id" element={<PostDetail />} />
 
-          {/* 공통 Header 대신 자체 사이드바·상단바를 사용하는 관리 콘솔 */}
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin" element={<AdminRouteGuard><AdminLayout /></AdminRouteGuard>}>
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="reports/:reportId" element={<AdminReportDetailPage />} />
+            <Route path="posts" element={<AdminPostsPage />} />
+            <Route path="posts/:postId" element={<AdminPostDetailPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="users/:userId" element={<AdminUserDetailPage />} />
+            <Route path="*" element={<AdminNotFoundPage />} />
+          </Route>
 
-          {/* 과거 링크를 새 URL로 연결하고 알 수 없는 주소는 랜딩 화면으로 복구합니다. */}
           <Route path="/feedpage" element={<Navigate to="/feed" replace />} />
           <Route path="/searchpage" element={<Navigate to="/explore" replace />} />
           <Route path="/myposts" element={<Navigate to="/my-posts" replace />} />

@@ -14,12 +14,11 @@ import org.springframework.data.repository.query.Param;
 public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> {
 
     @EntityGraph(attributePaths = {"author", "region"}) // 목록 DTO에 필요한 관계를 즉시 로딩해 N+1을 막습니다.
-    Page<JourneyPost> findByPublishedTrueOrderByCreatedAtDescIdDesc(Pageable pageable);
+    Page<JourneyPost> findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(String moderationStatus, Pageable pageable);
 
     @EntityGraph(attributePaths = {"author", "region"})
-    Page<JourneyPost> findByAuthorIdAndPublishedTrueOrderByCreatedAtDescIdDesc(
-            Long authorId,
-            Pageable pageable);
+    Page<JourneyPost> findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+            Long authorId, String moderationStatus, Pageable pageable);
 
     @EntityGraph(attributePaths = {"author", "region"})
     Page<JourneyPost> findByAuthorIdOrderByCreatedAtDescIdDesc(Long authorId, Pageable pageable);
@@ -29,6 +28,7 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
             select p
             from JourneyPost p
             where p.published = true
+              and p.moderationStatus = 'visible'
               and (
                     :keyword = ''
                     or lower(p.title) like lower(concat('%', :keyword, '%'))
@@ -60,6 +60,7 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
             select p
             from JourneyPost p
             where p.published = true
+              and p.moderationStatus = 'visible'
               and (
                     :cursorCreatedAt is null
                     or p.createdAt < :cursorCreatedAt

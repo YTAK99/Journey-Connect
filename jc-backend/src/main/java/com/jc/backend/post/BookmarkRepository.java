@@ -30,6 +30,7 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
             select b
             from Bookmark b
             where b.user.id = :userId
+              and b.post.moderationStatus = 'visible'
               and (b.post.published = true or b.post.author.id = :userId)
             order by b.id desc
             """)

@@ -64,6 +64,7 @@ class SecurityConfig(
                     // 공개 와일드카드보다 구체적인 보호 경로를 먼저 선언합니다.
                     .requestMatchers("/api/v1/users/me", "/api/v1/users/me/**").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/crews/*/applications").authenticated()
+                    .requestMatchers("/api/admin/**").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/**").permitAll()
                     .anyRequest().authenticated()
             }

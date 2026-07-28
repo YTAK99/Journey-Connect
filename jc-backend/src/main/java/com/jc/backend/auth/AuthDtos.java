@@ -36,5 +36,7 @@ public final class AuthDtos {
             String email,
             String nickname,
             String bio,
-            String profileImageUrl) {}
+            String profileImageUrl,
+            String role,
+            String accountStatus) {}
 }

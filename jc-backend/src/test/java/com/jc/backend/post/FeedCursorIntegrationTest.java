@@ -48,8 +48,8 @@ class FeedCursorIntegrationTest {
         posts.flush();
         entityManager.clear();
 
-        List<Long> expectedIds = posts.findByPublishedTrueOrderByCreatedAtDescIdDesc(
-                        PageRequest.of(0, 10))
+        List<Long> expectedIds = posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+                        "visible", PageRequest.of(0, 10))
                 .stream()
                 .map(JourneyPost::getId)
                 .toList();

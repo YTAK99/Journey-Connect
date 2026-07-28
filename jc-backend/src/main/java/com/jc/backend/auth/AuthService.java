@@ -83,6 +83,7 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw invalidCredentials();
         }
+        requireActive(user);
         return issueTokenPair(user);
     }
 
@@ -100,6 +101,7 @@ public class AuthService {
             throw invalidRefreshToken();
         }
         current.revoke(now);
+        requireActive(current.getUser());
         return issueTokenPair(current.getUser());
     }
 
@@ -134,6 +136,7 @@ public class AuthService {
                 .expiresAt(accessExpiresAt)
                 .subject(user.getId().toString())
                 .claim("nickname", user.getNickname())
+                .claim("role", user.getRole())
                 .build();
 
         JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256)
@@ -160,7 +163,9 @@ public class AuthService {
                 user.getEmail(),
                 user.getNickname(),
                 user.getBio(),
-                user.getProfileImageUrl());
+                user.getProfileImageUrl(),
+                user.getRole(),
+                user.getAccountStatus());
     }
 
     private String randomRefreshToken() {
@@ -185,6 +190,12 @@ public class AuthService {
 
     private String normalizeNickname(String nickname) {
         return nickname.trim();
+    }
+
+    private void requireActive(UserAccount user) {
+        if (!user.isActive()) {
+            throw new DomainException(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_ACTIVE", "사용할 수 없는 계정입니다.");
+        }
     }
 
     private DomainException invalidCredentials() {
