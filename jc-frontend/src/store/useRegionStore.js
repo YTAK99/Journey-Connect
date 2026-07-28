@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { REGIONS } from "../data/regions";
+import { toRegionPreference } from "../utils/region";
 
 const STORAGE_KEY = "selectedRegion";
 const LEGACY_STORAGE_KEY = "selectedRegionId";
@@ -8,7 +9,7 @@ const LEGACY_STORAGE_KEY = "selectedRegionId";
 const getInitialRegion = () => {
   try {
     const savedRegion = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (savedRegion?.id && savedRegion?.label?.ko && savedRegion?.label?.en) return savedRegion;
+    if (savedRegion?.id && savedRegion?.label) return toRegionPreference(savedRegion);
   } catch {
     // Ignore an old or malformed value and fall back to the legacy id/default.
   }
@@ -21,9 +22,10 @@ const getInitialRegion = () => {
 const useRegionStore = create((set) => ({
   selectedRegion: getInitialRegion(),
   setSelectedRegion: (region) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(region));
+    const normalizedRegion = toRegionPreference(region);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedRegion));
     localStorage.removeItem(LEGACY_STORAGE_KEY);
-    set({ selectedRegion: region });
+    set({ selectedRegion: normalizedRegion });
   },
 }));
 

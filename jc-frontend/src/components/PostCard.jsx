@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, deletePost, unbookmarkPost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
+import { getLocalizedRegionName } from "../utils/region";
+import useLangStore from "../store/useLangStore";
 import TagChips from "./TagChips";
 
 const fallbackImage = "/ex_2.jpg";
@@ -11,9 +13,10 @@ const fallbackImage = "/ex_2.jpg";
 function PostCard({ post, setPosts, editable = false }) {
   // 검색/내 글 목록에서 재사용하며 editable일 때만 수정·삭제 동작을 노출합니다.
   const navigate = useNavigate();
+  const { currentLang } = useLangStore();
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
   const image = post.coverImageUrl || post.image || fallbackImage;
-  const location = post.regionName || post.region?.name || post.location || "지역 미정";
+  const location = getLocalizedRegionName(post, currentLang);
 
   const toggleBookmark = async (event) => {
     event.stopPropagation();

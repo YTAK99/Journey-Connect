@@ -6,6 +6,7 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { getExplore, getFeed, getFeedItems } from "../services/postApi";
 import useRegionStore from "../store/useRegionStore";
 import { richTextToPlainText } from "../utils/richText";
+import { getRegionSearchText, matchesSelectedRegion } from "../utils/region";
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
@@ -26,7 +27,7 @@ export default function SearchPage() {
       try {
         const result = keyword
           ? await getExplore({ keyword, size: 100 })
-          : await getFeed({ size: 40 });
+          : await getFeed({ size: 100 });
         if (active) setPosts(getFeedItems(result));
       } catch (requestError) {
         if (!active) return;
@@ -46,13 +47,9 @@ export default function SearchPage() {
 
   const filteredPosts = useMemo(() => {
     // 현재 API에는 통합 검색 조건이 제한적이므로 받아온 피드를 지역과 검색어로 한 번 더 거릅니다.
-    const regionTerms = [selectedRegion.label.ko, selectedRegion.label.en, selectedRegion.id]
-      .filter(Boolean)
-      .map((term) => String(term).toLowerCase());
-
     return posts.filter((post) => {
-      const searchableRegion = `${post.regionName || ""} ${post.region?.name || ""} ${post.regionCode || ""}`.toLowerCase();
-      if (!keyword) return regionTerms.some((term) => searchableRegion.includes(term));
+      const searchableRegion = getRegionSearchText(post).toLowerCase();
+      if (!keyword) return matchesSelectedRegion(post, selectedRegion);
       const searchable = `${post.title || ""} ${richTextToPlainText(post.content || "")} ${searchableRegion} ${(post.tags || []).join(" ")}`.toLowerCase();
       return searchable.includes(keyword);
     });

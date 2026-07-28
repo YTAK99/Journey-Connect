@@ -4,21 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getFeed, getFeedItems } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
+import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
 
 const fallbackImage = "/ex_1.jpg";
-
-const matchesRegion = (story, selectedRegion) => {
-  if (!selectedRegion) return true;
-  if (story.regionCode && story.regionCode.toLowerCase() === selectedRegion.id?.toLowerCase()) return true;
-
-  const storyRegion = String(story.regionName || story.region?.name || "").toLowerCase().replace(/\s/g, "");
-  if (!storyRegion) return false;
-  const selectedNames = [selectedRegion.label?.ko, selectedRegion.label?.en]
-    .filter(Boolean)
-    .map((name) => String(name).toLowerCase().replace(/\s/g, ""));
-
-  return selectedNames.some((name) => storyRegion.includes(name) || name.includes(storyRegion));
-};
 
 export default function StoryList({ selectedRegion }) {
   const { currentLang } = useLangStore();
@@ -29,7 +17,7 @@ export default function StoryList({ selectedRegion }) {
   useEffect(() => {
     let active = true;
 
-    getFeed({ size: 20 })
+    getFeed({ size: 100 })
       .then((feed) => {
         if (active) setStories(getFeedItems(feed));
       })
@@ -42,7 +30,7 @@ export default function StoryList({ selectedRegion }) {
     };
   }, []);
 
-  const visibleStories = stories.filter((story) => matchesRegion(story, selectedRegion));
+  const visibleStories = stories.filter((story) => matchesSelectedRegion(story, selectedRegion));
 
   return (
     // 원형 썸네일과 상하 간격을 함께 줄여 스토리 영역의 세로 비율을 가볍게 만듭니다.
@@ -60,7 +48,7 @@ export default function StoryList({ selectedRegion }) {
         </button>
 
         {visibleStories.map((story) => {
-          const region = story.regionName || story.region?.name || "지역 미정";
+          const region = getLocalizedRegionName(story, currentLang);
 
           return (
             <button key={story.id} type="button" className="group flex shrink-0 cursor-pointer flex-col items-center">

@@ -4,6 +4,7 @@ import { Coffee, Landmark, Mountain, Navigation, ShoppingBag, Star, Utensils, Wa
 export const REGIONS = [
   {
     id: "seoul",
+    code: "KR-SEOUL",
     label: { ko: "서울", en: "Seoul" },
     country: "KR",
     icon: Navigation,
@@ -13,6 +14,7 @@ export const REGIONS = [
   },
   {
     id: "busan",
+    code: "KR-BUSAN",
     label: { ko: "부산", en: "Busan" },
     country: "KR",
     icon: Waves,
@@ -22,6 +24,7 @@ export const REGIONS = [
   },
   {
     id: "jeju",
+    code: "KR-JEJU",
     label: { ko: "제주", en: "Jeju" },
     country: "KR",
     icon: Mountain,
@@ -31,6 +34,7 @@ export const REGIONS = [
   },
   {
     id: "gangneung",
+    code: "KR-GANGNEUNG",
     label: { ko: "강릉", en: "Gangneung" },
     country: "KR",
     icon: Coffee,
@@ -40,6 +44,7 @@ export const REGIONS = [
   },
   {
     id: "tokyo",
+    code: "JP-TOKYO",
     label: { ko: "도쿄", en: "Tokyo" },
     country: "JP",
     icon: Landmark,
@@ -49,6 +54,7 @@ export const REGIONS = [
   },
   {
     id: "osaka",
+    code: "JP-OSAKA",
     label: { ko: "오사카", en: "Osaka" },
     country: "JP",
     icon: Utensils,
@@ -58,6 +64,7 @@ export const REGIONS = [
   },
   {
     id: "paris",
+    code: "FR-PARIS",
     label: { ko: "파리", en: "Paris" },
     country: "FR",
     icon: Star,
@@ -67,6 +74,7 @@ export const REGIONS = [
   },
   {
     id: "newyork",
+    code: "US-NEW-YORK",
     label: { ko: "뉴욕", en: "New York" },
     country: "US",
     icon: ShoppingBag,
@@ -76,6 +84,7 @@ export const REGIONS = [
   },
   {
     id: "bali",
+    code: "ID-BALI",
     label: { ko: "발리", en: "Bali" },
     country: "ID",
     icon: Waves,

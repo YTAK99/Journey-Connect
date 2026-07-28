@@ -8,10 +8,11 @@ import { RegionPicker } from "../components/LocationWeather";
 import { REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
 import { isLogin } from "../services/auth";
-import { createPost, getPost, updatePost } from "../services/postApi";
+import { createPost, getPost, updatePost, uploadPostImages } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
 import { normalizeEditorContent, richTextToPlainText } from "../utils/richText";
+import { toRegionPreference } from "../utils/region";
 
 const copy = {
   ko: {
@@ -95,11 +96,14 @@ function WritePost() {
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const t = copy[currentLang] || copy.ko;
-  const { selectedRegion } = useRegionStore();
+  const { selectedRegion, setSelectedRegion } = useRegionStore();
   const selectedRegionName = currentLang === "ko" ? selectedRegion.label.ko : selectedRegion.label.en;
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [location, setLocation] = useState(() => (id ? "" : selectedRegionName));
+  const [selectedRegionCode, setSelectedRegionCode] = useState(() => (id ? null : selectedRegion.code || null));
+  const [selectedRegionPlaceId, setSelectedRegionPlaceId] = useState(null);
+  const [selectedRegionNames, setSelectedRegionNames] = useState(() => (id ? {} : selectedRegion.label || {}));
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [images, setImages] = useState([]);
@@ -124,6 +128,9 @@ function WritePost() {
         setTitle(post.title || "");
         setContent(normalizeEditorContent(post.content || ""));
         setLocation(translatedRegionName(post.regionName || post.region?.displayName || post.region?.name || "", activeLang));
+        setSelectedRegionCode(post.region?.code || null);
+        setSelectedRegionPlaceId(post.region?.googlePlaceId || null);
+        setSelectedRegionNames(post.region?.localizedNames || {});
         setStartDate(post.travelStartDate || "");
         setEndDate(post.travelEndDate || "");
         setTags(Array.isArray(post.tags) ? post.tags : []);
@@ -149,6 +156,23 @@ function WritePost() {
 
   const handleRegionSelect = (region) => {
     setLocation(currentLang === "ko" ? region.label.ko : region.label.en);
+    setSelectedRegionCode(region.code || null);
+    setSelectedRegionPlaceId(null);
+    setSelectedRegionNames(region.label || {});
+  };
+
+  const handleRegionSearch = (query, region) => {
+    if (region?.code) {
+      setLocation(currentLang === "ko" ? region.label.ko : region.label.en);
+      setSelectedRegionCode(region.code);
+      setSelectedRegionPlaceId(null);
+      setSelectedRegionNames(region.label || {});
+      return;
+    }
+    setLocation(query);
+    setSelectedRegionCode(null);
+    setSelectedRegionPlaceId(region?.placeId || null);
+    setSelectedRegionNames(region?.label ? { [currentLang]: region.label[currentLang] } : {});
   };
 
   const handleSubmit = async () => {
@@ -169,29 +193,52 @@ function WritePost() {
       return;
     }
 
-    const request = {
-      title: title.trim(),
-      content,
-      regionCode: null,
-      regionName: translatedRegionName(location, currentLang).trim(),
-      coverImageUrl: images[0]?.imageUrl || null,
-      images: images.map((image) => ({
-        imageUrl: image.imageUrl,
-        altText: image.altText || title.trim(),
-      })),
-      travelStartDate: startDate || null,
-      travelEndDate: endDate || null,
-      tags,
-    };
-
     try {
       setSubmitting(true);
+      const pendingFiles = images.filter((image) => image.file).map((image) => image.file);
+      let resolvedImages = images;
+
+      if (pendingFiles.length > 0) {
+        const uploadedImages = await uploadPostImages(pendingFiles);
+        let uploadedIndex = 0;
+        resolvedImages = images.map((image) => {
+          if (!image.file) return image;
+          const uploaded = uploadedImages[uploadedIndex++];
+          return {
+            imageUrl: uploaded.imageUrl,
+            altText: image.altText || uploaded.originalName || title.trim(),
+            originalName: uploaded.originalName,
+          };
+        });
+        setImages(resolvedImages);
+      }
+
+      const request = {
+        title: title.trim(),
+        content,
+        regionCode: selectedRegionCode,
+        regionName: (selectedRegionNames[currentLang] || translatedRegionName(location, currentLang)).trim(),
+        regionPlaceId: selectedRegionPlaceId,
+        coverImageUrl: resolvedImages[0]?.imageUrl || null,
+        images: resolvedImages.map((image) => ({
+          imageUrl: image.imageUrl,
+          altText: image.altText || title.trim(),
+        })),
+        travelStartDate: startDate || null,
+        travelEndDate: endDate || null,
+        tags,
+      };
+
+      let savedPost;
       if (id) {
-        await updatePost(id, request);
+        savedPost = await updatePost(id, request);
         alert(t.updated);
       } else {
-        await createPost(request);
+        savedPost = await createPost(request);
         alert(t.created);
+      }
+      if (savedPost?.region) {
+        setSelectedRegion(toRegionPreference(savedPost.region, currentLang));
       }
       navigate("/feed");
     } catch (error) {
@@ -207,7 +254,7 @@ function WritePost() {
 
   const inputClass =
     "mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-950/40";
-  const displayLocation = translatedRegionName(location, currentLang);
+  const displayLocation = selectedRegionNames[currentLang] || translatedRegionName(location, currentLang);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-background to-background pb-16 pt-24 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950">
@@ -351,7 +398,7 @@ function WritePost() {
             [selectedRegion, ...REGIONS].find((region) => location === region.label.ko || location === region.label.en) || selectedRegion
           }
           onSelect={handleRegionSelect}
-          onSearch={setLocation}
+          onSearch={handleRegionSearch}
           onClose={() => setRegionPickerOpen(false)}
         />
       )}

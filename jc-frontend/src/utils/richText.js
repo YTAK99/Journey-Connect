@@ -31,8 +31,9 @@ export const normalizeEditorContent = (content = "") => {
   }
 
   return String(content)
-    .split(/\n{2,}/)
-    .map((paragraph) => `<p>${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`)
+    .replaceAll("\r\n", "\n")
+    .split("\n")
+    .map((line) => `<p>${line ? escapeHtml(line) : ""}</p>`)
     .join("");
 };
 
