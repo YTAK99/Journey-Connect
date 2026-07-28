@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { getAdminDashboard } from "../services/adminApi";
 import { normalizeAdminError } from "./adminErrors";
-import { AdminProvider } from "./admin/AdminProvider";
+import { AdminContext } from "./AdminContext";
 
 export function AdminProvider({ initialDashboard, children }) {
   const [dashboard, setDashboard] = useState(initialDashboard);
