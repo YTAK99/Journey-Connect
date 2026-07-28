@@ -51,9 +51,13 @@ class FeedCursorIntegrationTest {
         posts.flush();
         entityManager.clear();
 
-        List<Long> expectedIds = createdPosts.stream()
+        List<Long> expectedIds = posts
+                .findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+                        "visible",
+                        PageRequest.of(0, 1000))
+                .getContent()
+                .stream()
                 .map(JourneyPost::getId)
-                .sorted(java.util.Comparator.reverseOrder())
                 .toList();
 
         List<Long> collected = new ArrayList<>();
