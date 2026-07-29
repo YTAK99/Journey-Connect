@@ -4,6 +4,7 @@ import { getLocalTime, REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getGoogleLocationSuggestions, getGoogleLocationSummary } from "../services/googleLocationApi";
 import useLangStore from "../store/useLangStore";
+import { toRegionPreference } from "../utils/region";
 
 const getLocalDate = (timezone, lang) => {
   try {
@@ -46,19 +47,14 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState("");
   const { currentLang } = useLangStore();
   const filtered = REGIONS.filter((region) => {
     const q = query.toLowerCase();
     return region.label.ko.includes(query) || region.label.en.toLowerCase().includes(q);
   });
 
-  const submitSearch = (event) => {
-    event.preventDefault();
-    if (!query.trim()) return;
-    onSearch(query.trim());
-    onClose();
-  };
-
+  // 입력 중 매 글자마다 외부 API를 호출하지 않도록 지연하고, 이전 요청의 늦은 응답은 무시합니다.
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
@@ -67,13 +63,18 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
 
     let active = true;
     const timer = setTimeout(() => {
-      setSuggestionLoading(true);
       getGoogleLocationSuggestions(trimmed, currentLang === "ko" ? "ko" : "en")
         .then((items) => {
           if (active) setSuggestions(Array.isArray(items) ? items : []);
         })
-        .catch(() => {
-          if (active) setSuggestions([]);
+        .catch((error) => {
+          if (active) {
+            setSuggestions([]);
+            setSuggestionError(getApiErrorMessage(
+              error,
+              currentLang === "ko" ? "지역 추천을 불러오지 못했습니다." : "Could not load region suggestions.",
+            ));
+          }
         })
         .finally(() => {
           if (active) setSuggestionLoading(false);
@@ -87,6 +88,33 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
   }, [currentLang, query]);
 
   const visibleSuggestions = query.trim().length >= 2 ? suggestions : [];
+
+  const selectSuggestion = (suggestion) => {
+    onSearch(suggestion.description, {
+      id: `google:${suggestion.placeId}`,
+      placeId: suggestion.placeId,
+      code: null,
+      label: { ko: suggestion.mainText, en: suggestion.mainText },
+      country: suggestion.secondaryText,
+      custom: true,
+    });
+    onClose();
+  };
+
+  const selectRegion = (region) => {
+    onSelect(region);
+    onSearch(getRegionQuery(region, currentLang), region);
+    onClose();
+  };
+
+  const submitSearch = (event) => {
+    event.preventDefault();
+    if (visibleSuggestions.length > 0) {
+      selectSuggestion(visibleSuggestions[0]);
+    } else if (filtered.length > 0) {
+      selectRegion(filtered[0]);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
@@ -104,7 +132,17 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
             <input
               autoFocus
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                const nextQuery = event.target.value;
+                setQuery(nextQuery);
+                setSuggestionError("");
+                if (nextQuery.trim().length < 2) {
+                  setSuggestions([]);
+                  setSuggestionLoading(false);
+                } else {
+                  setSuggestionLoading(true);
+                }
+              }}
               placeholder={currentLang === "ko" ? "도시명 검색..." : "Search city..."}
               className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-8 pr-3 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
@@ -122,10 +160,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
             <button
               key={suggestion.placeId}
               type="button"
-              onClick={() => {
-                onSearch(suggestion.description);
-                onClose();
-              }}
+              onClick={() => selectSuggestion(suggestion)}
               className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-slate-800"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-50 text-teal-700 dark:bg-slate-800">
@@ -138,28 +173,29 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
             </button>
           ))}
           {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500">{currentLang === "ko" ? "지역 추천을 찾는 중..." : "Finding suggestions..."}</p>}
+          {query.trim().length >= 2 && suggestionError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950/30 dark:text-rose-300">{suggestionError}</p>}
+          {query.trim().length >= 2 && !suggestionLoading && !suggestionError && visibleSuggestions.length === 0 && filtered.length === 0 && (
+            <p className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400">
+              {currentLang === "ko" ? "검색 결과가 없습니다. 다른 지역명을 입력해 주세요." : "No regions found. Try another name."}
+            </p>
+          )}
           {filtered.map((region) => {
-            const Icon = region.icon || MapPin;
             const active = region.id === currentRegion.id;
             return (
               <button
                 key={region.id}
                 type="button"
-                onClick={() => {
-                  onSelect(region);
-                  onSearch(getRegionQuery(region, currentLang), region);
-                  onClose();
-                }}
+                onClick={() => selectRegion(region)}
                 className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
                   active ? "bg-teal-50 dark:bg-teal-950/40" : "hover:bg-gray-50 dark:hover:bg-slate-800"
                 }`}
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-primary">
-                  <Icon size={17} />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-50 text-xs font-bold tracking-wide text-primary dark:bg-teal-950/50 dark:text-teal-300">
+                  {region.country}
                 </span>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                    {region.country} {currentLang === "ko" ? region.label.ko : region.label.en}
+                    {currentLang === "ko" ? region.label.ko : region.label.en}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-1">
@@ -186,6 +222,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   const { currentLang } = useLangStore();
   const [tick, setTick] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // 같은 검색어를 다시 선택해도 id를 증가시켜 요약 정보를 새로 조회할 수 있게 합니다.
   const [request, setRequest] = useState(() => ({
     id: 0,
     query: getRegionQuery(selectedRegion, currentLang),
@@ -203,6 +240,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   useEffect(() => {
     let ignore = false;
 
+    // 장소 조회가 성공한 동적 지역만 좌표·시간대가 포함된 값으로 전역 상태를 갱신합니다.
     getGoogleLocationSummary(request.query, currentLang === "ko" ? "ko" : "en")
       .then((data) => {
         if (!ignore) {
@@ -228,7 +266,11 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   const runSearch = (nextQuery, presetRegion = null) => {
     setLoading(true);
     setErrorMessage("");
-    if (!presetRegion) onRegionChange(createCustomRegion(nextQuery));
+    if (presetRegion) {
+      onRegionChange(toRegionPreference({ ...presetRegion, regionName: nextQuery }, currentLang));
+    } else {
+      onRegionChange(createCustomRegion(nextQuery));
+    }
     setRequest((value) => ({
       id: value.id + 1,
       query: nextQuery,
@@ -240,6 +282,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   const fallbackTime = getLocalTime(selectedRegion.timezone);
   const fallbackFlightTime = currentLang === "ko" ? selectedRegion.flightTime.ko : selectedRegion.flightTime.en;
   const display = useMemo(() => {
+    // 외부 응답에 일부 값이 없더라도 고정 지역의 기본 정보로 화면을 유지합니다.
     const temperature = summary?.weather?.temperatureDegrees;
 
     return {

@@ -99,7 +99,14 @@ public class PostService {
             String keyword,
             String region,
             Pageable pageable) {
-        return summaries(posts.explore(blankToEmpty(keyword), blankToEmpty(region), pageable));
+        String normalizedKeyword = blankToEmpty(keyword);
+        String normalizedRegion = blankToEmpty(region);
+        return summaries(posts.explore(
+                normalizedKeyword,
+                normalizedRegion,
+                regionService.countryCodeForSearch(normalizedKeyword),
+                regionService.countryCodeForSearch(normalizedRegion),
+                pageable));
     }
 
     /**
@@ -114,7 +121,7 @@ public class PostService {
 
     @Transactional
     public PostDtos.Detail create(Long userId, PostDtos.CreateRequest request) {
-        Region region = regionService.require(request.regionCode(), request.regionName());
+        Region region = regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId());
         JourneyPost post = new JourneyPost(
                 user(userId),
                 region,
@@ -133,8 +140,8 @@ public class PostService {
             Long postId,
             PostDtos.UpdateRequest request) {
         JourneyPost post = ownedPost(userId, postId);
-        Region region = hasText(request.regionCode()) || hasText(request.regionName())
-                ? regionService.require(request.regionCode(), request.regionName())
+        Region region = hasText(request.regionCode()) || hasText(request.regionName()) || hasText(request.regionPlaceId())
+                ? regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId())
                 : null;
         String sanitizedContent = request.content() == null
                 ? null
@@ -311,6 +318,7 @@ public class PostService {
     }
 
     private List<PostDtos.Summary> summaries(List<JourneyPost> postsPage) {
+        // 카드마다 집계 쿼리를 실행하지 않도록 현재 페이지의 좋아요·북마크 수를 한 번씩 묶어 조회합니다.
         List<Long> postIds = postsPage.stream().map(JourneyPost::getId).toList();
         if (postIds.isEmpty()) {
             return List.of();
@@ -340,7 +348,10 @@ public class PostService {
                 post.getId(),
                 post.getTitle(),
                 post.getRegion().getCode(),
+                post.getRegion().getGooglePlaceId(),
                 post.getRegionName(),
+                regionService.localizedNames(post.getRegion()),
+                regionService.searchText(post.getRegion()),
                 post.getCoverImageUrl(),
                 tagNames(post),
                 post.getViewCount(),
@@ -386,15 +397,7 @@ public class PostService {
     }
 
     private RegionDtos.View regionView(Region region) {
-        Double latitude = region.getCenter() == null ? null : region.getCenter().getY();
-        Double longitude = region.getCenter() == null ? null : region.getCenter().getX();
-        return new RegionDtos.View(
-                region.getId(),
-                region.getCode(),
-                region.getCountryCode(),
-                region.getDisplayName(),
-                latitude,
-                longitude);
+        return regionService.view(region);
     }
 
     private PostDtos.CommentView commentView(Comment comment) {
@@ -415,6 +418,7 @@ public class PostService {
     private List<JourneyPost.PostImageData> imageData(
             List<PostDtos.ImageRequest> images,
             String legacyCoverImageUrl) {
+        // 다중 이미지 요청을 우선 사용하고, 이전 클라이언트의 단일 대표 이미지 필드는 호환용으로 변환합니다.
         if (images != null) {
             return images.stream()
                     .map(image -> new JourneyPost.PostImageData(

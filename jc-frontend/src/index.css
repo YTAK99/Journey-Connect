@@ -43,6 +43,17 @@ textarea {
   margin: 0.65rem 0;
 }
 
+/* Tiptap은 연속 Enter를 빈 문단으로 저장합니다. 빈 문단에도 한 줄 높이를 줘 작성 당시 간격을 유지합니다. */
+.rich-text-editor p:empty,
+.rich-text-content p:empty {
+  min-height: 1em;
+}
+
+.rich-text-editor p:empty::before,
+.rich-text-content p:empty::before {
+  content: "\00a0";
+}
+
 .rich-text-editor h2,
 .rich-text-content h2 {
   margin: 1.5rem 0 0.65rem;
@@ -80,6 +91,43 @@ textarea {
   background: var(--secondary);
   padding: 0.75rem 1rem;
   color: var(--muted-foreground);
+}
+
+.rich-text-content p {
+  color: inherit;
+}
+
+.rich-text-content a {
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.rich-text-content img {
+  display: block;
+  width: 100%;
+  max-height: 38rem;
+  margin: 2rem 0;
+  border-radius: 1.25rem;
+  object-fit: cover;
+}
+
+.rich-text-content hr {
+  margin: 2.75rem auto;
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--primary);
+  opacity: 0.35;
+}
+
+.rich-text-content code {
+  border-radius: 0.35rem;
+  background: var(--secondary);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.9em;
 }
 
 .rich-text-editor > *:first-child,

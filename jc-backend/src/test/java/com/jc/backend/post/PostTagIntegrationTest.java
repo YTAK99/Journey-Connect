@@ -41,7 +41,8 @@ class PostTagIntegrationTest {
                 List.of(),
                 null,
                 null,
-                List.of("HiddenGem" + unique, "Cafe")));
+                List.of("HiddenGem" + unique, "Cafe"),
+                null));
 
         entityManager.flush();
         entityManager.clear();
@@ -67,6 +68,7 @@ class PostTagIntegrationTest {
                 null,
                 null,
                 List.of("Cafe", "Updated" + unique),
+                null,
                 null));
         entityManager.flush();
         entityManager.clear();

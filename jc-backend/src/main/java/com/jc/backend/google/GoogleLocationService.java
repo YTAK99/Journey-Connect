@@ -8,6 +8,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -56,6 +57,7 @@ public class GoogleLocationService {
     }
 
     public List<GoogleLocationDtos.LocationSuggestion> suggest(String query, String languageCode) {
+        // 도시·행정구역 중심의 후보만 받아 작성 화면에서 임의 문자열 대신 Place ID를 선택하게 합니다.
         if (query == null || query.trim().length() < 2) {
             return List.of();
         }
@@ -66,7 +68,7 @@ public class GoogleLocationService {
         URI uri = UriComponentsBuilder
                 .fromUriString("https://maps.googleapis.com/maps/api/place/autocomplete/json")
                 .queryParam("input", query.trim())
-                .queryParam("types", "(cities)")
+                .queryParam("types", "(regions)")
                 .queryParam("language", normalizeLanguage(languageCode))
                 .queryParam("key", apiKey)
                 .build()
@@ -88,6 +90,48 @@ public class GoogleLocationService {
             if (suggestions.size() == 6) break;
         }
         return suggestions;
+    }
+
+    public GoogleLocationDtos.ResolvedPlace resolvePlace(String placeId, String languageCode) {
+        // 표시명과 모든 주소 구성요소를 함께 반환해 도시를 주·도 및 국가명으로도 찾을 수 있게 합니다.
+        if (placeId == null || placeId.isBlank()) {
+            throw new DomainException(HttpStatus.BAD_REQUEST, "PLACE_ID_REQUIRED", "선택한 지역 정보가 필요합니다.");
+        }
+        URI uri = UriComponentsBuilder
+                .fromUriString("https://maps.googleapis.com/maps/api/place/details/json")
+                .queryParam("place_id", placeId.trim())
+                .queryParam("fields", "place_id,name,formatted_address,address_component,geometry")
+                .queryParam("language", normalizeLanguage(languageCode))
+                .queryParam("key", apiKey)
+                .build()
+                .toUri();
+        JsonNode body = get(uri, "Place Details");
+        JsonNode result = body.path("result");
+        if (!"OK".equals(body.path("status").asText()) || result.isMissingNode()) {
+            throw new DomainException(HttpStatus.NOT_FOUND, "PLACE_NOT_FOUND", "지역을 찾을 수 없습니다.");
+        }
+        String countryCode = "ZZ";
+        List<String> addressComponentNames = new ArrayList<>();
+        for (JsonNode component : result.path("address_components")) {
+            String longName = component.path("long_name").asText("").trim();
+            if (!longName.isBlank() && !addressComponentNames.contains(longName)) {
+                addressComponentNames.add(longName);
+            }
+            for (JsonNode type : component.path("types")) {
+                if ("country".equals(type.asText())) {
+                    countryCode = component.path("short_name").asText("ZZ").toUpperCase(Locale.ROOT);
+                }
+            }
+        }
+        JsonNode location = result.path("geometry").path("location");
+        return new GoogleLocationDtos.ResolvedPlace(
+                result.path("place_id").asText(placeId.trim()),
+                result.path("name").asText(placeId.trim()),
+                result.path("formatted_address").asText(""),
+                List.copyOf(addressComponentNames),
+                countryCode,
+                location.path("lat").asDouble(),
+                location.path("lng").asDouble());
     }
 
     private String normalizeLanguage(String languageCode) {

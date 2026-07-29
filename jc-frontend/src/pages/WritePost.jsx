@@ -8,10 +8,11 @@ import { RegionPicker } from "../components/LocationWeather";
 import { REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
 import { isLogin } from "../services/auth";
-import { createPost, getPost, updatePost } from "../services/postApi";
+import { createPost, getPost, updatePost, uploadPostImages } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
 import { normalizeEditorContent, richTextToPlainText } from "../utils/richText";
+import { toRegionPreference } from "../utils/region";
 
 const copy = {
   ko: {
@@ -95,11 +96,14 @@ function WritePost() {
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const t = copy[currentLang] || copy.ko;
-  const { selectedRegion } = useRegionStore();
+  const { selectedRegion, setSelectedRegion } = useRegionStore();
   const selectedRegionName = currentLang === "ko" ? selectedRegion.label.ko : selectedRegion.label.en;
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [location, setLocation] = useState(() => (id ? "" : selectedRegionName));
+  const [selectedRegionCode, setSelectedRegionCode] = useState(() => (id ? null : selectedRegion.code || null));
+  const [selectedRegionPlaceId, setSelectedRegionPlaceId] = useState(() => (id ? null : selectedRegion.placeId || null));
+  const [selectedRegionNames, setSelectedRegionNames] = useState(() => (id ? {} : selectedRegion.label || {}));
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [images, setImages] = useState([]);
@@ -108,6 +112,7 @@ function WritePost() {
   const [submitting, setSubmitting] = useState(false);
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
 
+  // 수정 모드에서는 서버 응답을 현재 폼 구조로 복원하고, 신규 작성은 전역 선택 지역을 초기값으로 사용합니다.
   useEffect(() => {
     if (!isLogin()) {
       alert(copy[useLangStore.getState().currentLang]?.loginRequired || copy.ko.loginRequired);
@@ -124,6 +129,9 @@ function WritePost() {
         setTitle(post.title || "");
         setContent(normalizeEditorContent(post.content || ""));
         setLocation(translatedRegionName(post.regionName || post.region?.displayName || post.region?.name || "", activeLang));
+        setSelectedRegionCode(post.region?.code || null);
+        setSelectedRegionPlaceId(post.region?.googlePlaceId || null);
+        setSelectedRegionNames(post.region?.localizedNames || {});
         setStartDate(post.travelStartDate || "");
         setEndDate(post.travelEndDate || "");
         setTags(Array.isArray(post.tags) ? post.tags : []);
@@ -148,7 +156,25 @@ function WritePost() {
   }, [id, navigate]);
 
   const handleRegionSelect = (region) => {
+    // 고정 지역은 내부 코드로 식별하고, Google 검색 지역은 아래 검색 콜백에서 Place ID로 식별합니다.
     setLocation(currentLang === "ko" ? region.label.ko : region.label.en);
+    setSelectedRegionCode(region.code || null);
+    setSelectedRegionPlaceId(null);
+    setSelectedRegionNames(region.label || {});
+  };
+
+  const handleRegionSearch = (query, region) => {
+    if (region?.code) {
+      setLocation(currentLang === "ko" ? region.label.ko : region.label.en);
+      setSelectedRegionCode(region.code);
+      setSelectedRegionPlaceId(null);
+      setSelectedRegionNames(region.label || {});
+      return;
+    }
+    setLocation(query);
+    setSelectedRegionCode(null);
+    setSelectedRegionPlaceId(region?.placeId || null);
+    setSelectedRegionNames(region?.label ? { [currentLang]: region.label[currentLang] } : {});
   };
 
   const handleSubmit = async () => {
@@ -169,29 +195,54 @@ function WritePost() {
       return;
     }
 
-    const request = {
-      title: title.trim(),
-      content,
-      regionCode: null,
-      regionName: translatedRegionName(location, currentLang).trim(),
-      coverImageUrl: images[0]?.imageUrl || null,
-      images: images.map((image) => ({
-        imageUrl: image.imageUrl,
-        altText: image.altText || title.trim(),
-      })),
-      travelStartDate: startDate || null,
-      travelEndDate: endDate || null,
-      tags,
-    };
-
     try {
       setSubmitting(true);
+      // 기존 서버 이미지는 유지하고 새로 선택한 파일만 업로드한 뒤 원래 배열 순서대로 다시 합칩니다.
+      const pendingFiles = images.filter((image) => image.file).map((image) => image.file);
+      let resolvedImages = images;
+
+      if (pendingFiles.length > 0) {
+        const uploadedImages = await uploadPostImages(pendingFiles);
+        let uploadedIndex = 0;
+        resolvedImages = images.map((image) => {
+          if (!image.file) return image;
+          const uploaded = uploadedImages[uploadedIndex++];
+          return {
+            imageUrl: uploaded.imageUrl,
+            altText: image.altText || uploaded.originalName || title.trim(),
+            originalName: uploaded.originalName,
+          };
+        });
+        setImages(resolvedImages);
+      }
+
+      // 지역 코드와 Place ID를 함께 구분해 보내야 같은 이름의 다른 도시가 하나의 지역으로 합쳐지지 않습니다.
+      const request = {
+        title: title.trim(),
+        content,
+        regionCode: selectedRegionCode,
+        regionName: (selectedRegionNames[currentLang] || translatedRegionName(location, currentLang)).trim(),
+        regionPlaceId: selectedRegionPlaceId,
+        coverImageUrl: resolvedImages[0]?.imageUrl || null,
+        images: resolvedImages.map((image) => ({
+          imageUrl: image.imageUrl,
+          altText: image.altText || title.trim(),
+        })),
+        travelStartDate: startDate || null,
+        travelEndDate: endDate || null,
+        tags,
+      };
+
+      let savedPost;
       if (id) {
-        await updatePost(id, request);
+        savedPost = await updatePost(id, request);
         alert(t.updated);
       } else {
-        await createPost(request);
+        savedPost = await createPost(request);
         alert(t.created);
+      }
+      if (savedPost?.region) {
+        setSelectedRegion(toRegionPreference(savedPost.region, currentLang));
       }
       navigate("/feed");
     } catch (error) {
@@ -207,7 +258,7 @@ function WritePost() {
 
   const inputClass =
     "mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:ring-4 focus:ring-teal-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-950/40";
-  const displayLocation = translatedRegionName(location, currentLang);
+  const displayLocation = selectedRegionNames[currentLang] || translatedRegionName(location, currentLang);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-background to-background pb-16 pt-24 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950">
@@ -351,7 +402,7 @@ function WritePost() {
             [selectedRegion, ...REGIONS].find((region) => location === region.label.ko || location === region.label.en) || selectedRegion
           }
           onSelect={handleRegionSelect}
-          onSearch={setLocation}
+          onSearch={handleRegionSearch}
           onClose={() => setRegionPickerOpen(false)}
         />
       )}

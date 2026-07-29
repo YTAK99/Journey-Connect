@@ -1,5 +1,7 @@
 package com.jc.backend.region;
 
+import java.util.Map;
+
 public final class RegionDtos {
 
     private RegionDtos() {}
@@ -10,5 +12,8 @@ public final class RegionDtos {
             String countryCode,
             String displayName,
             Double latitude,
-            Double longitude) {}
+            Double longitude,
+            String googlePlaceId,
+            Map<String, String> localizedNames,
+            String searchText) {}
 }

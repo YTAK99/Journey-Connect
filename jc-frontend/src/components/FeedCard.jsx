@@ -4,23 +4,12 @@ import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, getExplore, getFeed, getFeedItems, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
+import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
+import useLangStore from "../store/useLangStore";
 import TagChips from "./TagChips";
 
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
-
-const matchesRegion = (post, selectedRegion) => {
-  if (!selectedRegion) return true;
-  if (post.regionCode && post.regionCode.toLowerCase() === selectedRegion.id?.toLowerCase()) return true;
-
-  const postRegion = String(post.regionName || post.region?.name || "").toLowerCase().replace(/\s/g, "");
-  if (!postRegion) return false;
-  const selectedNames = [selectedRegion.label?.ko, selectedRegion.label?.en]
-    .filter(Boolean)
-    .map((name) => String(name).toLowerCase().replace(/\s/g, ""));
-
-  return selectedNames.some((name) => postRegion.includes(name) || name.includes(postRegion));
-};
 
 const getRelativeDate = (createdAt) => {
   if (!createdAt) return "방금 전";
@@ -46,11 +35,12 @@ const getRelativeDate = (createdAt) => {
 function FeedItem({ post }) {
   // 게시물 한 건의 작성자·본문·반응 정보를 카드로 표현하고 좋아요·북마크 상태를 관리합니다.
   const navigate = useNavigate();
+  const { currentLang } = useLangStore();
   const [liked, setLiked] = useState(Boolean(post.liked));
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
   const [showSummary, setShowSummary] = useState(false);
-  const location = post.regionName || post.region?.name || post.location || "지역 미정";
+  const location = getLocalizedRegionName(post, currentLang);
   const summary =
     post.aiSummary ||
     post.summary ||
@@ -58,6 +48,7 @@ function FeedItem({ post }) {
 
   const toggleLike = async (event) => {
     event.stopPropagation();
+    // 반응을 먼저 화면에 반영하고 API가 실패하면 이전 상태로 되돌리는 낙관적 업데이트입니다.
     const nextLiked = !liked;
     setLiked(nextLiked);
     setLikeCount((count) => Math.max(0, count + (nextLiked ? 1 : -1)));
@@ -170,9 +161,10 @@ function FeedItem({ post }) {
   );
 }
 
-export default function FeedCard({ selectedRegion, keyword = "" }) {
+export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }) {
   // 커서 피드를 가져온 뒤 현재 지역과 헤더 검색어에 맞는 카드만 보여줍니다.
   const navigate = useNavigate();
+  const { currentLang } = useLangStore();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -180,7 +172,7 @@ export default function FeedCard({ selectedRegion, keyword = "" }) {
   useEffect(() => {
     const request = keyword.trim()
       ? getExplore({ keyword: keyword.trim(), size: 100 })
-      : getFeed({ size: 20 });
+      : getFeed({ size: 100 });
     request
       .then((feed) => setPosts(getFeedItems(feed)))
       .catch((requestError) => {
@@ -189,19 +181,27 @@ export default function FeedCard({ selectedRegion, keyword = "" }) {
       .finally(() => setLoading(false));
   }, [keyword]);
 
-  const regionName = selectedRegion?.label?.ko || selectedRegion?.label?.en;
+  const regionName = selectedRegion?.label?.[currentLang] || selectedRegion?.label?.en || selectedRegion?.label?.ko;
   const normalizedKeyword = keyword.trim().toLowerCase();
   const visiblePosts = posts.filter((post) => {
     const name = post.regionName || post.region?.name || "";
-    if (!matchesRegion(post, selectedRegion)) return false;
+    if (!matchesSelectedRegion(post, selectedRegion)) return false;
     if (!normalizedKeyword) return true;
     const searchable = `${post.title || ""} ${richTextToPlainText(post.content || "")} ${name} ${post.category || ""} ${(post.tags || []).join(" ")} ${post.author?.nickname || ""}`.toLowerCase();
     return searchable.includes(normalizedKeyword);
   });
   const displayPosts = visiblePosts;
 
+  useEffect(() => {
+    // 정상 조회가 끝난 빈 피드만 탐색 화면으로 넘기고, 로딩·오류 상태에서는 이동하지 않습니다.
+    if (!loading && !error && displayPosts.length === 0) {
+      onEmptyResult?.();
+    }
+  }, [displayPosts.length, error, loading, onEmptyResult]);
+
   if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">피드를 불러오는 중입니다.</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
+  if (displayPosts.length === 0) return null;
 
   if (posts.length === 0) {
     return (

@@ -53,6 +53,7 @@ public class ImageStorageService {
 
         try {
             byte[] bytes = file.getBytes();
+            // 요청의 Content-Type이나 원본 확장자를 신뢰하지 않고 실제 파일 시그니처로 형식을 판별합니다.
             String extension = detectExtension(bytes);
             String storedName = UUID.randomUUID() + "." + extension;
             Path destination = root.resolve(storedName).normalize();
@@ -76,6 +77,7 @@ public class ImageStorageService {
     }
 
     public Resource load(String storedName) {
+        // 서버가 발급한 UUID 파일명만 허용하고 정규화된 경로가 저장 루트를 벗어나지 않게 확인합니다.
         if (storedName == null || !storedName.toLowerCase(Locale.ROOT)
                 .matches("[0-9a-f-]{36}\\.(jpg|png|webp|gif)")) {
             throw notFound();

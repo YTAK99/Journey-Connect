@@ -25,6 +25,7 @@ public class RichTextSanitizer {
 
     public String sanitizeRequired(String content) {
         String sanitized = policy.sanitize(content == null ? "" : content.trim());
+        // 태그만 남은 빈 HTML도 본문으로 인정되지 않도록 정제 후 사람이 읽을 수 있는 글자를 다시 확인합니다.
         String readableText = sanitized
                 .replaceAll("(?s)<[^>]*>", " ")
                 .replace("&nbsp;", " ")

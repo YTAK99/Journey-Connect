@@ -24,6 +24,7 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
     Page<JourneyPost> findByAuthorIdOrderByCreatedAtDescIdDesc(Long authorId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"author", "region"})
+    // 지역 searchText에는 번역명과 상위 행정구역이 들어 있어 도시 글을 주·도 및 국가명으로도 검색할 수 있습니다.
     @Query("""
             select p
             from JourneyPost p
@@ -34,6 +35,8 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
                     or lower(p.title) like lower(concat('%', :keyword, '%'))
                     or lower(p.content) like lower(concat('%', :keyword, '%'))
                     or lower(p.regionName) like lower(concat('%', :keyword, '%'))
+                    or lower(p.region.searchText) like lower(concat('%', :keyword, '%'))
+                    or (:keywordCountryCode <> '' and p.region.countryCode = :keywordCountryCode)
                     or exists (
                         select t.id from p.tags t
                         where lower(t.name) like lower(concat('%', :keyword, '%'))
@@ -43,12 +46,16 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
                     :region = ''
                     or lower(p.region.code) = lower(:region)
                     or lower(p.regionName) = lower(:region)
+                    or lower(p.region.searchText) like lower(concat('%', :region, '%'))
+                    or (:regionCountryCode <> '' and p.region.countryCode = :regionCountryCode)
               )
             order by p.createdAt desc, p.id desc
             """)
     Page<JourneyPost> explore(
             @Param("keyword") String keyword,
             @Param("region") String region,
+            @Param("keywordCountryCode") String keywordCountryCode,
+            @Param("regionCountryCode") String regionCountryCode,
             Pageable pageable);
 
     /**

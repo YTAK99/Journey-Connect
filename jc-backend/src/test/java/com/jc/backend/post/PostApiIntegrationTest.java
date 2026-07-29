@@ -12,9 +12,9 @@ import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionRepository;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,6 +36,8 @@ class PostApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // 공통 Region 픽스처를 재사용해 테스트마다 동일 지역 데이터가 중복 생성되는 것을 방지하고,
+        // 기존 seed 및 다른 통합 테스트의 외래키 참조에 영향을 주지 않도록 합니다.
         String fixtureId = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         owner = users.save(new UserAccount(
                 "api-owner-" + fixtureId + "@example.com",
@@ -77,5 +79,31 @@ class PostApiIntegrationTest {
 
         org.assertj.core.api.Assertions.assertThat(likes.countByPostId(published.getId()))
                 .isEqualTo(1);
+    }
+
+    @Test
+    void cityPostIsFoundByStateAndCountryNames() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String postTitle = "island trip " + suffix;
+        Region honolulu = regions.save(new Region(
+                "GOOGLE-HONOLULU-" + suffix,
+                "US",
+                "Honolulu",
+                null,
+                "honolulu-place-" + suffix,
+                "호놀룰루 하와이 Honolulu Hawaii"));
+        posts.save(new JourneyPost(owner, honolulu, postTitle, "ocean story"));
+
+        for (String keyword : new String[] {"하와이", "Hawaii", "미국", "United States"}) {
+            mockMvc.perform(get("/api/v1/explore").param("keyword", keyword))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.items[*].title").value(
+                            org.hamcrest.Matchers.hasItem(postTitle)));
+        }
+
+        mockMvc.perform(get("/api/v1/explore").param("keyword", "일본"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[*].title").value(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(postTitle))));
     }
 }

@@ -1,42 +1,42 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarDays, Plus, Users } from "lucide-react";
 import { useSearchParams } from "react-router";
 import LocationWeather from "../components/LocationWeather";
-import { getApiErrorMessage } from "../services/apiClient";
-import { isLogin } from "../services/auth";
-import { getCrews, joinCrew } from "../services/crewApi";
 import useRegionStore from "../store/useRegionStore";
 
-const fallbackCrews = [
+const sampleCrews = [
   {
     id: "sample-1",
-    title: "7월 서울 성수 빈티지 투어 같이 해요",
+    title: "7월 서울 성수동 빈티지 투어 같이 해요",
     regionName: "서울",
-    description: "성수동에서 만나 카페와 편집숍을 천천히 둘러보는 반나절 코스입니다.",
-    travelDate: "2026-07-27",
+    country: "🇰🇷",
+    tags: ["성수동", "빈티지"],
+    travelDate: "2026-08-08",
     capacity: 8,
     memberCount: 4,
     image: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?w=400&h=220&fit=crop",
   },
   {
     id: "sample-2",
-    title: "도쿄 시모키타자와 골목 투어",
+    title: "도쿄 야키토리 골목 투어 하실 분?",
     regionName: "도쿄",
-    description: "도쿄 감성 골목에서 맛집을 같이 먹고 산책하는 크루입니다.",
-    travelDate: "2026-08-03",
+    country: "🇯🇵",
+    tags: ["도쿄", "야키토리"],
+    travelDate: "2026-08-15",
     capacity: 10,
     memberCount: 6,
     image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=220&fit=crop",
   },
   {
     id: "sample-3",
-    title: "제주 올레길 1코스 같이 걷기",
+    title: "제주 올레길 1코스 - 외국인 친구와 같이!",
     regionName: "제주",
-    description: "가볍게 걷고 사진 찍는 일정입니다. 초보자도 부담 없는 코스입니다.",
-    travelDate: "2026-08-10",
+    country: "🇰🇷",
+    tags: ["올레길", "외국인환영"],
+    travelDate: "2026-08-22",
     capacity: 6,
     memberCount: 3,
-    image: "https://images.unsplash.com/photo-1590736969596-701f0a18e6f0?w=400&h=220&fit=crop",
+    image: "/jeju-olle-trail.png",
   },
 ];
 
@@ -45,75 +45,23 @@ const crewImage = (crew) =>
   crew.coverImageUrl ||
   "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&h=220&fit=crop";
 
-const matchesRegion = (item, region) => {
-  const regionTerms = [region.label.ko, region.label.en, region.id]
-    .filter(Boolean)
-    .map((term) => String(term).toLowerCase());
-  const searchableRegion = `${item.regionName || ""} ${item.region?.name || ""} ${item.regionCode || ""}`.toLowerCase();
-  return regionTerms.some((term) => searchableRegion.includes(term));
-};
-
 export default function CrewPage() {
-  // 서버 목록을 우선 사용하되 개발 중 API 장애 시에도 레이아웃을 확인할 수 있도록 예시 목록을 유지합니다.
+  // Figma 시안 확인용 샘플 크루 3개를 고정으로 표시합니다.
   const [searchParams] = useSearchParams();
   const { selectedRegion, setSelectedRegion } = useRegionStore();
-  const [crews, setCrews] = useState([]);
   const [joined, setJoined] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const keyword = (searchParams.get("q") || "").trim().toLowerCase();
 
-  useEffect(() => {
-    let active = true;
-
-    const fetchCrews = async () => {
-      try {
-        const result = await getCrews({ size: 20 });
-        const items = result?.items || result?.content || [];
-        if (active) setCrews(items.length > 0 ? items : fallbackCrews);
-      } catch (requestError) {
-        if (!active) return;
-        setCrews(fallbackCrews);
-        setError(getApiErrorMessage(requestError, "크루 API를 불러오지 못해 샘플 카드를 표시합니다."));
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    fetchCrews();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const visibleCrews = useMemo(() => {
-    return crews.filter((crew) => {
-      if (!keyword) return matchesRegion(crew, selectedRegion);
-
-      const searchable = `${crew.title || ""} ${crew.description || ""} ${crew.regionName || ""} ${crew.region?.name || ""}`.toLowerCase();
+    return sampleCrews.filter((crew) => {
+      if (!keyword) return true;
+      const searchable = `${crew.title} ${crew.regionName} ${crew.tags.join(" ")}`.toLowerCase();
       return searchable.includes(keyword);
     });
-  }, [crews, keyword, selectedRegion]);
+  }, [keyword]);
 
-  const handleJoin = async (crew) => {
-    // 승인형 크루는 신청 상태가 되고, 즉시 참가형 크루는 바로 승인될 수 있습니다.
-    if (String(crew.id).startsWith("sample-")) {
-      setJoined((current) => (current.includes(crew.id) ? current.filter((id) => id !== crew.id) : [...current, crew.id]));
-      return;
-    }
-
-    if (!isLogin()) {
-      alert("로그인이 필요합니다.");
-      return;
-    }
-
-    try {
-      await joinCrew(crew.id);
-      setJoined((current) => [...current, crew.id]);
-    } catch (requestError) {
-      alert(getApiErrorMessage(requestError, "크루 참여에 실패했습니다."));
-    }
+  const handleJoin = (crew) => {
+    setJoined((current) => (current.includes(crew.id) ? current.filter((id) => id !== crew.id) : [...current, crew.id]));
   };
 
   return (
@@ -135,11 +83,7 @@ export default function CrewPage() {
             </button>
           </div>
 
-          {error && <p className="mb-4 text-sm text-amber-700">{error}</p>}
-          {loading && <p className="py-10 text-center text-muted">크루를 불러오는 중입니다.</p>}
-
-          {!loading && (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {visibleCrews.map((crew) => {
                 const memberCount = crew.memberCount ?? 1;
                 const capacity = crew.capacity ?? 2;
@@ -155,13 +99,19 @@ export default function CrewPage() {
                       <img src={crewImage(crew)} alt={crew.title} className="h-full w-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                       <span className="absolute bottom-2 left-3 rounded-full bg-black/40 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
-                        {crew.regionName || "지역 미정"}
+                        {crew.country} {crew.regionName}
                       </span>
                     </div>
 
                     <div className="p-4">
                       <p className="mb-2 line-clamp-2 text-sm font-semibold text-foreground">{crew.title}</p>
-                      <p className="mb-3 line-clamp-2 text-xs leading-5 text-muted">{crew.description}</p>
+                      <div className="mb-3 flex flex-wrap gap-1">
+                        {crew.tags.map((tag) => (
+                          <span key={tag} className="rounded-full bg-secondary px-2 py-0.5 text-xs text-primary">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
 
                       <div className="mb-3">
                         <div className="mb-1 flex justify-between text-xs text-muted">
@@ -194,10 +144,9 @@ export default function CrewPage() {
                   </article>
                 );
               })}
-            </div>
-          )}
+          </div>
 
-          {!loading && visibleCrews.length === 0 && (
+          {visibleCrews.length === 0 && (
             <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
               선택한 지역의 크루가 없습니다.
             </p>
