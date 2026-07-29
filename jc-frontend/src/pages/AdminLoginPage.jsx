@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { isLogin, login } from "../services/auth";
 

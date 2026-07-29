@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { CalendarDays, ChevronLeft, MapPin, RefreshCw, Sparkles } from "lucide-react";
 import MultipleImageUploader from "../components/MultipleImageUploader";
 import RichTextEditor from "../components/RichTextEditor";

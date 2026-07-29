@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Bookmark, MapPin } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, deletePost, unbookmarkPost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";

@@ -1,5 +1,5 @@
 import { MessageSquareWarning, Newspaper, UserRoundCheck, Users } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useAdminContext } from "../../admin/useAdminContext";
 import { formatAdminDate } from "../../admin/adminFormat";
 import { AdminEmpty, AdminPageHeader, AdminPanel, AdminStatusBadge } from "../../admin/AdminUi";

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import { isLogin } from "../services/auth";
 import { clearStoredAuth } from "../services/apiClient";
 import { getAdminDashboard } from "../services/adminApi";

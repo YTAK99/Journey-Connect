@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 const chipClass =
   "inline-flex items-center rounded-lg border border-teal-200/70 bg-teal-50/65 px-2.5 py-1 text-xs font-medium text-teal-700 backdrop-blur-sm transition dark:border-teal-800/60 dark:bg-teal-950/35 dark:text-teal-200";

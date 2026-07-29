@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import PostCard from "../components/PostCard";
 import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/apiClient";
 import { isLogin } from "../services/auth";

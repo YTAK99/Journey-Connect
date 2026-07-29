@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { getAdminUsers } from "../../services/adminApi";
 import { USER_ACCOUNT_STATUSES, USER_ROLES, adminLabel } from "../../admin/adminPolicies";
 import { formatAdminDate } from "../../admin/adminFormat";

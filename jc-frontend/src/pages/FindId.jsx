@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { findId } from "../services/auth";
 
 // 가입한 이메일로 아이디를 찾는 페이지다.

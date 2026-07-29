@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { dismissAdminReport, getAdminReport, resolveAdminReport } from "../../services/adminApi";
 import { normalizeAdminError } from "../../admin/adminErrors";
 import { adminLabel } from "../../admin/adminPolicies";

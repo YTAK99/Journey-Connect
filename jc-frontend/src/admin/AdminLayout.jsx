@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { LayoutDashboard, LogOut, Menu, MessageSquareWarning, Newspaper, Users, X } from "lucide-react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router";
 import { getUser, logout } from "../services/auth";
 
 const navigation = [

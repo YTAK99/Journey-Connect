@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Search } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { getAdminPosts } from "../../services/adminApi";
 import { POST_MODERATION_STATUSES, POST_VISIBILITIES, adminLabel } from "../../admin/adminPolicies";
 import { formatAdminDate, truncateText } from "../../admin/adminFormat";

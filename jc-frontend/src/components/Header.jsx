@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router";
 import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";

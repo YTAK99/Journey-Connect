@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, getExplore, getFeed, getFeedItems, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";

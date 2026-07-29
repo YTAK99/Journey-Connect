@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 export default function Home() {
   // 비로그인 사용자의 서비스 진입점으로 검색과 로그인/가입 경로를 안내합니다.

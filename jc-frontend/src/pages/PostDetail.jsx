@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
 import { deletePost, getPost } from "../services/postApi";

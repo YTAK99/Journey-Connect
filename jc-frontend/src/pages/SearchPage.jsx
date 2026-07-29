@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import LocationWeather from "../components/LocationWeather";
 import PostCard from "../components/PostCard";
 import { getApiErrorMessage } from "../services/apiClient";
