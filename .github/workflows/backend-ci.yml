@@ -8,6 +8,7 @@ on:
     paths:
       - "jc-backend/**"
       - ".github/workflows/backend-ci.yml"
+
   pull_request:
     branches:
       - youngtak
@@ -27,13 +28,13 @@ jobs:
       postgres:
         image: postgis/postgis:15-3.4
         env:
-          POSTGRES_DB: journey_db
+          POSTGRES_DB: journey_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d journey_db"
+          --health-cmd "pg_isready -U postgres -d journey_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -43,11 +44,12 @@ jobs:
         working-directory: jc-backend
 
     env:
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_NAME: journey_db
-      DB_USERNAME: postgres
-      DB_PASSWORD: postgres
+      TEST_DB_HOST: localhost
+      TEST_DB_PORT: 5432
+      TEST_DB_NAME: journey_test
+      TEST_DB_USERNAME: postgres
+      TEST_DB_PASSWORD: postgres
+
       JWT_SECRET: journey-connect-ci-secret-key-32bytes-minimum
       CORS_ALLOWED_ORIGINS: http://localhost:5173
       GOOGLE_API_KEY: ci-placeholder
