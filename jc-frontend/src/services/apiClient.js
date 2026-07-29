@@ -1,54 +1,44 @@
 import axios from "axios";
 
-// 모든 백엔드 요청이 공유하는 기본 주소·타임아웃·JSON 헤더를 정의합니다.
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1",
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// 로그인처럼 인증 전에도 호출하는 공개 API에는 이전 세션의 만료된 토큰을 전달하지 않습니다.
 const publicAuthPaths = new Set(["/auth/login", "/auth/signup", "/auth/refresh", "/auth/logout"]);
 
-apiClient.interceptors.request.use((config) => {
-  // 로그인 뒤 저장된 JWT를 매 요청의 Authorization 헤더에 자동으로 붙입니다.
-  const token = localStorage.getItem("accessToken");
-  const requestPath = config.url?.split("?")[0];
+export function clearStoredAuth() {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("loginUser");
+  window.dispatchEvent(new Event("jc:auth-cleared"));
+}
 
-  if (token && !publicAuthPaths.has(requestPath)) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+export function createApiClient(baseURL) {
+  const client = axios.create({
+    baseURL,
+    timeout: 10000,
+    headers: { "Content-Type": "application/json" },
+  });
 
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // 인증이 만료된 상태를 브라우저에 남기지 않아 다음 화면에서 재로그인을 유도합니다.
-    if (error.response?.status === 401) {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("loginUser");
+  client.interceptors.request.use((config) => {
+    const token = localStorage.getItem("accessToken");
+    const requestPath = config.url?.split("?")[0];
+    if (token && !publicAuthPaths.has(requestPath)) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+  });
 
-    return Promise.reject(error);
-  },
-);
-
-// 백엔드 공통 응답 { data: ... }와 래핑되지 않은 응답을 모두 같은 형태로 돌려줍니다.
-export const unwrapApiResponse = (response) => response.data?.data ?? response.data;
-
-export const getApiErrorMessage = (error, fallbackMessage = "요청 처리에 실패했습니다.") => {
-  return (
-    error.response?.data?.message ||
-    error.response?.data?.error?.message ||
-    error.response?.data?.error ||
-    error.message ||
-    fallbackMessage
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) clearStoredAuth();
+      return Promise.reject(error);
+    },
   );
-};
+  return client;
+}
+
+const apiClient = createApiClient(import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api/v1");
+
+export const unwrapApiResponse = (response) => response.data?.data ?? response.data;
+export const getApiErrorMessage = (error, fallbackMessage = "요청 처리에 실패했습니다.") =>
+  error.response?.data?.message || error.response?.data?.error?.message || error.response?.data?.error || error.message || fallbackMessage;
 
 export default apiClient;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Camera, FileText, Heart, LogOut, Map, User } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { getUser, logout } from "../services/auth";
 
 function MenuItem({ icon, title }) {

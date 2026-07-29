@@ -74,7 +74,7 @@ public class PostService {
 
         PageRequest request = PageRequest.of(0, safeSize + 1);
         List<JourneyPost> fetched = position.createdAt() == null
-                ? posts.findByPublishedTrueOrderByCreatedAtDescIdDesc(request).getContent()
+                ? posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", request).getContent()
                 : posts.findFeedAfter(position.createdAt(), position.id(), request);
         boolean hasNext = fetched.size() > safeSize;
         List<JourneyPost> pageItems = hasNext
@@ -92,7 +92,7 @@ public class PostService {
 
     /** 기존 페이지 번호 기반 호출을 사용하는 내부 화면·테스트용 호환 API입니다. */
     public PageResponse<PostDtos.Summary> feed(Pageable pageable) {
-        return summaries(posts.findByPublishedTrueOrderByCreatedAtDescIdDesc(pageable));
+        return summaries(posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", pageable));
     }
 
     public PageResponse<PostDtos.Summary> explore(
@@ -243,7 +243,7 @@ public class PostService {
 
     public PageResponse<PostDtos.Summary> publicUserPosts(Long userId, Pageable pageable) {
         return summaries(
-                posts.findByAuthorIdAndPublishedTrueOrderByCreatedAtDescIdDesc(userId, pageable));
+                posts.findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(userId, "visible", pageable));
     }
 
     public PageResponse<PostDtos.Summary> myPosts(Long userId, Pageable pageable) {
@@ -258,6 +258,9 @@ public class PostService {
 
     private JourneyPost readablePost(Long postId, Long viewerId) {
         JourneyPost post = findPost(postId);
+        if (!post.isModerationVisible()) {
+            throw notFound("POST_NOT_FOUND", "게시물");
+        }
         if (post.isPublished()) {
             return post;
         }
@@ -269,7 +272,7 @@ public class PostService {
 
     private JourneyPost publishedPost(Long postId) {
         JourneyPost post = findPost(postId);
-        if (!post.isPublished()) {
+        if (!post.isPublished() || !post.isModerationVisible()) {
             throw notFound("POST_NOT_FOUND", "게시물");
         }
         return post;

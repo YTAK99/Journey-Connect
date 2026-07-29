@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { findPassword } from "../services/auth";
 
 // 아이디와 이메일로 비밀번호를 찾는 페이지다.

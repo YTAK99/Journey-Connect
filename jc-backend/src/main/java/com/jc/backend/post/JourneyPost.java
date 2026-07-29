@@ -90,6 +90,12 @@ public class JourneyPost extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean published = true;
 
+    @Column(name = "moderation_status", nullable = false, length = 20)
+    private String moderationStatus = "visible";
+
+    @Column(name = "hidden_at")
+    private java.time.LocalDateTime hiddenAt;
+
     protected JourneyPost() {}
 
     public JourneyPost(UserAccount author, Region region, String title, String content) {
@@ -195,9 +201,10 @@ public class JourneyPost extends BaseTimeEntity {
         return viewCount;
     }
 
-    public boolean isPublished() {
-        return published;
-    }
+    public boolean isPublished() { return published; }
+    public String getModerationStatus() { return moderationStatus; }
+    public java.time.LocalDateTime getHiddenAt() { return hiddenAt; }
+    public boolean isModerationVisible() { return "visible".equals(moderationStatus); }
 
     public record PostImageData(String imageUrl, String altText) {}
 }

@@ -1,5 +1,6 @@
 package com.jc.backend.crew;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jc.backend.common.DomainException;
@@ -35,7 +36,7 @@ class CrewConcurrencyIntegrationTest {
         UserAccount owner = users.save(new UserAccount("crew-owner@example.com", "hash", "owner"));
         UserAccount first = users.save(new UserAccount("crew-first@example.com", "hash", "first"));
         UserAccount second = users.save(new UserAccount("crew-second@example.com", "hash", "second"));
-        Region jeju = regions.save(new Region("KR-JEJU", "KR", "Jeju", null));
+        Region jeju = region(regions, "KR-JEJU", "KR", "Jeju");
 
         Crew crew = crews.save(new Crew(
                 owner,

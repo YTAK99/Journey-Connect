@@ -1,5 +1,6 @@
 package com.jc.backend.post;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jc.backend.common.CursorPageResponse;
@@ -10,6 +11,7 @@ import com.jc.backend.user.UserRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,27 +31,31 @@ class FeedCursorIntegrationTest {
 
     @Test
     void cursorFeedReturnsEveryPostOnceWithoutOffsetCountQueryContract() {
-        // 고정 이름 H2 DB나 선행 테스트 데이터에 의존하지 않도록 현재 테스트 데이터를 명시적으로 격리합니다.
-        posts.deleteAll();
-        regions.deleteAll();
-        users.deleteAll();
+        String fixtureId = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        UserAccount author = users.save(new UserAccount(
+                "cursor-" + fixtureId + "@example.com",
+                "hash",
+                "cursor-" + fixtureId));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
 
-        UserAccount author = users.save(new UserAccount("cursor@example.com", "hash", "cursor-user"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+        List<JourneyPost> createdPosts = new ArrayList<>();
         for (int i = 1; i <= 5; i++) {
-        posts.save(new JourneyPost(
-                author,
-                seoul,
-                "post-" + i,
-                "content-" + i
-        ));
+            createdPosts.add(posts.save(new JourneyPost(
+                    author,
+                    seoul,
+                    "cursor-" + fixtureId + "-" + i,
+                    "content-" + i
+            )));
         }
 
         posts.flush();
         entityManager.clear();
 
-        List<Long> expectedIds = posts.findByPublishedTrueOrderByCreatedAtDescIdDesc(
-                        PageRequest.of(0, 10))
+        List<Long> expectedIds = posts
+                .findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+                        "visible",
+                        PageRequest.of(0, 1000))
+                .getContent()
                 .stream()
                 .map(JourneyPost::getId)
                 .toList();

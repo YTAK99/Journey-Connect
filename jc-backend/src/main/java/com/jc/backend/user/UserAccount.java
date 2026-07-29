@@ -38,6 +38,15 @@ public class UserAccount extends BaseTimeEntity {
     @Column(length = 500)
     private String profileImageUrl;
 
+    @Column(nullable = false, length = 20)
+    private String role = "user";
+
+    @Column(name = "account_status", nullable = false, length = 20)
+    private String accountStatus = "active";
+
+    @Column(name = "suspended_at")
+    private java.time.LocalDateTime suspendedAt;
+
     protected UserAccount() {}
 
     public UserAccount(String email, String passwordHash, String nickname) {
@@ -74,7 +83,9 @@ public class UserAccount extends BaseTimeEntity {
         return bio;
     }
 
-    public String getProfileImageUrl() {
-        return profileImageUrl;
-    }
+    public String getProfileImageUrl() { return profileImageUrl; }
+    public String getRole() { return role; }
+    public String getAccountStatus() { return accountStatus; }
+    public java.time.LocalDateTime getSuspendedAt() { return suspendedAt; }
+    public boolean isActive() { return "active".equals(accountStatus); }
 }

@@ -87,3 +87,6 @@ dev-server-google.out.log
 
 # 사용자가 업로드한 이미지 원본은 Git에 포함하지 않습니다.
 **/uploads/
+
+start-local.ps1
+start-local.bat

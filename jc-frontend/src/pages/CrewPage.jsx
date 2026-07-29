@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, Plus, Users } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import LocationWeather from "../components/LocationWeather";
 import useRegionStore from "../store/useRegionStore";
 

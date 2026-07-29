@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getFeed, getFeedItems } from "../services/postApi";
 import useLangStore from "../store/useLangStore";

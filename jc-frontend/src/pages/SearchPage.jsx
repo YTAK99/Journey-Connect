@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Compass, PenLine, RotateCcw } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import LocationWeather from "../components/LocationWeather";
 import PostCard from "../components/PostCard";
 import { getApiErrorMessage } from "../services/apiClient";

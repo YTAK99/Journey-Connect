@@ -1,5 +1,7 @@
 package com.jc.backend.post;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
+
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,12 +18,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class PostApiIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
@@ -36,14 +36,18 @@ class PostApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // 개발용 seed 및 다른 통합 테스트의 crew가 region/user를 참조하므로 전체 삭제 대신
-        // 테스트마다 고유한 데이터만 추가해 외래키와 실행 순서에 영향을 받지 않게 합니다.
-        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        // 공통 Region 픽스처를 재사용해 테스트마다 동일 지역 데이터가 중복 생성되는 것을 방지하고,
+        // 기존 seed 및 다른 통합 테스트의 외래키 참조에 영향을 주지 않도록 합니다.
+        String fixtureId = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         owner = users.save(new UserAccount(
-                "api-owner-" + suffix + "@example.com", "hash", "api-owner-" + suffix));
+                "api-owner-" + fixtureId + "@example.com",
+                "hash",
+                "api-owner-" + fixtureId));
         reactor = users.save(new UserAccount(
-                "api-reactor-" + suffix + "@example.com", "hash", "api-reactor-" + suffix));
-        Region seoul = regions.save(new Region("TEST-SEOUL-" + suffix, "KR", "Seoul", null));
+                "api-reactor-" + fixtureId + "@example.com",
+                "hash",
+                "api-reactor-" + fixtureId));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
 
         JourneyPost draft = new JourneyPost(owner, seoul, "draft", "private");
         draft.update(null, null, null, false);

@@ -1,5 +1,6 @@
 package com.jc.backend.post;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jc.backend.region.Region;
@@ -33,7 +34,7 @@ class PostInteractionIntegrationTest {
     void duplicateAndConcurrentLikeBookmarkRequestsRemainIdempotent() throws Exception {
         UserAccount author = users.save(new UserAccount("author2@example.com", "hash", "author2"));
         UserAccount user = users.save(new UserAccount("user2@example.com", "hash", "user2"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
         JourneyPost post = posts.save(new JourneyPost(author, seoul, "post", "content"));
 
         runConcurrently(4, () -> postService.like(user.getId(), post.getId()));

@@ -3,7 +3,7 @@ import FeedCard from "../components/FeedCard";
 import LocationWeather from "../components/LocationWeather";
 import StoryList from "../components/StoryList";
 import useRegionStore from "../store/useRegionStore";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 
 export default function FeedPage() {
   // 헤더 검색어와 전역 선택 지역을 날씨·스토리·피드 영역에 내려주는 조합 페이지입니다.

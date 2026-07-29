@@ -1,5 +1,6 @@
 package com.jc.backend.post;
 
+import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -32,9 +33,9 @@ class PostVisibilityIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        owner = users.save(new UserAccount("owner@example.com", "hash", "owner"));
-        other = users.save(new UserAccount("other@example.com", "hash", "other"));
-        Region seoul = regions.save(new Region("KR-SEOUL", "KR", "Seoul", null));
+        owner = users.save(new UserAccount("visibility-owner@example.com", "hash", "visibility-owner"));
+        other = users.save(new UserAccount("visibility-other@example.com", "hash", "visibility-other"));
+        Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
 
         draft = posts.save(new JourneyPost(owner, seoul, "draft", "private"));
         draft.update(null, null, null, false);

@@ -9,7 +9,7 @@ import {
   PenLine,
   Trash2,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
