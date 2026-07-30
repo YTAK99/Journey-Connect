@@ -2,124 +2,140 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 글로벌 스카이 그레이 배경색 및 기본 폰트 색상 적용 */
+:root {
+  --background: #f0f8ff;
+  --foreground: #23303b;
+  --card: #ffffff;
+  --primary: #14b8a6;
+  --secondary: #f3faf8;
+  --muted-foreground: #6b7280;
+  --accent: #0f766e;
+  --border: #e5e7eb;
+  --input-background: #f9fafb;
+}
+
+.dark {
+  --background: #15191c;
+  --foreground: #f6fbfc;
+  --card: #1f2629;
+  --primary: #5eead4;
+  --secondary: #26383d;
+  --muted-foreground: #9ab3b8;
+  --accent: #2dd4bf;
+  --border: rgba(94, 234, 212, 0.18);
+  --input-background: #243237;
+}
+
 body {
-  @apply bg-[#F0F8FF] text-[#23303B] font-sans antialiased;
+  @apply bg-background text-foreground font-sans antialiased;
   margin: 0;
   padding: 0;
 }
 
+button,
+input,
+textarea {
+  letter-spacing: 0;
+}
 
+.rich-text-editor p,
+.rich-text-content p {
+  margin: 0.65rem 0;
+}
 
+/* Tiptap은 연속 Enter를 빈 문단으로 저장합니다. 빈 문단에도 한 줄 높이를 줘 작성 당시 간격을 유지합니다. */
+.rich-text-editor p:empty,
+.rich-text-content p:empty {
+  min-height: 1em;
+}
 
-/*:root {*/
-/*  --text: #6b6375;*/
-/*  --text-h: #08060d;*/
-/*  --bg: #fff;*/
-/*  --border: #e5e4e7;*/
-/*  --code-bg: #f4f3ec;*/
-/*  --accent: #aa3bff;*/
-/*  --accent-bg: rgba(170, 59, 255, 0.1);*/
-/*  --accent-border: rgba(170, 59, 255, 0.5);*/
-/*  --social-bg: rgba(244, 243, 236, 0.5);*/
-/*  --shadow:*/
-/*    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;*/
+.rich-text-editor p:empty::before,
+.rich-text-content p:empty::before {
+  content: "\00a0";
+}
 
-/*  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;*/
-/*  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;*/
-/*  --mono: ui-monospace, Consolas, monospace;*/
+.rich-text-editor h2,
+.rich-text-content h2 {
+  margin: 1.5rem 0 0.65rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
 
-/*  font: 18px/145% var(--sans);*/
-/*  letter-spacing: 0.18px;*/
-/*  color-scheme: light dark;*/
-/*  color: var(--text);*/
-/*  background: var(--bg);*/
-/*  font-synthesis: none;*/
-/*  text-rendering: optimizeLegibility;*/
-/*  -webkit-font-smoothing: antialiased;*/
-/*  -moz-osx-font-smoothing: grayscale;*/
+.rich-text-editor h3,
+.rich-text-content h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
 
-/*  @media (max-width: 1024px) {*/
-/*    font-size: 16px;*/
-/*  }*/
-/*}*/
+.rich-text-editor ul,
+.rich-text-content ul {
+  margin: 0.75rem 0;
+  list-style: disc;
+  padding-left: 1.5rem;
+}
 
-/*@media (prefers-color-scheme: dark) {*/
-/*  :root {*/
-/*    --text: #9ca3af;*/
-/*    --text-h: #f3f4f6;*/
-/*    --bg: #16171d;*/
-/*    --border: #2e303a;*/
-/*    --code-bg: #1f2028;*/
-/*    --accent: #c084fc;*/
-/*    --accent-bg: rgba(192, 132, 252, 0.15);*/
-/*    --accent-border: rgba(192, 132, 252, 0.5);*/
-/*    --social-bg: rgba(47, 48, 58, 0.5);*/
-/*    --shadow:*/
-/*      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;*/
-/*  }*/
+.rich-text-editor ol,
+.rich-text-content ol {
+  margin: 0.75rem 0;
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
 
-/*  #social .button-icon {*/
-/*    filter: invert(1) brightness(2);*/
-/*  }*/
-/*}*/
+.rich-text-editor blockquote,
+.rich-text-content blockquote {
+  margin: 1rem 0;
+  border-left: 3px solid var(--primary);
+  background: var(--secondary);
+  padding: 0.75rem 1rem;
+  color: var(--muted-foreground);
+}
 
-/*body {*/
-/*  margin: 0;*/
-/*}*/
+.rich-text-content p {
+  color: inherit;
+}
 
-/*#root {*/
-/*  width: 1126px;*/
-/*  max-width: 100%;*/
-/*  margin: 0 auto;*/
-/*  text-align: center;*/
-/*  border-inline: 1px solid var(--border);*/
-/*  min-height: 100svh;*/
-/*  display: flex;*/
-/*  flex-direction: column;*/
-/*  box-sizing: border-box;*/
-/*}*/
+.rich-text-content a {
+  color: var(--accent);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--primary) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
 
-/*h1,*/
-/*h2 {*/
-/*  font-family: var(--heading);*/
-/*  font-weight: 500;*/
-/*  color: var(--text-h);*/
-/*}*/
+.rich-text-content img {
+  display: block;
+  width: 100%;
+  max-height: 38rem;
+  margin: 2rem 0;
+  border-radius: 1.25rem;
+  object-fit: cover;
+}
 
-/*h1 {*/
-/*  font-size: 56px;*/
-/*  letter-spacing: -1.68px;*/
-/*  margin: 32px 0;*/
-/*  @media (max-width: 1024px) {*/
-/*    font-size: 36px;*/
-/*    margin: 20px 0;*/
-/*  }*/
-/*}*/
-/*h2 {*/
-/*  font-size: 24px;*/
-/*  line-height: 118%;*/
-/*  letter-spacing: -0.24px;*/
-/*  margin: 0 0 8px;*/
-/*  @media (max-width: 1024px) {*/
-/*    font-size: 20px;*/
-/*  }*/
-/*}*/
-/*p {*/
-/*  margin: 0;*/
-/*}*/
+.rich-text-content hr {
+  margin: 2.75rem auto;
+  width: 4rem;
+  border: 0;
+  border-top: 2px solid var(--primary);
+  opacity: 0.35;
+}
 
-/*code,*/
-/*.counter {*/
-/*  font-family: var(--mono);*/
-/*  display: inline-flex;*/
-/*  border-radius: 4px;*/
-/*  color: var(--text-h);*/
-/*}*/
+.rich-text-content code {
+  border-radius: 0.35rem;
+  background: var(--secondary);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.9em;
+}
 
-/*code {*/
-/*  font-size: 15px;*/
-/*  line-height: 135%;*/
-/*  padding: 4px 8px;*/
-/*  background: var(--code-bg);*/
-/*}*/
+.rich-text-editor > *:first-child,
+.rich-text-content > *:first-child {
+  margin-top: 0;
+}
+
+.rich-text-editor > *:last-child,
+.rich-text-content > *:last-child {
+  margin-bottom: 0;
+}
