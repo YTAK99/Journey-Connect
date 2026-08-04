@@ -5,6 +5,7 @@ on:
     branches:
       - youngtak
       - "integration/**"
+      - develop
     paths:
       - "jc-backend/**"
       - ".github/workflows/backend-ci.yml"
