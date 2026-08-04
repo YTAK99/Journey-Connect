@@ -1,7 +1,9 @@
 spring:
   datasource:
-    url: jdbc:postgresql://${TEST_DB_HOST:localhost}:${TEST_DB_PORT:5432}/${TEST_DB_NAME:journey_test}
-    username: ${TEST_DB_USERNAME:postgres}
-    password: ${TEST_DB_PASSWORD:}
+    # Keep integration tests isolated in journey_test, while reusing local PostgreSQL
+    # connection settings when TEST_DB_* values are not provided.
+    url: jdbc:postgresql://${TEST_DB_HOST:${DB_HOST:localhost}}:${TEST_DB_PORT:${DB_PORT:5432}}/${TEST_DB_NAME:journey_test}
+    username: ${TEST_DB_USERNAME:${DB_USERNAME:postgres}}
+    password: ${TEST_DB_PASSWORD:${DB_PASSWORD:}}
 
 # 테스트 전용 DB 접속값은 환경변수로만 전달하며 개발 DB 기본 설정을 재사용하지 않습니다.

@@ -1,5 +1,6 @@
 package com.jc.backend.common;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 
 /**
@@ -10,12 +11,26 @@ public record CursorPageResponse<T>(
         List<T> items,
         String nextCursor,
         boolean hasNext,
-        int size) {
+        int size,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String recommendationRunId) {
 
     public static <T> CursorPageResponse<T> of(
             List<T> items,
             String nextCursor,
             boolean hasNext) {
-        return new CursorPageResponse<>(items, nextCursor, hasNext, items.size());
+        return new CursorPageResponse<>(items, nextCursor, hasNext, items.size(), null);
+    }
+
+    public static <T> CursorPageResponse<T> recommendation(
+            List<T> items,
+            String nextCursor,
+            boolean hasNext,
+            String recommendationRunId) {
+        return new CursorPageResponse<>(
+                items,
+                nextCursor,
+                hasNext,
+                items.size(),
+                recommendationRunId);
     }
 }

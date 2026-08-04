@@ -6,15 +6,18 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:여기에비밀번호입력}
     driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
-        show_sql: true
+        show_sql: ${HIBERNATE_SHOW_SQL:false}
         format_sql: true
-        dialects:
-          spatial: org.hibernate.spatial.dialect.postgis.PostgisDialect
+        jdbc:
+          time_zone: UTC
     open-in-view: false
   servlet:
     multipart:
@@ -34,8 +37,23 @@ app:
   google:
     api-key: ${GOOGLE_API_KEY:여기에구글API키입력}
   upload:
-    # 운영 환경에서는 애플리케이션 폴더 밖의 영구 디스크 경로를 UPLOAD_DIR로 지정하세요.
     directory: ${UPLOAD_DIR:./uploads/images}
+  recommendation:
+    mode: ${RECOMMENDATION_MODE:OFF}
+    candidate-limit: ${RECOMMENDATION_CANDIDATE_LIMIT:100}
+    core-build-id: ${RECOMMENDATION_CORE_BUILD_ID:java-core-1.2.0}
+    replay-audit-enabled: ${RECOMMENDATION_REPLAY_AUDIT_ENABLED:true}
+    replay-evaluator-version: ${RECOMMENDATION_REPLAY_EVALUATOR_VERSION:p0-persistence-replay-v1}
+    readiness-minimum-shadow-runs: ${RECOMMENDATION_READINESS_MINIMUM_SHADOW_RUNS:20}
+    readiness-lookback-runs: ${RECOMMENDATION_READINESS_LOOKBACK_RUNS:100}
+    readiness-max-p95-duration-ms: ${RECOMMENDATION_READINESS_MAX_P95_DURATION_MS:1000}
+    canary-allocation-basis-points: ${RECOMMENDATION_CANARY_ALLOCATION_BPS:0}
+    canary-cursor-secret: ${RECOMMENDATION_CANARY_CURSOR_SECRET:}
+    canary-release-id: ${RECOMMENDATION_CANARY_RELEASE_ID:}
+    p1:
+      mode: ${RECOMMENDATION_P1_MODE:OFF}
+    p2:
+      assignment-enabled: ${RECOMMENDATION_P2_ASSIGNMENT_ENABLED:false}
 
 springdoc:
   api-docs:

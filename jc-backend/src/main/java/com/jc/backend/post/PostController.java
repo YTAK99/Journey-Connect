@@ -3,9 +3,14 @@ package com.jc.backend.post;
 import com.jc.backend.common.ApiResponse;
 import com.jc.backend.common.CursorPageResponse;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.recommendation.application.RecommendationFeedService;
+import com.jc.backend.recommendation.application.RecommendationPostInteractionService;
+import com.jc.backend.recommendation.application.RecommendationPostInteractionService.TrackingContext;
+import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.Action;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.time.Instant;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -18,32 +23,39 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 피드·탐색·게시물·좋아요·북마크·댓글 요청을 담당하는 게시물 API 진입점입니다. */
-@Validated // @RequestParam의 @Min/@Max 같은 메서드 파라미터 제약을 활성화합니다.
+@Validated
 @RestController
 @RequestMapping("/api/v1")
 public class PostController {
 
     private final PostService postService;
+    private final RecommendationFeedService recommendationFeedService;
+    private final RecommendationPostInteractionService recommendationPostInteractionService;
 
-    public PostController(PostService postService) {
+    public PostController(
+            PostService postService,
+            RecommendationFeedService recommendationFeedService,
+            RecommendationPostInteractionService recommendationPostInteractionService) {
         this.postService = postService;
+        this.recommendationFeedService = recommendationFeedService;
+        this.recommendationPostInteractionService = recommendationPostInteractionService;
     }
 
     @GetMapping("/feed")
     ApiResponse<CursorPageResponse<PostDtos.Summary>> feed(
             @RequestParam(required = false) String cursor,
-            // 클라이언트가 과도한 건수를 요청하지 못하도록 1~100 범위에서 검증합니다.
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return ApiResponse.ok(postService.feed(cursor, size));
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(recommendationFeedService.feed(
+                cursor, size, userIdOrNull(token), token == null ? null : token.getId()));
     }
 
-    /** 기존 페이지 번호 기반 소비자를 위한 호환 경로입니다. 신규 화면은 /feed를 사용합니다. */
     @GetMapping("/feed/page")
     ApiResponse<PageResponse<PostDtos.Summary>> feedPage(
             @PageableDefault(size = 20) Pageable pageable) {
@@ -59,9 +71,7 @@ public class PostController {
     }
 
     @GetMapping("/posts/{postId}")
-    ApiResponse<PostDtos.Detail> detail(
-            @PathVariable Long postId,
-            @AuthenticationPrincipal Jwt token) {
+    ApiResponse<PostDtos.Detail> detail(@PathVariable Long postId, @AuthenticationPrincipal Jwt token) {
         return ApiResponse.ok(postService.detail(postId, userIdOrNull(token)));
     }
 
@@ -89,26 +99,54 @@ public class PostController {
 
     @PostMapping("/posts/{postId}/likes")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void like(@AuthenticationPrincipal Jwt token, @PathVariable Long postId) {
-        postService.like(userId(token), postId);
+    void like(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long postId,
+            @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
+        recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.LIKE,
+                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
     }
 
     @DeleteMapping("/posts/{postId}/likes")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void unlike(@AuthenticationPrincipal Jwt token, @PathVariable Long postId) {
-        postService.unlike(userId(token), postId);
+    void unlike(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long postId,
+            @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
+        recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.UNLIKE,
+                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
     }
 
     @PostMapping("/posts/{postId}/bookmarks")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void bookmark(@AuthenticationPrincipal Jwt token, @PathVariable Long postId) {
-        postService.bookmark(userId(token), postId);
+    void bookmark(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long postId,
+            @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
+        recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.SAVE,
+                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
     }
 
     @DeleteMapping("/posts/{postId}/bookmarks")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void unbookmark(@AuthenticationPrincipal Jwt token, @PathVariable Long postId) {
-        postService.unbookmark(userId(token), postId);
+    void unbookmark(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long postId,
+            @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
+        recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.UNSAVE,
+                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
     }
 
     @GetMapping("/posts/{postId}/comments")
@@ -125,8 +163,7 @@ public class PostController {
             @AuthenticationPrincipal Jwt token,
             @PathVariable Long postId,
             @Valid @RequestBody PostDtos.CommentRequest request) {
-        return ApiResponse.created(
-                postService.addComment(userId(token), postId, request.content()));
+        return ApiResponse.created(postService.addComment(userId(token), postId, request.content()));
     }
 
     @DeleteMapping("/comments/{commentId}")

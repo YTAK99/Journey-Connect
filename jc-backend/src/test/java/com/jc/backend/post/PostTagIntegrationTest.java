@@ -48,7 +48,7 @@ class PostTagIntegrationTest {
         entityManager.clear();
 
         PostDtos.Detail reloaded = postService.detail(created.id(), author.getId());
-        assertThat(reloaded.tags()).containsExactly("HiddenGem" + unique, "Cafe");
+        assertThat(reloaded.tags()).containsExactly("HiddenGem" + unique, "cafe");
 
         PageResponse<PostDtos.Summary> search = postService.explore(
                 "hiddengem" + unique,
@@ -74,6 +74,6 @@ class PostTagIntegrationTest {
         entityManager.clear();
 
         assertThat(postService.detail(created.id(), author.getId()).tags())
-                .containsExactly("Cafe", "Updated" + unique);
+                .containsExactly("cafe", "Updated" + unique);
     }
 }

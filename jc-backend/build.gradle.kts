@@ -13,37 +13,26 @@ group = "com.journeyconnect"
 version = "0.0.1-SNAPSHOT"
 
 java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
+    toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
 }
 
-kotlin {
-    jvmToolchain(21)
-}
-
-repositories {
-    mavenCentral()
-}
+kotlin { jvmToolchain(21) }
+repositories { mavenCentral() }
 
 dependencies {
-    // Spring Boot, JPA, Security, Validation, OpenAPI를 함께 묶어 API 서버의 기본 실행 환경을 구성합니다.
+    implementation(project(":jc-recommendation-core"))
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
-
-    // Kotlin 설정 클래스와 Spring 프록시를 Java 도메인 코드와 함께 사용하기 위한 런타임 의존성입니다.
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-
     implementation("org.postgresql:postgresql")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.hibernate.orm:hibernate-spatial")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17")
-    // 리치 텍스트 본문에서 허용한 HTML만 저장해 XSS를 서버에서도 차단합니다.
     implementation("com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20240325.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -52,6 +41,22 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
+tasks.withType<Test>().configureEach { useJUnitPlatform() }
+
+tasks.register<Test>("recommendationUnitTest") {
+    group = "verification"
+    description = "Runs the backend recommendation unit tests included in the P2 Flyway port."
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    dependsOn(tasks.testClasses)
+    filter { includeTestsMatching("com.jc.backend.recommendation.application.*Test") }
+}
+
+tasks.register("p2Verification") {
+    group = "verification"
+    description = "Runs the recommendation core P0/P1/P2 contracts and backend recommendation unit tests."
+    dependsOn(
+        ":jc-recommendation-core:check",
+        "recommendationUnitTest",
+    )
 }
