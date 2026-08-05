@@ -5,7 +5,7 @@ on:
     branches:
       - youngtak
       - "integration/**"
-      - develop
+      
     paths:
       - "jc-backend/**"
       - ".github/workflows/backend-ci.yml"
@@ -13,6 +13,8 @@ on:
   pull_request:
     branches:
       - youngtak
+      - develop
+
     paths:
       - "jc-backend/**"
       - ".github/workflows/backend-ci.yml"

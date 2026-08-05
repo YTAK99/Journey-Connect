@@ -5,13 +5,16 @@ on:
     branches:
       - youngtak
       - "integration/**"
-      - develop
+      
     paths:
       - "jc-frontend/**"
       - ".github/workflows/frontend-ci.yml"
+
   pull_request:
     branches:
       - youngtak
+      - develop
+      
     paths:
       - "jc-frontend/**"
       - ".github/workflows/frontend-ci.yml"

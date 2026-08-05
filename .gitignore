@@ -90,3 +90,4 @@ dev-server-google.out.log
 
 start-local.ps1
 start-local.bat
+/jc-recommendation-core/bin/
