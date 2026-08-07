@@ -1,0 +1,12 @@
+{
+  "crew": {
+    "pageTitle": "크루 · 모임",
+    "pageDescription": "선택한 지역의 여행자들과 함께하세요.",
+    "create": "크루 만들기",
+    "join": "참여하기",
+    "joined": "참여중",
+    "memberCount": "{{current}}/{{capacity}}명",
+    "ongoing": "상시",
+    "empty": "선택한 지역의 크루가 없습니다."
+  }
+}

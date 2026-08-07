@@ -1,0 +1,12 @@
+{
+  "crew": {
+    "pageTitle": "Crews & Meetups",
+    "pageDescription": "Meet travelers in the selected region.",
+    "create": "Create crew",
+    "join": "Join",
+    "joined": "Joined",
+    "memberCount": "{{current}} of {{capacity}}",
+    "ongoing": "Ongoing",
+    "empty": "No crews found for the selected region."
+  }
+}
