@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,8 +33,9 @@ class PostInteractionIntegrationTest {
 
     @Test
     void duplicateAndConcurrentLikeBookmarkRequestsRemainIdempotent() throws Exception {
-        UserAccount author = users.save(new UserAccount("author2@example.com", "hash", "author2"));
-        UserAccount user = users.save(new UserAccount("user2@example.com", "hash", "user2"));
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        UserAccount author = users.save(new UserAccount("author2-" + suffix + "@example.com", "hash", "author2-" + suffix));
+        UserAccount user = users.save(new UserAccount("user2-" + suffix + "@example.com", "hash", "user2-" + suffix));
         Region seoul = region(regions, "KR-SEOUL", "KR", "Seoul");
         JourneyPost post = posts.save(new JourneyPost(author, seoul, "post", "content"));
 
