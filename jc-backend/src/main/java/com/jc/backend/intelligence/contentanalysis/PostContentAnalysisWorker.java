@@ -53,16 +53,26 @@ public final class PostContentAnalysisWorker {
         }
 
         try {
-            PostContentAnalysisResultV1 result = provider.analyze(input);
+            ProviderAnalysisOutputV1 output = provider.analyze(input);
+            validator.validateProviderOutput(output, input);
+
+            PostContentAnalysisResultV1 result = new PostContentAnalysisResultV1(
+                    running.analysisRunId(),
+                    PostContentAnalysisResultV1.SCHEMA_VERSION,
+                    running.sourceContentVersion(),
+                    output.sourceLanguage(),
+                    provider.modelVersion(),
+                    running.promptVersion(),
+                    AnalysisStatus.SUCCEEDED,
+                    output.summary(),
+                    output.themes(),
+                    output.travelStyles(),
+                    output.suggestedTags(),
+                    output.placeMentions(),
+                    output.confidence(),
+                    clock.instant());
+
             validator.validateResult(result, input);
-            if (!running.analysisRunId().equals(result.analysisRunId())) {
-                throw new PostContentAnalysisValidationException(
-                        java.util.List.of("analysisRunId must match claimed job"));
-            }
-            if (!running.promptVersion().equals(result.promptVersion())) {
-                throw new PostContentAnalysisValidationException(
-                        java.util.List.of("promptVersion must match claimed job"));
-            }
             resultStore.append(result);
             jobStore.save(running.markSucceeded(clock.instant()));
         } catch (PostContentAnalysisValidationException exception) {

@@ -23,11 +23,25 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 50MB
+  ai:
+    model:
+      chat: ${SPRING_AI_CHAT_MODEL:none}
+    google:
+      genai:
+        api-key: ${GOOGLE_AI_API_KEY:}
+        chat:
+          options:
+            model: ${JC_AI_CONTENT_MODEL:gemini-2.5-flash}
+            temperature: ${JC_AI_CONTENT_TEMPERATURE:0.1}
 
 server:
   port: ${SERVER_PORT:8080}
 
 app:
+  intelligence:
+    content-analysis:
+      enabled: ${JC_AI_CONTENT_ANALYSIS_ENABLED:false}
+      model-version: ${JC_AI_CONTENT_MODEL:gemini-2.5-flash}
   security:
     jwt-secret: ${JWT_SECRET:journey-connect-local-dev-secret-32bytes}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}

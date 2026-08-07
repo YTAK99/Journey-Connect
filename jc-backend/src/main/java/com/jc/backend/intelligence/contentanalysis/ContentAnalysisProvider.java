@@ -4,5 +4,7 @@ public interface ContentAnalysisProvider {
 
     String providerId();
 
-    PostContentAnalysisResultV1 analyze(PostContentAnalysisInputV1 input);
+    String modelVersion();
+
+    ProviderAnalysisOutputV1 analyze(PostContentAnalysisInputV1 input);
 }

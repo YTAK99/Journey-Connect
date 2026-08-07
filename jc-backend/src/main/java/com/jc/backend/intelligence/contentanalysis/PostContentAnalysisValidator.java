@@ -39,6 +39,29 @@ public final class PostContentAnalysisValidator {
         throwIfInvalid(violations);
     }
 
+    public void validateProviderOutput(
+            ProviderAnalysisOutputV1 output,
+            PostContentAnalysisInputV1 input) {
+        validateInput(input);
+        if (output == null) {
+            throw new PostContentAnalysisValidationException(
+                    List.of("provider output must not be null"));
+        }
+
+        List<String> violations = new ArrayList<>();
+        validatePayload(
+                output.sourceLanguage(),
+                output.summary(),
+                output.themes(),
+                output.travelStyles(),
+                output.suggestedTags(),
+                output.placeMentions(),
+                output.confidence(),
+                input.sourceText(),
+                violations);
+        throwIfInvalid(violations);
+    }
+
     public void validateResult(PostContentAnalysisResultV1 result, PostContentAnalysisInputV1 input) {
         validateInput(input);
         List<String> violations = new ArrayList<>();
@@ -55,23 +78,45 @@ public final class PostContentAnalysisValidator {
         if (!input.sourceContentVersion().equals(result.sourceContentVersion())) {
             violations.add("sourceContentVersion must match input");
         }
-        if (result.sourceLanguage() == null || !LANGUAGE_TAG.matcher(result.sourceLanguage()).matches()) {
-            violations.add("sourceLanguage must be a supported language tag shape");
-        }
         requireVersion(result.modelVersion(), "modelVersion", violations);
         requireVersion(result.promptVersion(), "promptVersion", violations);
         if (result.status() != AnalysisStatus.SUCCEEDED) {
             violations.add("result status must be succeeded");
         }
-        requireText(result.summary(), "summary", MAX_SUMMARY_LENGTH, violations);
-        validateUniqueValues(result.themes(), "themes", violations);
-        validateUniqueValues(result.travelStyles(), "travelStyles", violations);
-        validateTags(result.suggestedTags(), "suggestedTags", MAX_SUGGESTED_TAGS, violations);
-        validatePlaceMentions(result.placeMentions(), input.sourceText(), violations);
-        validateConfidence(result.confidence(), "confidence", violations);
+        validatePayload(
+                result.sourceLanguage(),
+                result.summary(),
+                result.themes(),
+                result.travelStyles(),
+                result.suggestedTags(),
+                result.placeMentions(),
+                result.confidence(),
+                input.sourceText(),
+                violations);
         if (result.createdAt() == null) violations.add("createdAt must not be null");
 
         throwIfInvalid(violations);
+    }
+
+    private static void validatePayload(
+            String sourceLanguage,
+            String summary,
+            List<ContentTheme> themes,
+            List<TravelStyle> travelStyles,
+            List<String> suggestedTags,
+            List<PlaceMentionCandidate> placeMentions,
+            double confidence,
+            String sourceText,
+            List<String> violations) {
+        if (sourceLanguage == null || !LANGUAGE_TAG.matcher(sourceLanguage).matches()) {
+            violations.add("sourceLanguage must be a supported language tag shape");
+        }
+        requireText(summary, "summary", MAX_SUMMARY_LENGTH, violations);
+        validateUniqueValues(themes, "themes", violations);
+        validateUniqueValues(travelStyles, "travelStyles", violations);
+        validateTags(suggestedTags, "suggestedTags", MAX_SUGGESTED_TAGS, violations);
+        validatePlaceMentions(placeMentions, sourceText, violations);
+        validateConfidence(confidence, "confidence", violations);
     }
 
     private static void validatePlaceMentions(

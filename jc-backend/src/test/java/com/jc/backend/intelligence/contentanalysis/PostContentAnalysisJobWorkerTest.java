@@ -78,7 +78,7 @@ class PostContentAnalysisJobWorkerTest {
         PostContentAnalysisJob job = service.enqueue(input("post-content-v1"));
 
         ContentAnalysisProvider provider = new FakeContentAnalysisProvider(
-                source -> validResult(job.analysisRunId(), source.sourceContentVersion(), clock.instant()),
+                source -> validOutput(),
                 new PostContentAnalysisValidator());
         PostContentAnalysisWorker worker = worker(jobs, inputs, results, provider, clock);
 
@@ -86,7 +86,14 @@ class PostContentAnalysisJobWorkerTest {
         PostContentAnalysisJob saved = jobs.findByRunId(job.analysisRunId()).orElseThrow();
         assertEquals(AnalysisStatus.SUCCEEDED, saved.status());
         assertEquals(1, saved.attemptCount());
-        assertTrue(results.findByAnalysisRunId(job.analysisRunId()).isPresent());
+        PostContentAnalysisResultV1 stored =
+                results.findByAnalysisRunId(job.analysisRunId()).orElseThrow();
+        assertEquals(job.analysisRunId(), stored.analysisRunId());
+        assertEquals(job.sourceContentVersion(), stored.sourceContentVersion());
+        assertEquals(job.promptVersion(), stored.promptVersion());
+        assertEquals("fake-model-v1", stored.modelVersion());
+        assertEquals(AnalysisStatus.SUCCEEDED, stored.status());
+        assertEquals(BASE_TIME, stored.createdAt());
         assertFalse(worker.runOnce());
     }
 
@@ -106,8 +113,13 @@ class PostContentAnalysisJobWorkerTest {
             }
 
             @Override
-            public PostContentAnalysisResultV1 analyze(PostContentAnalysisInputV1 source) {
-                return invalidResult(job.analysisRunId(), source.sourceContentVersion(), clock.instant());
+            public String modelVersion() {
+                return "invalid-model-v1";
+            }
+
+            @Override
+            public ProviderAnalysisOutputV1 analyze(PostContentAnalysisInputV1 source) {
+                return invalidOutput();
             }
         };
         PostContentAnalysisWorker worker = worker(jobs, inputs, results, invalidProvider, clock);
@@ -144,7 +156,12 @@ class PostContentAnalysisJobWorkerTest {
             }
 
             @Override
-            public PostContentAnalysisResultV1 analyze(PostContentAnalysisInputV1 source) {
+            public String modelVersion() {
+                return "failing-model-v1";
+            }
+
+            @Override
+            public ProviderAnalysisOutputV1 analyze(PostContentAnalysisInputV1 source) {
                 throw new IllegalStateException("provider unavailable");
             }
         };
@@ -179,7 +196,7 @@ class PostContentAnalysisJobWorkerTest {
         inputs.clear();
 
         ContentAnalysisProvider provider = new FakeContentAnalysisProvider(
-                source -> validResult(job.analysisRunId(), source.sourceContentVersion(), clock.instant()),
+                source -> validOutput(),
                 new PostContentAnalysisValidator());
         PostContentAnalysisWorker worker = worker(jobs, inputs, results, provider, clock);
 
@@ -225,18 +242,9 @@ class PostContentAnalysisJobWorkerTest {
                 version);
     }
 
-    private static PostContentAnalysisResultV1 validResult(
-            String runId,
-            String sourceVersion,
-            Instant createdAt) {
-        return new PostContentAnalysisResultV1(
-                runId,
-                PostContentAnalysisResultV1.SCHEMA_VERSION,
-                sourceVersion,
+    private static ProviderAnalysisOutputV1 validOutput() {
+        return new ProviderAnalysisOutputV1(
                 "ko",
-                "fake-model-v1",
-                PostContentAnalysisJobService.PROMPT_VERSION,
-                AnalysisStatus.SUCCEEDED,
                 "성수연방과 서울숲을 도보로 둘러본 여행 후기입니다.",
                 List.of(ContentTheme.SHOPPING, ContentTheme.LOCAL_EXPERIENCE),
                 List.of(TravelStyle.WALKING, TravelStyle.SHORT_TRIP),
@@ -244,29 +252,18 @@ class PostContentAnalysisJobWorkerTest {
                 List.of(
                         new PlaceMentionCandidate("성수연방", "성수연방", 0.96),
                         new PlaceMentionCandidate("서울숲", "서울숲", 0.98)),
-                0.94,
-                createdAt);
+                0.94);
     }
 
-    private static PostContentAnalysisResultV1 invalidResult(
-            String runId,
-            String sourceVersion,
-            Instant createdAt) {
-        return new PostContentAnalysisResultV1(
-                runId,
-                PostContentAnalysisResultV1.SCHEMA_VERSION,
-                sourceVersion,
+    private static ProviderAnalysisOutputV1 invalidOutput() {
+        return new ProviderAnalysisOutputV1(
                 "ko",
-                "fake-model-v1",
-                PostContentAnalysisJobService.PROMPT_VERSION,
-                AnalysisStatus.SUCCEEDED,
                 "",
                 List.of(ContentTheme.SHOPPING),
                 List.of(TravelStyle.WALKING),
                 List.of(),
                 List.of(),
-                0.9,
-                createdAt);
+                0.9);
     }
 
     private static final class InMemoryJobStore implements PostContentAnalysisJobStore {

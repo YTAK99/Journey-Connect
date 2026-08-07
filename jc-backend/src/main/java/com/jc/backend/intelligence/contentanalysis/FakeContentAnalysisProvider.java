@@ -5,12 +5,23 @@ import java.util.function.Function;
 
 public final class FakeContentAnalysisProvider implements ContentAnalysisProvider {
 
-    private final Function<PostContentAnalysisInputV1, PostContentAnalysisResultV1> responder;
+    private static final String DEFAULT_MODEL_VERSION = "fake-model-v1";
+
+    private final String modelVersion;
+    private final Function<PostContentAnalysisInputV1, ProviderAnalysisOutputV1> responder;
     private final PostContentAnalysisValidator validator;
 
     public FakeContentAnalysisProvider(
-            Function<PostContentAnalysisInputV1, PostContentAnalysisResultV1> responder,
+            Function<PostContentAnalysisInputV1, ProviderAnalysisOutputV1> responder,
             PostContentAnalysisValidator validator) {
+        this(DEFAULT_MODEL_VERSION, responder, validator);
+    }
+
+    public FakeContentAnalysisProvider(
+            String modelVersion,
+            Function<PostContentAnalysisInputV1, ProviderAnalysisOutputV1> responder,
+            PostContentAnalysisValidator validator) {
+        this.modelVersion = Objects.requireNonNull(modelVersion, "modelVersion");
         this.responder = Objects.requireNonNull(responder, "responder");
         this.validator = Objects.requireNonNull(validator, "validator");
     }
@@ -21,10 +32,15 @@ public final class FakeContentAnalysisProvider implements ContentAnalysisProvide
     }
 
     @Override
-    public PostContentAnalysisResultV1 analyze(PostContentAnalysisInputV1 input) {
+    public String modelVersion() {
+        return modelVersion;
+    }
+
+    @Override
+    public ProviderAnalysisOutputV1 analyze(PostContentAnalysisInputV1 input) {
         validator.validateInput(input);
-        PostContentAnalysisResultV1 result = responder.apply(input);
-        validator.validateResult(result, input);
-        return result;
+        ProviderAnalysisOutputV1 output = responder.apply(input);
+        validator.validateProviderOutput(output, input);
+        return output;
     }
 }
