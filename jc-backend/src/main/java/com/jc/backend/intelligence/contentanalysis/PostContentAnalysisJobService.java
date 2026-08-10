@@ -56,6 +56,6 @@ public final class PostContentAnalysisJobService {
                 input,
                 PROMPT_VERSION,
                 now);
-        return jobStore.save(job);
+        return jobStore.saveIfAbsent(job);
     }
 }

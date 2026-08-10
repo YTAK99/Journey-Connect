@@ -284,6 +284,20 @@ class PostContentAnalysisJobWorkerTest {
         }
 
         @Override
+        public synchronized PostContentAnalysisJob saveIfAbsent(PostContentAnalysisJob job) {
+            Optional<PostContentAnalysisJob> existing = findByDedupeKey(
+                    job.postId(),
+                    job.sourceContentVersion(),
+                    job.schemaVersion(),
+                    job.promptVersion());
+            if (existing.isPresent()) {
+                return existing.get();
+            }
+            jobs.put(job.analysisRunId(), job);
+            return job;
+        }
+
+        @Override
         public PostContentAnalysisJob save(PostContentAnalysisJob job) {
             jobs.put(job.analysisRunId(), job);
             return job;

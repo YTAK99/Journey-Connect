@@ -11,6 +11,8 @@ public interface PostContentAnalysisJobStore {
             String schemaVersion,
             String promptVersion);
 
+    PostContentAnalysisJob saveIfAbsent(PostContentAnalysisJob job);
+
     PostContentAnalysisJob save(PostContentAnalysisJob job);
 
     Optional<PostContentAnalysisJob> claimNextReady(Instant now);

@@ -53,6 +53,14 @@ public final class PostContentAnalysisWorker {
         }
 
         try {
+            Optional<PostContentAnalysisResultV1> existing =
+                    resultStore.findByAnalysisRunId(running.analysisRunId());
+            if (existing.isPresent()) {
+                validator.validateResult(existing.get(), input);
+                jobStore.save(running.markSucceeded(clock.instant()));
+                return true;
+            }
+
             ProviderAnalysisOutputV1 output = provider.analyze(input);
             validator.validateProviderOutput(output, input);
 
