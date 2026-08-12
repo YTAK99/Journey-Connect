@@ -4,6 +4,9 @@ import com.jc.backend.common.CursorCodec;
 import com.jc.backend.common.CursorPageResponse;
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisInputV1;
+import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisJobService;
+import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisSourceVersion;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionDtos;
 import com.jc.backend.region.RegionService;
@@ -43,6 +46,7 @@ public class PostService {
     private final CursorCodec cursorCodec;
     private final RichTextSanitizer richTextSanitizer;
     private final TagService tagService;
+    private final PostContentAnalysisJobService contentAnalysisJobs;
 
     public PostService(
             JourneyPostRepository posts,
@@ -54,7 +58,8 @@ public class PostService {
             RegionService regionService,
             CursorCodec cursorCodec,
             RichTextSanitizer richTextSanitizer,
-            TagService tagService) {
+            TagService tagService,
+            PostContentAnalysisJobService contentAnalysisJobs) {
         this.posts = posts;
         this.likes = likes;
         this.bookmarks = bookmarks;
@@ -65,6 +70,7 @@ public class PostService {
         this.cursorCodec = cursorCodec;
         this.richTextSanitizer = richTextSanitizer;
         this.tagService = tagService;
+        this.contentAnalysisJobs = contentAnalysisJobs;
     }
 
     /** 신규 피드 API: 전체 개수 쿼리 없이 size + 1 방식으로 다음 페이지 여부를 계산합니다. */
@@ -131,7 +137,9 @@ public class PostService {
         post.updateTravelDates(request.travelStartDate(), request.travelEndDate());
         post.replaceTags(tagService.resolve(request.tags()));
         post.replaceImages(imageData(request.images(), request.coverImageUrl()));
-        return detailView(posts.save(post), userId);
+        JourneyPost saved = posts.save(post);
+        enqueueContentAnalysis(saved);
+        return detailView(saved, userId);
     }
 
     @Transactional
@@ -159,6 +167,7 @@ public class PostService {
         } else if (request.coverImageUrl() != null) {
             post.replaceImages(imageData(null, request.coverImageUrl()));
         }
+        enqueueContentAnalysis(post);
         return detailView(post, userId);
     }
 
@@ -446,6 +455,22 @@ public class PostService {
 
     private List<String> tagNames(JourneyPost post) {
         return post.getTags().stream().map(Tag::getName).toList();
+    }
+
+    private void enqueueContentAnalysis(JourneyPost post) {
+        List<String> sourceTags = tagNames(post);
+        String sourceContentVersion = PostContentAnalysisSourceVersion.from(
+                post.getTitle(),
+                post.getContent(),
+                post.getRegionName(),
+                sourceTags);
+        contentAnalysisJobs.enqueue(new PostContentAnalysisInputV1(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                post.getRegionName(),
+                sourceTags,
+                sourceContentVersion));
     }
 
     private void validateTravelDates(LocalDate startDate, LocalDate endDate) {
