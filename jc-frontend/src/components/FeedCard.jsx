@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
-import { bookmarkPost, getExplore, getFeed, getFeedItems, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
+import { bookmarkPost, getExplore, getFeed, getFeedItems, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
 import useLangStore from "../store/useLangStore";
@@ -40,11 +40,25 @@ function FeedItem({ post }) {
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
   const [showSummary, setShowSummary] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
   const location = getLocalizedRegionName(post, currentLang);
   const summary =
-    post.aiSummary ||
-    post.summary ||
-    `${location} 여행 글입니다. 주요 분위기와 방문 포인트를 본문에서 확인해보세요.`;
+    analysis?.status === "succeeded"
+      ? analysis.result?.summary?.trim() || ""
+      : "";
+  const summaryMessage = analysisLoading
+    ? (currentLang === "ko" ? "AI 요약을 불러오는 중입니다." : "Loading AI summary.")
+    : analysisError
+      ? analysisError
+      : summary
+        ? summary
+        : analysis?.status === "queued" || analysis?.status === "running"
+          ? (currentLang === "ko" ? "AI 요약을 준비 중입니다." : "AI summary is being prepared.")
+          : analysis?.status === "failed" || analysis?.status === "quarantined"
+            ? (currentLang === "ko" ? "AI 요약을 현재 제공할 수 없습니다." : "AI summary is currently unavailable.")
+            : (currentLang === "ko" ? "AI 요약이 아직 생성되지 않았습니다." : "AI summary has not been generated yet.");
 
   const toggleLike = async (event) => {
     event.stopPropagation();
@@ -74,6 +88,25 @@ function FeedItem({ post }) {
     } catch (error) {
       setBookmarked(!nextBookmarked);
       alert(getApiErrorMessage(error, "북마크 처리에 실패했습니다."));
+    }
+  };
+
+  const toggleSummary = async () => {
+    const nextOpen = !showSummary;
+    setShowSummary(nextOpen);
+    if (!nextOpen || analysisLoading || analysis?.status === "succeeded") return;
+
+    setAnalysisLoading(true);
+    setAnalysisError("");
+    try {
+      setAnalysis(await getPostAnalysis(post.id));
+    } catch (error) {
+      setAnalysisError(getApiErrorMessage(
+        error,
+        currentLang === "ko" ? "AI 요약을 불러오지 못했습니다." : "Could not load AI summary.",
+      ));
+    } finally {
+      setAnalysisLoading(false);
     }
   };
 
@@ -149,12 +182,20 @@ function FeedItem({ post }) {
         </p>
 
         <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50 p-3 dark:border-teal-900/60 dark:bg-teal-950/30">
-          <button type="button" onClick={() => setShowSummary((open) => !open)} className="flex w-full items-center gap-2 text-left">
+          <button type="button" onClick={toggleSummary} className="flex w-full items-center gap-2 text-left">
             <Sparkles size={14} className="text-teal-600" />
             <span className="text-xs font-semibold text-teal-700">AI Summary</span>
-            <span className="ml-auto text-xs text-gray-500 dark:text-slate-400">{showSummary ? "접기" : "보기"}</span>
+            <span className="ml-auto text-xs text-gray-500 dark:text-slate-400">
+              {showSummary
+                ? (currentLang === "ko" ? "접기" : "Hide")
+                : (currentLang === "ko" ? "보기" : "View")}
+            </span>
           </button>
-          {showSummary && <p className="mt-2 text-xs leading-5 text-gray-700 dark:text-slate-300">{summary}</p>}
+          {showSummary && (
+            <p className="mt-2 text-xs leading-5 text-gray-700 dark:text-slate-300">
+              {summaryMessage}
+            </p>
+          )}
         </div>
       </div>
     </article>
