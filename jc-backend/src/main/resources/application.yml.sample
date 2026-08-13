@@ -28,10 +28,10 @@ spring:
       chat: ${SPRING_AI_CHAT_MODEL:none}
     google:
       genai:
-        api-key: ${GOOGLE_AI_API_KEY:}
+        api-key: ${GOOGLE_AI_API_KEY:여기에구글API키입력}
         chat:
           options:
-            model: ${JC_AI_CONTENT_MODEL:gemini-2.5-flash}
+            model: ${JC_AI_CONTENT_MODEL:gemini-3.6-flash}
             temperature: ${JC_AI_CONTENT_TEMPERATURE:0.1}
 
 server:
@@ -41,7 +41,7 @@ app:
   intelligence:
     content-analysis:
       enabled: ${JC_AI_CONTENT_ANALYSIS_ENABLED:false}
-      model-version: ${JC_AI_CONTENT_MODEL:gemini-2.5-flash}
+      model-version: ${JC_AI_CONTENT_MODEL:gemini-3.6-flash}
   security:
     jwt-secret: ${JWT_SECRET:journey-connect-local-dev-secret-32bytes}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}
