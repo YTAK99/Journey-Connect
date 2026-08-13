@@ -8,6 +8,7 @@ import com.jc.backend.intelligence.contentanalysis.ContentAnalysisProvider;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisInputSnapshotStore;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisInputV1;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisJob;
+import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisJobService;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisJobStore;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisSourceVersion;
 import com.jc.backend.region.Region;
@@ -71,12 +72,14 @@ class PostContentAnalysisPostWriteIntegrationTest {
 
         assertThat(applicationContext.getBeansOfType(ContentAnalysisProvider.class)).isEmpty();
         assertThat(jobCount(created.id())).isEqualTo(1);
+        assertThat(PostContentAnalysisJobService.PROMPT_VERSION)
+                .isEqualTo("post-analysis-prompt-v3");
 
         PostContentAnalysisJob queued = jobs.findByDedupeKey(
                         created.id(),
                         expectedVersion(created.title(), created.content(), created.regionName(), created.tags()),
                         "post-content-analysis-v1",
-                        "post-analysis-prompt-v1")
+                        PostContentAnalysisJobService.PROMPT_VERSION)
                 .orElseThrow();
         assertThat(queued.status()).isEqualTo(AnalysisStatus.QUEUED);
 

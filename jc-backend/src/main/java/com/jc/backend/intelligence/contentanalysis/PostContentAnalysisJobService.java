@@ -8,7 +8,8 @@ import java.util.function.Supplier;
 
 public final class PostContentAnalysisJobService {
 
-    public static final String PROMPT_VERSION = "post-analysis-prompt-v1";
+    // Bump whenever provider prompt semantics change; jobs/results preserve this provenance.
+    public static final String PROMPT_VERSION = "post-analysis-prompt-v3";
 
     private final PostContentAnalysisValidator validator;
     private final PostContentAnalysisJobStore jobStore;
