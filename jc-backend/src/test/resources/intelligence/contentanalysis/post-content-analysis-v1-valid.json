@@ -1,0 +1,21 @@
+{
+  "analysisRunId": "analysis:8bc24b12-31ad-4e4b-a9d1-c048b4a54121",
+  "schemaVersion": "post-content-analysis-v1",
+  "sourceContentVersion": "post:123:content:4",
+  "sourceLanguage": "ko",
+  "modelVersion": "gemini-2.5-flash-2026-06",
+  "promptVersion": "post-analysis-prompt-v1",
+  "status": "succeeded",
+  "summary": "성수연방과 빈티지숍을 둘러본 뒤 서울숲까지 걸어간 성수동 하루 여행 후기입니다.",
+  "themes": ["shopping", "cafe", "local_experience"],
+  "travelStyles": ["walking", "short_trip"],
+  "suggestedTags": ["성수연방", "서울숲", "도보여행"],
+  "placeMentions": [
+    {"mentionText": "성수연방", "normalizedNameCandidate": "성수연방", "confidence": 0.96},
+    {"mentionText": "대림창고", "normalizedNameCandidate": "대림창고", "confidence": 0.91},
+    {"mentionText": "서울숲", "normalizedNameCandidate": "서울숲", "confidence": 0.98},
+    {"mentionText": "성수역", "normalizedNameCandidate": "성수역", "confidence": 0.97}
+  ],
+  "confidence": 0.94,
+  "createdAt": "2026-08-07T01:00:00Z"
+}

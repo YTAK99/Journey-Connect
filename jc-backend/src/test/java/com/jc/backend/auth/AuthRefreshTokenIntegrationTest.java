@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.jc.backend.common.DomainException;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,10 +19,11 @@ class AuthRefreshTokenIntegrationTest {
 
     @Test
     void refreshTokenIsRotatedAndLogoutRevokesLatestToken() {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
         AuthDtos.TokenResponse issued = authService.signup(new AuthDtos.SignupRequest(
-                "refresh@example.com",
+                "refresh-" + suffix + "@example.com",
                 "password1234",
-                "refresh-user"));
+                "refresh-" + suffix));
 
         AuthDtos.TokenResponse rotated = authService.refresh(
                 new AuthDtos.RefreshRequest(issued.refreshToken()));

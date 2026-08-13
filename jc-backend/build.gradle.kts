@@ -20,6 +20,7 @@ kotlin { jvmToolchain(21) }
 repositories { mavenCentral() }
 
 dependencies {
+    implementation(platform("org.springframework.ai:spring-ai-bom:1.1.8"))
     implementation(project(":jc-recommendation-core"))
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
@@ -34,6 +35,7 @@ dependencies {
     implementation("org.hibernate.orm:hibernate-spatial")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17")
     implementation("com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20240325.1")
+    implementation("org.springframework.ai:spring-ai-starter-model-google-genai")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")

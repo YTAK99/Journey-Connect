@@ -32,6 +32,11 @@ export const getPost = async (postId) => {
   return unwrap(response);
 };
 
+export const getPostAnalysis = async (postId) => {
+  const response = await apiClient.get(`/posts/${postId}/analysis`);
+  return unwrap(response);
+};
+
 export const createPost = async (post) => {
   const response = await apiClient.post("/posts", post);
   return unwrap(response);
