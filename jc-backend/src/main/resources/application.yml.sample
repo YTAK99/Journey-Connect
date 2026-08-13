@@ -65,9 +65,9 @@ app:
     canary-cursor-secret: ${RECOMMENDATION_CANARY_CURSOR_SECRET:}
     canary-release-id: ${RECOMMENDATION_CANARY_RELEASE_ID:}
     p1:
-      mode: ${RECOMMENDATION_P1_MODE:OFF}
+      mode: ${RECOMMENDATION_P1_MODE:ON}
     p2:
-      assignment-enabled: ${RECOMMENDATION_P2_ASSIGNMENT_ENABLED:false}
+      assignment-enabled: ${RECOMMENDATION_P2_ASSIGNMENT_ENABLED:true}
 
 springdoc:
   api-docs:
