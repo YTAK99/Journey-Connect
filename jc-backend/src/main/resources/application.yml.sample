@@ -40,7 +40,7 @@ server:
 app:
   intelligence:
     content-analysis:
-      enabled: ${JC_AI_CONTENT_ANALYSIS_ENABLED:false}
+      enabled: ${JC_AI_CONTENT_ANALYSIS_ENABLED:true}
       model-version: ${JC_AI_CONTENT_MODEL:gemini-3.6-flash}
   security:
     jwt-secret: ${JWT_SECRET:journey-connect-local-dev-secret-32bytes}
