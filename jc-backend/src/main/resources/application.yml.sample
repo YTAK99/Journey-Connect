@@ -25,7 +25,7 @@ spring:
       max-request-size: 50MB
   ai:
     model:
-      chat: ${SPRING_AI_CHAT_MODEL:none}
+      chat: ${SPRING_AI_CHAT_MODEL:google-genai}
     google:
       genai:
         api-key: ${GOOGLE_AI_API_KEY:여기에구글API키입력}
