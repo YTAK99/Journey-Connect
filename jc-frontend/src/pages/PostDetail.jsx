@@ -7,13 +7,14 @@ import {
   Heart,
   MapPin,
   PenLine,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
-import { deletePost, getPost } from "../services/postApi";
+import { deletePost, getPost, getPostAnalysis } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import { getLocalizedRegionName } from "../utils/region";
 import { normalizeEditorContent } from "../utils/richText";
@@ -37,6 +38,7 @@ function PostDetail() {
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const [post, setPost] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const isKorean = currentLang === "ko";
@@ -49,6 +51,10 @@ function PostDetail() {
         alert(getApiErrorMessage(error, isKorean ? "게시글을 불러오지 못했습니다." : "Could not load this post."));
       })
       .finally(() => setLoading(false));
+
+    getPostAnalysis(id)
+      .then((value) => setAnalysis({ postId: String(id), value }))
+      .catch(() => setAnalysis({ postId: String(id), value: null }));
   }, [id, isKorean]);
 
   const handleDelete = async () => {
@@ -102,6 +108,14 @@ function PostDetail() {
   // 대표 이미지는 상단 히어로에서 이미 사용하므로 본문 갤러리에서는 중복 노출하지 않습니다.
   const galleryImages = (post.images || []).filter((image) => image.imageUrl !== post.coverImageUrl);
   const hasTravelDates = post.travelStartDate || post.travelEndDate;
+  const currentAnalysis =
+    analysis?.postId === String(id)
+      ? analysis.value
+      : null;
+  const aiSummary =
+    currentAnalysis?.status === "succeeded"
+      ? currentAnalysis.result?.summary?.trim() || ""
+      : "";
 
   return (
     <main className="min-h-screen bg-background px-4 pb-20 pt-24 sm:px-8 sm:pt-28">
@@ -185,6 +199,18 @@ function PostDetail() {
                 )}
                 <TagChips tags={post.tags || []} className="sm:justify-end" />
               </div>
+            )}
+
+            {aiSummary && (
+              <section className="mt-8 rounded-2xl border border-teal-100 bg-teal-50/80 p-5 dark:border-teal-900/60 dark:bg-teal-950/30 sm:p-6">
+                <div className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
+                  <Sparkles size={17} />
+                  <h2 className="text-sm font-bold">AI Summary</h2>
+                </div>
+                <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-200 sm:text-base">
+                  {aiSummary}
+                </p>
+              </section>
             )}
 
             {/* 저장 시 백엔드에서 허용된 HTML만 남기므로 정제된 리치 텍스트를 그대로 렌더링합니다. */}

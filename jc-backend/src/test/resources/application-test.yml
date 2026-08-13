@@ -1,4 +1,12 @@
+app:
+  intelligence:
+    content-analysis:
+      enabled: false
+
 spring:
+  ai:
+    model:
+      chat: none
   datasource:
     # Keep integration tests isolated in journey_test, while reusing local PostgreSQL
     # connection settings when TEST_DB_* values are not provided.
