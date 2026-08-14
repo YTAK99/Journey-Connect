@@ -27,6 +27,18 @@ export const getExplore = async ({ keyword, region, page = 0, size = 20 } = {}) 
   return unwrap(response);
 };
 
+export const getExploreDiscovery = async ({ region, cursor, size = 20 } = {}) => {
+  const response = await apiClient.get("/explore/discovery", {
+    params: {
+      region: region || undefined,
+      cursor: cursor || undefined,
+      size,
+    },
+  });
+
+  return unwrap(response);
+};
+
 export const getPost = async (postId) => {
   const response = await apiClient.get(`/posts/${postId}`);
   return unwrap(response);
