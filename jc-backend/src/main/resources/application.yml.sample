@@ -28,7 +28,7 @@ spring:
       chat: ${SPRING_AI_CHAT_MODEL:google-genai}
     google:
       genai:
-        api-key: ${GOOGLE_AI_API_KEY:여기에구글API키입력}
+        api-key: ${GOOGLE_AI_API_KEY:여기에구글GEMINI-API키입력}
         chat:
           options:
             model: ${JC_AI_CONTENT_MODEL:gemini-3.6-flash}
