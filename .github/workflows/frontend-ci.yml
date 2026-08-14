@@ -48,6 +48,9 @@ jobs:
       - name: ESLint 검사
         run: npm run lint
 
+      - name: 프론트엔드 테스트
+        run: npm run test
+
       - name: 프론트엔드 빌드
         run: npm run build
 
