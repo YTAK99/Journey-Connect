@@ -40,22 +40,35 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokens;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder jwtEncoder;
+    private final PasswordResetTokenRepository passwordResetTokens;
+    private final PasswordResetMailService passwordResetMailService;
     private final long accessTokenMinutes;
     private final long refreshTokenDays;
+    private final long passwordResetMinutes;
+    private final boolean exposePasswordResetToken;
 
     public AuthService(
             UserRepository users,
             RefreshTokenRepository refreshTokens,
             PasswordEncoder passwordEncoder,
             JwtEncoder jwtEncoder,
+            PasswordResetTokenRepository passwordResetTokens,
+            PasswordResetMailService passwordResetMailService,
             @Value("${app.security.access-token-minutes}") long accessTokenMinutes,
-            @Value("${app.security.refresh-token-days}") long refreshTokenDays) {
+            @Value("${app.security.refresh-token-days}") long refreshTokenDays,
+            @Value("${app.security.password-reset-minutes:30}") long passwordResetMinutes,
+            @Value("${app.security.password-reset-expose-token:false}")
+                    boolean exposePasswordResetToken) {
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.passwordEncoder = passwordEncoder;
         this.jwtEncoder = jwtEncoder;
+        this.passwordResetTokens = passwordResetTokens;
+        this.passwordResetMailService = passwordResetMailService;
         this.accessTokenMinutes = accessTokenMinutes;
         this.refreshTokenDays = refreshTokenDays;
+        this.passwordResetMinutes = passwordResetMinutes;
+        this.exposePasswordResetToken = exposePasswordResetToken;
     }
 
     @Transactional
@@ -105,6 +118,46 @@ public class AuthService {
         return issueTokenPair(current.getUser());
     }
 
+    @Transactional
+    public AuthDtos.PasswordResetRequestResponse requestPasswordReset(
+            AuthDtos.PasswordResetRequest request) {
+        UserAccount user = users.findByEmail(normalizeEmail(request.email())).orElse(null);
+        if (user == null || !user.isActive()) {
+            return new AuthDtos.PasswordResetRequestResponse(true, null);
+        }
+
+        Instant now = Instant.now();
+        passwordResetTokens.invalidateAllByUserId(user.getId(), now);
+        String rawToken = randomToken();
+        passwordResetTokens.save(new PasswordResetToken(
+                user,
+                hash(rawToken),
+                now.plus(Duration.ofMinutes(passwordResetMinutes)),
+                now));
+        passwordResetMailService.send(user.getEmail(), rawToken);
+        return new AuthDtos.PasswordResetRequestResponse(
+                true,
+                exposePasswordResetToken ? rawToken : null);
+    }
+
+    @Transactional
+    public void confirmPasswordReset(AuthDtos.PasswordResetConfirmRequest request) {
+        Instant now = Instant.now();
+        PasswordResetToken token = passwordResetTokens
+                .findByTokenHashForUpdate(hash(request.token()))
+                .orElseThrow(this::invalidPasswordResetToken);
+        if (!token.isUsableAt(now)) {
+            throw invalidPasswordResetToken();
+        }
+
+        UserAccount user = token.getUser();
+        requireActive(user);
+        user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
+        token.consume(now);
+        passwordResetTokens.invalidateOthersByUserId(user.getId(), token.getId(), now);
+        refreshTokens.revokeAllByUserId(user.getId(), now);
+    }
+
     /** 로그아웃은 이미 폐기되었거나 존재하지 않는 토큰도 성공으로 처리하는 멱등 연산입니다. */
     @Transactional
     public void logout(AuthDtos.LogoutRequest request) {
@@ -145,7 +198,7 @@ public class AuthService {
         String accessToken = jwtEncoder
                 .encode(JwtEncoderParameters.from(headers, claims))
                 .getTokenValue();
-        String refreshToken = randomRefreshToken();
+        String refreshToken = randomToken();
         refreshTokens.save(new RefreshToken(user, hash(refreshToken), refreshExpiresAt));
 
         return new AuthDtos.TokenResponse(
@@ -168,7 +221,7 @@ public class AuthService {
                 user.getAccountStatus());
     }
 
-    private String randomRefreshToken() {
+    private String randomToken() {
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -210,5 +263,12 @@ public class AuthService {
                 HttpStatus.UNAUTHORIZED,
                 "INVALID_REFRESH_TOKEN",
                 "리프레시 토큰이 유효하지 않습니다.");
+    }
+
+    private DomainException invalidPasswordResetToken() {
+        return new DomainException(
+                HttpStatus.UNAUTHORIZED,
+                "INVALID_PASSWORD_RESET_TOKEN",
+                "비밀번호 재설정 토큰이 유효하지 않습니다.");
     }
 }

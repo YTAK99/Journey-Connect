@@ -5,6 +5,7 @@ import com.jc.backend.common.CursorPageResponse;
 import com.jc.backend.common.PageResponse;
 import com.jc.backend.recommendation.application.RecommendationFeedService;
 import com.jc.backend.recommendation.application.RecommendationPostInteractionService;
+import com.jc.backend.recommendation.explore.ExploreRecommendationService;
 import com.jc.backend.recommendation.application.RecommendationPostInteractionService.TrackingContext;
 import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.Action;
 import jakarta.validation.Valid;
@@ -37,14 +38,17 @@ public class PostController {
     private final PostService postService;
     private final RecommendationFeedService recommendationFeedService;
     private final RecommendationPostInteractionService recommendationPostInteractionService;
+    private final ExploreRecommendationService exploreRecommendationService;
 
     public PostController(
             PostService postService,
             RecommendationFeedService recommendationFeedService,
-            RecommendationPostInteractionService recommendationPostInteractionService) {
+            RecommendationPostInteractionService recommendationPostInteractionService,
+            ExploreRecommendationService exploreRecommendationService) {
         this.postService = postService;
         this.recommendationFeedService = recommendationFeedService;
         this.recommendationPostInteractionService = recommendationPostInteractionService;
+        this.exploreRecommendationService = exploreRecommendationService;
     }
 
     @GetMapping("/feed")
@@ -58,16 +62,28 @@ public class PostController {
 
     @GetMapping("/feed/page")
     ApiResponse<PageResponse<PostDtos.Summary>> feedPage(
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(postService.feed(pageable));
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(postService.feed(pageable, userIdOrNull(token)));
     }
 
     @GetMapping("/explore")
     ApiResponse<PageResponse<PostDtos.Summary>> explore(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String region,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(postService.explore(keyword, region, pageable));
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(postService.explore(keyword, region, pageable, userIdOrNull(token)));
+    }
+
+    @GetMapping("/explore/discovery")
+    ApiResponse<CursorPageResponse<PostDtos.Summary>> exploreDiscovery(
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(exploreRecommendationService.discovery(
+                cursor, region, size, userIdOrNull(token)));
     }
 
     @GetMapping("/posts/{postId}")
@@ -103,11 +119,12 @@ public class PostController {
             @AuthenticationPrincipal Jwt token,
             @PathVariable Long postId,
             @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Surface", required = false) String surface,
             @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
         recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.LIKE,
-                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
+                new TrackingContext(runId, surface, eventId, idempotencyKey, occurredAt));
     }
 
     @DeleteMapping("/posts/{postId}/likes")
@@ -116,11 +133,12 @@ public class PostController {
             @AuthenticationPrincipal Jwt token,
             @PathVariable Long postId,
             @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Surface", required = false) String surface,
             @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
         recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.UNLIKE,
-                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
+                new TrackingContext(runId, surface, eventId, idempotencyKey, occurredAt));
     }
 
     @PostMapping("/posts/{postId}/bookmarks")
@@ -129,11 +147,12 @@ public class PostController {
             @AuthenticationPrincipal Jwt token,
             @PathVariable Long postId,
             @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Surface", required = false) String surface,
             @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
         recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.SAVE,
-                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
+                new TrackingContext(runId, surface, eventId, idempotencyKey, occurredAt));
     }
 
     @DeleteMapping("/posts/{postId}/bookmarks")
@@ -142,11 +161,12 @@ public class PostController {
             @AuthenticationPrincipal Jwt token,
             @PathVariable Long postId,
             @RequestHeader(name = "X-Recommendation-Run-Id", required = false) String runId,
+            @RequestHeader(name = "X-Recommendation-Surface", required = false) String surface,
             @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
         recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.UNSAVE,
-                new TrackingContext(runId, eventId, idempotencyKey, occurredAt));
+                new TrackingContext(runId, surface, eventId, idempotencyKey, occurredAt));
     }
 
     @GetMapping("/posts/{postId}/comments")

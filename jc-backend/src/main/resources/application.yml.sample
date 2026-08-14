@@ -46,6 +46,10 @@ app:
     jwt-secret: ${JWT_SECRET:journey-connect-local-dev-secret-32bytes}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}
     refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:30}
+    password-reset-minutes: ${PASSWORD_RESET_MINUTES:30}
+    password-reset-base-url: ${PASSWORD_RESET_BASE_URL:http://localhost:5173/reset-password}
+    password-reset-mail-from: ${PASSWORD_RESET_MAIL_FROM:no-reply@journey-connect.local}
+    password-reset-expose-token: ${PASSWORD_RESET_EXPOSE_TOKEN:false}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   google:
@@ -64,6 +68,9 @@ app:
     canary-allocation-basis-points: ${RECOMMENDATION_CANARY_ALLOCATION_BPS:0}
     canary-cursor-secret: ${RECOMMENDATION_CANARY_CURSOR_SECRET:}
     canary-release-id: ${RECOMMENDATION_CANARY_RELEASE_ID:}
+    explore:
+      mode: ${JC_EXPLORE_MODE:LEGACY}
+      cursor-secret: ${JC_EXPLORE_CURSOR_SECRET:journey-connect-explore-local-dev-secret-32bytes}
     p1:
       mode: ${RECOMMENDATION_P1_MODE:OFF}
     p2:

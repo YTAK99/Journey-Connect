@@ -1,5 +1,6 @@
 package com.jc.backend.auth;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -22,6 +23,16 @@ public final class AuthDtos {
     public record RefreshRequest(@NotBlank String refreshToken) {}
 
     public record LogoutRequest(@NotBlank String refreshToken) {}
+
+    public record PasswordResetRequest(@Email @NotBlank String email) {}
+
+    public record PasswordResetConfirmRequest(
+            @NotBlank String token,
+            @NotBlank @Size(min = 8, max = 72) String newPassword) {}
+
+    public record PasswordResetRequestResponse(
+            boolean accepted,
+            @JsonInclude(JsonInclude.Include.NON_NULL) String resetToken) {}
 
     public record TokenResponse(
             String accessToken,

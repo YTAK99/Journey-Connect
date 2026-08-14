@@ -1,6 +1,7 @@
 package com.jc.backend.crew;
 
 import com.jc.backend.common.BaseTimeEntity;
+import com.jc.backend.post.Tag;
 import com.jc.backend.region.Region;
 import com.jc.backend.user.UserAccount;
 import jakarta.persistence.Column;
@@ -10,10 +11,15 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinTable;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 크루의 기본 정보와 모집 상태를 관리하는 엔티티입니다.
@@ -46,6 +52,9 @@ public class Crew extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String description;
 
+    @Column(name = "cover_image_url", length = 500)
+    private String coverImageUrl;
+
     private LocalDate travelDate;
 
     @Column(nullable = false)
@@ -59,6 +68,14 @@ public class Crew extends BaseTimeEntity {
 
     protected Crew() {}
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "crew_tag",
+            joinColumns = @JoinColumn(name = "crew_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    @OrderColumn(name = "sort_order")
+    private List<Tag> tags = new ArrayList<>();
+
     public Crew(
             UserAccount owner,
             Region region,
@@ -67,6 +84,19 @@ public class Crew extends BaseTimeEntity {
             LocalDate travelDate,
             int capacity,
             boolean approvalRequired) {
+        this(owner, region, title, description, travelDate, capacity, approvalRequired, null, List.of());
+    }
+
+    public Crew(
+            UserAccount owner,
+            Region region,
+            String title,
+            String description,
+            LocalDate travelDate,
+            int capacity,
+            boolean approvalRequired,
+            String coverImageUrl,
+            List<Tag> tags) {
         this.owner = owner;
         this.region = region;
         this.regionName = region.getDisplayName();
@@ -75,6 +105,13 @@ public class Crew extends BaseTimeEntity {
         this.travelDate = travelDate;
         this.capacity = capacity;
         this.approvalRequired = approvalRequired;
+        this.coverImageUrl = coverImageUrl;
+        replaceTags(tags);
+    }
+
+    public void replaceTags(List<Tag> tags) {
+        this.tags.clear();
+        if (tags != null) this.tags.addAll(tags);
     }
 
     public Long getId() {
@@ -99,6 +136,14 @@ public class Crew extends BaseTimeEntity {
 
     public String getDescription() {
         return description;
+    }
+
+    public String getCoverImageUrl() {
+        return coverImageUrl;
+    }
+
+    public List<Tag> getTags() {
+        return List.copyOf(tags);
     }
 
     public LocalDate getTravelDate() {

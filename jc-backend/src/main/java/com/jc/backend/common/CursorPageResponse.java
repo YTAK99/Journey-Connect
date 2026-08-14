@@ -12,13 +12,32 @@ public record CursorPageResponse<T>(
         String nextCursor,
         boolean hasNext,
         int size,
-        @JsonInclude(JsonInclude.Include.NON_NULL) String recommendationRunId) {
+        @JsonInclude(JsonInclude.Include.NON_NULL) String recommendationRunId,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String recommendationSurface) {
+
+    public CursorPageResponse(
+            List<T> items,
+            String nextCursor,
+            boolean hasNext,
+            int size,
+            String recommendationRunId) {
+        this(items, nextCursor, hasNext, size, recommendationRunId, null);
+    }
 
     public static <T> CursorPageResponse<T> of(
             List<T> items,
             String nextCursor,
             boolean hasNext) {
-        return new CursorPageResponse<>(items, nextCursor, hasNext, items.size(), null);
+        return new CursorPageResponse<>(items, nextCursor, hasNext, items.size(), null, null);
+    }
+
+    public static <T> CursorPageResponse<T> contextual(
+            List<T> items,
+            String nextCursor,
+            boolean hasNext,
+            String recommendationSurface) {
+        return new CursorPageResponse<>(
+                items, nextCursor, hasNext, items.size(), null, recommendationSurface);
     }
 
     public static <T> CursorPageResponse<T> recommendation(
@@ -31,6 +50,22 @@ public record CursorPageResponse<T>(
                 nextCursor,
                 hasNext,
                 items.size(),
-                recommendationRunId);
+                recommendationRunId,
+                null);
+    }
+
+    public static <T> CursorPageResponse<T> recommendation(
+            List<T> items,
+            String nextCursor,
+            boolean hasNext,
+            String recommendationRunId,
+            String recommendationSurface) {
+        return new CursorPageResponse<>(
+                items,
+                nextCursor,
+                hasNext,
+                items.size(),
+                recommendationRunId,
+                recommendationSurface);
     }
 }

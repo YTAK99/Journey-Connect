@@ -53,6 +53,8 @@ public final class PostDtos {
     public record Summary(
             Long id,
             String title,
+            String content,
+            String contentPreview,
             String regionCode,
             String regionPlaceId,
             String regionName,
@@ -63,8 +65,35 @@ public final class PostDtos {
             long viewCount,
             long likeCount,
             long bookmarkCount,
+            long commentCount,
+            boolean liked,
+            boolean bookmarked,
             Author author,
-            LocalDateTime createdAt) {}
+            LocalDateTime createdAt) {
+
+        /** 기존 테스트/내부 호출이 사용하던 Summary 생성자와의 소스 호환을 유지합니다. */
+        public Summary(
+                Long id,
+                String title,
+                String regionCode,
+                String regionPlaceId,
+                String regionName,
+                Map<String, String> regionNames,
+                String regionSearchText,
+                String coverImageUrl,
+                List<String> tags,
+                long viewCount,
+                long likeCount,
+                long bookmarkCount,
+                Author author,
+                LocalDateTime createdAt) {
+            this(
+                    id, title, null, null,
+                    regionCode, regionPlaceId, regionName, regionNames, regionSearchText,
+                    coverImageUrl, tags, viewCount, likeCount, bookmarkCount,
+                    0L, false, false, author, createdAt);
+        }
+    }
 
     public record Detail(
             Long id,

@@ -63,6 +63,13 @@ public class UserAccount extends BaseTimeEntity {
         this.profileImageUrl = profileImageUrl;
     }
 
+    public void changePasswordHash(String passwordHash) {
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("passwordHash must not be blank");
+        }
+        this.passwordHash = passwordHash;
+    }
+
     public Long getId() {
         return id;
     }

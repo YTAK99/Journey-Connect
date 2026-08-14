@@ -1,15 +1,9 @@
 package com.jc.backend.recommendation.application;
 
-import com.jc.backend.post.BookmarkRepository;
 import com.jc.backend.post.JourneyPost;
 import com.jc.backend.post.JourneyPostRepository;
-import com.jc.backend.post.PostCountProjection;
 import com.jc.backend.post.PostDtos;
-import com.jc.backend.post.PostLikeRepository;
-import com.jc.backend.post.Tag;
-import com.jc.backend.region.RegionService;
-import com.jc.backend.user.UserAccount;
-import java.util.Collections;
+import com.jc.backend.post.PostSummaryAssembler;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,22 +19,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class RecommendationPostSummarySource {
 
     private final JourneyPostRepository posts;
-    private final PostLikeRepository likes;
-    private final BookmarkRepository bookmarks;
-    private final RegionService regionService;
+    private final PostSummaryAssembler summaryAssembler;
 
     public RecommendationPostSummarySource(
             JourneyPostRepository posts,
-            PostLikeRepository likes,
-            BookmarkRepository bookmarks,
-            RegionService regionService) {
+            PostSummaryAssembler summaryAssembler) {
         this.posts = posts;
-        this.likes = likes;
-        this.bookmarks = bookmarks;
-        this.regionService = regionService;
+        this.summaryAssembler = summaryAssembler;
     }
 
     public List<PostDtos.Summary> findVisibleByOrderedIds(List<Long> orderedIds) {
+        return findVisibleByOrderedIds(orderedIds, null);
+    }
+
+    public List<PostDtos.Summary> findVisibleByOrderedIds(
+            List<Long> orderedIds, Long viewerId) {
         if (orderedIds == null || orderedIds.isEmpty()) {
             return List.of();
         }
@@ -63,12 +56,7 @@ public class RecommendationPostSummarySource {
         if (ordered.isEmpty()) {
             return List.of();
         }
-
-        Map<Long, Long> likeCounts = countMap(likes.countByPostIds(distinctIds));
-        Map<Long, Long> bookmarkCounts = countMap(bookmarks.countByPostIds(distinctIds));
-        return ordered.stream()
-                .map(post -> summary(post, likeCounts, bookmarkCounts))
-                .toList();
+        return summaryAssembler.summaries(ordered, viewerId);
     }
 
     private boolean isVisible(JourneyPost post) {
@@ -76,40 +64,5 @@ public class RecommendationPostSummarySource {
                 && post.isModerationVisible()
                 && post.getAuthor() != null
                 && post.getAuthor().isActive();
-    }
-
-    private Map<Long, Long> countMap(List<PostCountProjection> counts) {
-        if (counts.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return counts.stream().collect(Collectors.toUnmodifiableMap(
-                PostCountProjection::getPostId,
-                PostCountProjection::getTotal,
-                (existing, ignored) -> existing));
-    }
-
-    private PostDtos.Summary summary(
-            JourneyPost post,
-            Map<Long, Long> likeCounts,
-            Map<Long, Long> bookmarkCounts) {
-        return new PostDtos.Summary(
-                post.getId(),
-                post.getTitle(),
-                post.getRegion().getCode(),
-                post.getRegion().getGooglePlaceId(),
-                post.getRegionName(),
-                regionService.localizedNames(post.getRegion()),
-                regionService.searchText(post.getRegion()),
-                post.getCoverImageUrl(),
-                post.getTags().stream().map(Tag::getName).toList(),
-                post.getViewCount(),
-                likeCounts.getOrDefault(post.getId(), 0L),
-                bookmarkCounts.getOrDefault(post.getId(), 0L),
-                author(post.getAuthor()),
-                post.getCreatedAt());
-    }
-
-    private PostDtos.Author author(UserAccount user) {
-        return new PostDtos.Author(user.getId(), user.getNickname(), user.getProfileImageUrl());
     }
 }

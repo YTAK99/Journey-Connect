@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Compass, PenLine, RotateCcw } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import LocationWeather from "../components/LocationWeather";
 import PostCard from "../components/PostCard";
 import { getApiErrorMessage } from "../services/apiClient";
-import { getExplore, getFeed, getFeedItems } from "../services/postApi";
+import { getExplore, getExploreDiscovery, getFeedItems } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
-import { richTextToPlainText } from "../utils/richText";
-import { getRegionSearchText, matchesSelectedRegion } from "../utils/region";
+import { getRegionSearchText } from "../utils/region";
 
 const copy = {
   ko: {
@@ -21,6 +20,8 @@ const copy = {
     recent: "최근 올라온 여행기",
     loading: "추천 여행기를 불러오는 중입니다.",
     unavailable: "지금은 추천할 여행기가 없습니다.",
+    loadMore: "더 보기",
+    loadingMore: "더 불러오는 중...",
   },
   en: {
     noResults: (query) => `There are no results for “${query}” yet.`,
@@ -32,10 +33,15 @@ const copy = {
     recent: "Recently published",
     loading: "Loading travel suggestions...",
     unavailable: "There are no travel stories to recommend yet.",
+    loadMore: "Load more",
+    loadingMore: "Loading more...",
   },
 };
 
 const normalizeSearchValue = (value) => String(value || "").toLowerCase().replace(/[\s,]/g, "");
+const isExploreCursorError = (error) => String(
+  error?.response?.data?.code || "",
+).startsWith("EXPLORE_CURSOR_");
 
 // Google 주소에서 현재 도시명을 덜어내 추천 섹션에 사용할 상위 권역명을 추출합니다.
 const getParentRegionName = (region) => {
@@ -63,48 +69,113 @@ export default function SearchPage() {
   const [posts, setPosts] = useState([]);
   const [recommendationResult, setRecommendationResult] = useState({ key: "", items: [] });
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasNext, setHasNext] = useState(false);
+  const requestKeyRef = useRef("");
   const rawKeyword = (searchParams.get("q") || "").trim();
   const keyword = rawKeyword.toLowerCase();
+  const regionQuery = selectedRegion?.code
+    || selectedRegion?.label?.[currentLang]
+    || selectedRegion?.label?.ko
+    || selectedRegion?.label?.en
+    || "";
+  const requestKey = `${keyword}|${regionQuery}`;
 
   useEffect(() => {
-    // 화면을 벗어난 뒤 늦게 도착한 응답이 상태를 갱신하지 않도록 active 플래그를 사용합니다.
+    // 검색어/지역이 바뀌면 이전 cursor를 폐기하고 새 request key의 첫 페이지부터 다시 조회합니다.
     let active = true;
+    requestKeyRef.current = requestKey;
 
-    const fetchFeed = async () => {
+    const fetchExplore = async () => {
       setLoading(true);
+      setLoadingMore(false);
       setError("");
+      setNextCursor(null);
+      setHasNext(false);
 
       try {
         const result = keyword
-          ? await getExplore({ keyword, size: 100 })
-          : await getFeed({ size: 100 });
-        if (active) setPosts(getFeedItems(result));
+          ? await getExplore({ keyword, region: regionQuery, size: 100 })
+          : await getExploreDiscovery({ region: regionQuery, size: 20 });
+        if (!active || requestKeyRef.current !== requestKey) return;
+
+        setPosts(getFeedItems(result));
+        if (!keyword) {
+          setNextCursor(result?.nextCursor || null);
+          setHasNext(Boolean(result?.hasNext && result?.nextCursor));
+        }
       } catch (requestError) {
-        if (!active) return;
-        setError(getApiErrorMessage(requestError, "피드 데이터를 불러오지 못했습니다."));
+        if (!active || requestKeyRef.current !== requestKey) return;
+        setError(getApiErrorMessage(requestError, "탐색 데이터를 불러오지 못했습니다."));
         setPosts([]);
       } finally {
-        if (active) setLoading(false);
+        if (active && requestKeyRef.current === requestKey) setLoading(false);
       }
     };
 
-    fetchFeed();
+    fetchExplore();
 
     return () => {
       active = false;
     };
-  }, [keyword]);
+  }, [keyword, regionQuery, requestKey]);
 
-  const filteredPosts = useMemo(() => {
-    // 현재 API에는 통합 검색 조건이 제한적이므로 받아온 피드를 지역과 검색어로 한 번 더 거릅니다.
-    return posts.filter((post) => {
-      const searchableRegion = getRegionSearchText(post).toLowerCase();
-      if (!keyword) return matchesSelectedRegion(post, selectedRegion);
-      const searchable = `${post.title || ""} ${richTextToPlainText(post.content || "")} ${searchableRegion} ${(post.tags || []).join(" ")}`.toLowerCase();
-      return searchable.includes(keyword);
-    });
-  }, [keyword, posts, selectedRegion]);
+  const loadMoreDiscovery = async () => {
+    if (keyword || loadingMore || !hasNext || !nextCursor) return;
+
+    const activeRequestKey = requestKeyRef.current;
+    setLoadingMore(true);
+    setError("");
+
+    try {
+      const result = await getExploreDiscovery({
+        region: regionQuery,
+        cursor: nextCursor,
+        size: 20,
+      });
+      if (requestKeyRef.current !== activeRequestKey) return;
+
+      const incoming = getFeedItems(result);
+      setPosts((current) => {
+        const seen = new Set(current.map((post) => post.id));
+        return [...current, ...incoming.filter((post) => !seen.has(post.id))];
+      });
+      setNextCursor(result?.nextCursor || null);
+      setHasNext(Boolean(result?.hasNext && result?.nextCursor));
+    } catch (requestError) {
+      if (requestKeyRef.current !== activeRequestKey) return;
+      if (isExploreCursorError(requestError)) {
+        try {
+          const restarted = await getExploreDiscovery({
+            region: regionQuery,
+            size: 20,
+          });
+          if (requestKeyRef.current !== activeRequestKey) return;
+          setPosts(getFeedItems(restarted));
+          setNextCursor(restarted?.nextCursor || null);
+          setHasNext(Boolean(restarted?.hasNext && restarted?.nextCursor));
+          return;
+        } catch (restartError) {
+          if (requestKeyRef.current !== activeRequestKey) return;
+          setNextCursor(null);
+          setHasNext(false);
+          setError(getApiErrorMessage(
+            restartError,
+            "탐색을 다시 시작하지 못했습니다.",
+          ));
+          return;
+        }
+      }
+      setError(getApiErrorMessage(requestError, "추가 탐색 결과를 불러오지 못했습니다."));
+    } finally {
+      if (requestKeyRef.current === activeRequestKey) setLoadingMore(false);
+    }
+  };
+
+  // 검색/지역 eligibility는 서버가 authoritative하게 적용하므로 클라이언트에서 다시 거르지 않습니다.
+  const filteredPosts = posts;
 
   const showEmptyState = !loading && !error && filteredPosts.length === 0;
   const recommendationKey = `${keyword}|${selectedRegion?.id || ""}`;
@@ -117,9 +188,9 @@ export default function SearchPage() {
   useEffect(() => {
     if (!showEmptyState) return undefined;
 
-    // 검색 결과가 없을 때만 최신 피드를 별도로 받아 동일 권역과 최근 여행기로 재구성합니다.
+    // 검색 결과가 없을 때도 Home feed가 아니라 all-region Explore Discovery에서 대안을 가져옵니다.
     let active = true;
-    getFeed({ size: 12 })
+    getExploreDiscovery({ size: 12 })
       .then((result) => {
         if (active) setRecommendationResult({ key: recommendationKey, items: getFeedItems(result) });
       })
@@ -170,11 +241,26 @@ export default function SearchPage() {
           {loading && <p className="py-10 text-center text-gray-500 dark:text-slate-400">탐색 카드를 불러오는 중입니다.</p>}
 
           {!loading && filteredPosts.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 border-b border-gray-100 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredPosts.map((post) => (
-                <PostCard key={post.id} post={post} setPosts={setPosts} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 gap-4 border-b border-gray-100 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredPosts.map((post) => (
+                  <PostCard key={post.id} post={post} setPosts={setPosts} />
+                ))}
+              </div>
+
+              {!keyword && hasNext && (
+                <div className="flex justify-center py-6">
+                  <button
+                    type="button"
+                    onClick={loadMoreDiscovery}
+                    disabled={loadingMore}
+                    className="rounded-xl border border-teal-200 bg-white px-5 py-2.5 text-sm font-bold text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-teal-900 dark:bg-slate-900 dark:text-teal-200 dark:hover:bg-slate-800"
+                  >
+                    {loadingMore ? t.loadingMore : t.loadMore}
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {showEmptyState && (

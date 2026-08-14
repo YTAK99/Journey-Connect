@@ -79,6 +79,17 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
             @Param("cursorId") Long cursorId,
             Pageable pageable);
 
+    @EntityGraph(attributePaths = {"author", "region"})
+    @Query("""
+            select p
+            from JourneyPost p
+            where p.id in :postIds
+              and p.published = true
+              and p.moderationStatus = 'visible'
+              and p.author.accountStatus = 'active'
+            """)
+    List<JourneyPost> findVisiblePublishedActiveByIdIn(@Param("postIds") List<Long> postIds);
+
     /** 상세 응답은 다중 이미지까지 사용하므로 한 번에 조회합니다. */
     @EntityGraph(attributePaths = {"author", "region", "images"})
     @Query("select p from JourneyPost p where p.id = :postId")

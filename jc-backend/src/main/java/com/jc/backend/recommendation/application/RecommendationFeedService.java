@@ -63,9 +63,10 @@ public class RecommendationFeedService {
             }
         }
 
-        CursorPageResponse<PostDtos.Summary> legacy = postService.feed(cursor, size);
+        CursorPageResponse<PostDtos.Summary> legacy = postService.feed(cursor, size, userId);
         shadowService.observeHomeFeed(userId, tokenId, cursor == null);
-        return legacy;
+        return CursorPageResponse.contextual(
+                legacy.items(), legacy.nextCursor(), legacy.hasNext(), "home");
     }
 
     private DomainException expiredCursor() {

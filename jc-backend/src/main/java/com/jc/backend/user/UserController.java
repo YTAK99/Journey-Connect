@@ -42,8 +42,9 @@ public class UserController {
     @GetMapping("/{userId}/posts")
     ApiResponse<PageResponse<PostDtos.Summary>> userPosts(
             @PathVariable long userId,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(userService.publicPosts(userId, pageable));
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(userService.publicPosts(userId, userIdOrNull(token), pageable));
     }
 
     @GetMapping("/me/posts")
@@ -62,5 +63,9 @@ public class UserController {
 
     private long userId(Jwt token) {
         return Long.parseLong(token.getSubject());
+    }
+
+    private Long userIdOrNull(Jwt token) {
+        return token == null ? null : userId(token);
     }
 }

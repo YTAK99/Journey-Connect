@@ -49,7 +49,12 @@ public class UserService {
     }
 
     public PageResponse<PostDtos.Summary> publicPosts(long userId, Pageable pageable) {
-        return posts.publicUserPosts(userId, pageable);
+        return publicPosts(userId, null, pageable);
+    }
+
+    public PageResponse<PostDtos.Summary> publicPosts(
+            long userId, Long viewerId, Pageable pageable) {
+        return posts.publicUserPosts(userId, viewerId, pageable);
     }
 
     public PageResponse<PostDtos.Summary> myPosts(long userId, Pageable pageable) {

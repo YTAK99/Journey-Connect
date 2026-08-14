@@ -45,6 +45,20 @@ public class AuthController {
         authService.logout(request);
     }
 
+    @PostMapping("/password-reset/requests")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    ApiResponse<AuthDtos.PasswordResetRequestResponse> requestPasswordReset(
+            @Valid @RequestBody AuthDtos.PasswordResetRequest request) {
+        return ApiResponse.ok(authService.requestPasswordReset(request));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void confirmPasswordReset(
+            @Valid @RequestBody AuthDtos.PasswordResetConfirmRequest request) {
+        authService.confirmPasswordReset(request);
+    }
+
     @GetMapping("/me")
     ApiResponse<AuthDtos.UserSummary> me(@AuthenticationPrincipal Jwt token) {
         return ApiResponse.ok(authService.currentUser(userId(token)));

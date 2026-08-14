@@ -1,4 +1,7 @@
 app:
+  recommendation:
+    explore:
+      mode: ACTIVE
   intelligence:
     content-analysis:
       enabled: false
