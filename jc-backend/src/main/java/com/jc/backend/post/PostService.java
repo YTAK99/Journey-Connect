@@ -265,6 +265,27 @@ public class PostService {
         return summaries(bookmarkedPosts);
     }
 
+    /**
+     * Explore frozen ordering을 현재 visibility 기준으로 재검증하고 입력 ID 순서대로 Summary를 반환합니다.
+     * post별 exists 조회 대신 한 번의 bulk post query와 기존 bulk count 변환을 사용합니다.
+     */
+    public List<PostDtos.Summary> visibleSummariesByIds(List<Long> orderedPostIds) {
+        if (orderedPostIds == null || orderedPostIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, JourneyPost> visibleById = posts.findVisiblePublishedActiveByIdIn(orderedPostIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        JourneyPost::getId,
+                        post -> post,
+                        (left, right) -> left));
+        List<JourneyPost> orderedVisible = orderedPostIds.stream()
+                .map(visibleById::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return summaries(orderedVisible);
+    }
+
     private JourneyPost readablePost(Long postId, Long viewerId) {
         JourneyPost post = findPost(postId);
         if (!post.isModerationVisible()) {

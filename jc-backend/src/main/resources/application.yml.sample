@@ -64,6 +64,8 @@ app:
     canary-allocation-basis-points: ${RECOMMENDATION_CANARY_ALLOCATION_BPS:0}
     canary-cursor-secret: ${RECOMMENDATION_CANARY_CURSOR_SECRET:}
     canary-release-id: ${RECOMMENDATION_CANARY_RELEASE_ID:}
+    explore:
+      cursor-secret: ${JC_EXPLORE_CURSOR_SECRET:journey-connect-explore-local-dev-secret-32bytes}
     p1:
       mode: ${RECOMMENDATION_P1_MODE:OFF}
     p2:

@@ -5,6 +5,7 @@ import com.jc.backend.common.CursorPageResponse;
 import com.jc.backend.common.PageResponse;
 import com.jc.backend.recommendation.application.RecommendationFeedService;
 import com.jc.backend.recommendation.application.RecommendationPostInteractionService;
+import com.jc.backend.recommendation.explore.ExploreRecommendationService;
 import com.jc.backend.recommendation.application.RecommendationPostInteractionService.TrackingContext;
 import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.Action;
 import jakarta.validation.Valid;
@@ -37,14 +38,17 @@ public class PostController {
     private final PostService postService;
     private final RecommendationFeedService recommendationFeedService;
     private final RecommendationPostInteractionService recommendationPostInteractionService;
+    private final ExploreRecommendationService exploreRecommendationService;
 
     public PostController(
             PostService postService,
             RecommendationFeedService recommendationFeedService,
-            RecommendationPostInteractionService recommendationPostInteractionService) {
+            RecommendationPostInteractionService recommendationPostInteractionService,
+            ExploreRecommendationService exploreRecommendationService) {
         this.postService = postService;
         this.recommendationFeedService = recommendationFeedService;
         this.recommendationPostInteractionService = recommendationPostInteractionService;
+        this.exploreRecommendationService = exploreRecommendationService;
     }
 
     @GetMapping("/feed")
@@ -68,6 +72,16 @@ public class PostController {
             @RequestParam(required = false) String region,
             @PageableDefault(size = 20) Pageable pageable) {
         return ApiResponse.ok(postService.explore(keyword, region, pageable));
+    }
+
+    @GetMapping("/explore/discovery")
+    ApiResponse<CursorPageResponse<PostDtos.Summary>> exploreDiscovery(
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(exploreRecommendationService.discovery(
+                cursor, region, size, userIdOrNull(token)));
     }
 
     @GetMapping("/posts/{postId}")
