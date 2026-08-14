@@ -5,6 +5,8 @@ import com.jc.backend.google.GoogleLocationDtos;
 import com.jc.backend.google.GoogleLocationService;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -262,6 +264,22 @@ public class RegionService {
                         RegionTranslationProjection::getLanguageCode,
                         RegionTranslationProjection::getDisplayName,
                         (first, ignored) -> first));
+    }
+
+    public Map<Long, Map<String, String>> localizedNamesByRegionIds(Collection<Long> regionIds) {
+        if (regionIds == null || regionIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, LinkedHashMap<String, String>> mutable = new LinkedHashMap<>();
+        for (RegionTranslationRowProjection row : regions.findTranslationsByRegionIds(regionIds)) {
+            mutable.computeIfAbsent(row.getRegionId(), ignored -> new LinkedHashMap<>())
+                    .putIfAbsent(row.getLanguageCode(), row.getDisplayName());
+        }
+
+        Map<Long, Map<String, String>> result = new LinkedHashMap<>();
+        mutable.forEach((regionId, names) -> result.put(regionId, Map.copyOf(names)));
+        return Map.copyOf(result);
     }
 
     private String googleSearchText(

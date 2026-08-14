@@ -79,6 +79,8 @@ class PostListQueryIntegrationTest {
                     assertThat(item.regionCode()).isEqualTo("KR-SEOUL");
                 });
 
-        assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(4);
+        // page select/count + batched tags + reaction counts + bulk region translations는
+        // 반환 카드 수와 무관한 고정 query budget 안에 있어야 합니다.
+        assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(6);
     }
 }

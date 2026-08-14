@@ -355,8 +355,15 @@ public class PostService {
         }
         Map<Long, Long> likeCounts = countMap(likes.countByPostIds(postIds));
         Map<Long, Long> bookmarkCounts = countMap(bookmarks.countByPostIds(postIds));
+        Map<Long, Map<String, String>> regionNamesById = regionService.localizedNamesByRegionIds(
+                postsPage.stream()
+                        .map(post -> post.getRegion().getId())
+                        .distinct()
+                        .toList());
         return postsPage.stream()
-                .map(post -> summary(post, likeCounts, bookmarkCounts))
+                .map(post -> summary(
+                        post, likeCounts, bookmarkCounts,
+                        regionNamesById.getOrDefault(post.getRegion().getId(), Map.of())))
                 .toList();
     }
 
@@ -373,14 +380,15 @@ public class PostService {
     private PostDtos.Summary summary(
             JourneyPost post,
             Map<Long, Long> likeCounts,
-            Map<Long, Long> bookmarkCounts) {
+            Map<Long, Long> bookmarkCounts,
+            Map<String, String> localizedRegionNames) {
         return new PostDtos.Summary(
                 post.getId(),
                 post.getTitle(),
                 post.getRegion().getCode(),
                 post.getRegion().getGooglePlaceId(),
                 post.getRegionName(),
-                regionService.localizedNames(post.getRegion()),
+                localizedRegionNames,
                 regionService.searchText(post.getRegion()),
                 post.getCoverImageUrl(),
                 tagNames(post),
