@@ -39,6 +39,9 @@ const copy = {
 };
 
 const normalizeSearchValue = (value) => String(value || "").toLowerCase().replace(/[\s,]/g, "");
+const isExploreCursorError = (error) => String(
+  error?.response?.data?.code || "",
+).startsWith("EXPLORE_CURSOR_");
 
 // Google 주소에서 현재 도시명을 덜어내 추천 섹션에 사용할 상위 권역명을 추출합니다.
 const getParentRegionName = (region) => {
@@ -143,6 +146,28 @@ export default function SearchPage() {
       setHasNext(Boolean(result?.hasNext && result?.nextCursor));
     } catch (requestError) {
       if (requestKeyRef.current !== activeRequestKey) return;
+      if (isExploreCursorError(requestError)) {
+        try {
+          const restarted = await getExploreDiscovery({
+            region: regionQuery,
+            size: 20,
+          });
+          if (requestKeyRef.current !== activeRequestKey) return;
+          setPosts(getFeedItems(restarted));
+          setNextCursor(restarted?.nextCursor || null);
+          setHasNext(Boolean(restarted?.hasNext && restarted?.nextCursor));
+          return;
+        } catch (restartError) {
+          if (requestKeyRef.current !== activeRequestKey) return;
+          setNextCursor(null);
+          setHasNext(false);
+          setError(getApiErrorMessage(
+            restartError,
+            "탐색을 다시 시작하지 못했습니다.",
+          ));
+          return;
+        }
+      }
       setError(getApiErrorMessage(requestError, "추가 탐색 결과를 불러오지 못했습니다."));
     } finally {
       if (requestKeyRef.current === activeRequestKey) setLoadingMore(false);

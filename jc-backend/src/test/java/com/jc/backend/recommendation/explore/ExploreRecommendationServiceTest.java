@@ -27,12 +27,56 @@ class ExploreRecommendationServiceTest {
     private static final String SECRET = "0123456789abcdef0123456789abcdef";
 
     @Test
-    void anonymousFirstPageUsesDiscoveryRankingAndReturnsCursor() {
+    void legacyModeServesLegacyWithoutRunningDiscoveryRanking() {
         ExploreCandidateSource candidateSource = mock(ExploreCandidateSource.class);
         PostService postService = mock(PostService.class);
         RegionService regionService = mock(RegionService.class);
-        ExploreRecommendationService service = new ExploreRecommendationService(
-                candidateSource, postService, regionService, SECRET);
+        ExploreRecommendationService service = service(
+                candidateSource, postService, regionService, ExploreRolloutMode.LEGACY);
+        when(postService.explore(eq(""), eq("서울"), any(Pageable.class))).thenReturn(
+                new PageResponse<>(List.of(summary(99L)), 0, 20, 1, 1, true));
+
+        var response = service.discovery(null, "서울", 20, null);
+
+        assertThat(response.items()).extracting(PostDtos.Summary::id).containsExactly(99L);
+        assertThat(response.hasNext()).isFalse();
+        assertThat(response.nextCursor()).isNull();
+        verify(candidateSource, never()).findCandidates(any());
+    }
+
+    @Test
+    void shadowModeServesLegacyWhileEvaluatingDiscoveryRanking() {
+        ExploreCandidateSource candidateSource = mock(ExploreCandidateSource.class);
+        PostService postService = mock(PostService.class);
+        RegionService regionService = mock(RegionService.class);
+        ExploreRecommendationService service = service(
+                candidateSource, postService, regionService, ExploreRolloutMode.SHADOW);
+        when(postService.explore(eq(""), eq(null), any(Pageable.class))).thenReturn(
+                new PageResponse<>(List.of(summary(99L)), 0, 20, 1, 1, true));
+        when(regionService.countryCodeForSearch(null)).thenReturn("");
+        when(candidateSource.findCandidates(any())).thenReturn(List.of(
+                candidate(1L, 10L, 1L, 0L),
+                candidate(2L, 20L, 0L, 1L)));
+        when(postService.visibleSummariesByIds(anyList())).thenAnswer(invocation ->
+                ((List<Long>) invocation.getArgument(0)).stream()
+                        .map(ExploreRecommendationServiceTest::summary)
+                        .toList());
+
+        var response = service.discovery(null, null, 20, null);
+
+        assertThat(response.items()).extracting(PostDtos.Summary::id).containsExactly(99L);
+        assertThat(response.hasNext()).isFalse();
+        assertThat(response.nextCursor()).isNull();
+        verify(candidateSource).findCandidates(any());
+    }
+
+    @Test
+    void anonymousFirstPageUsesDiscoveryRankingAndReturnsCursorInActiveMode() {
+        ExploreCandidateSource candidateSource = mock(ExploreCandidateSource.class);
+        PostService postService = mock(PostService.class);
+        RegionService regionService = mock(RegionService.class);
+        ExploreRecommendationService service = service(
+                candidateSource, postService, regionService, ExploreRolloutMode.ACTIVE);
 
         when(regionService.countryCodeForSearch("서울")).thenReturn("KR");
         when(candidateSource.findCandidates(any())).thenReturn(List.of(
@@ -51,12 +95,12 @@ class ExploreRecommendationServiceTest {
     }
 
     @Test
-    void firstPageRankingFailureFailsOpenToLegacyRecencyOnly() {
+    void activeFirstPageRankingFailureFailsOpenToLegacyRecencyOnly() {
         ExploreCandidateSource candidateSource = mock(ExploreCandidateSource.class);
         PostService postService = mock(PostService.class);
         RegionService regionService = mock(RegionService.class);
-        ExploreRecommendationService service = new ExploreRecommendationService(
-                candidateSource, postService, regionService, SECRET);
+        ExploreRecommendationService service = service(
+                candidateSource, postService, regionService, ExploreRolloutMode.ACTIVE);
 
         when(regionService.countryCodeForSearch(null)).thenReturn("");
         when(candidateSource.findCandidates(any())).thenThrow(new IllegalStateException("ranking unavailable"));
@@ -71,12 +115,12 @@ class ExploreRecommendationServiceTest {
     }
 
     @Test
-    void continuationFilterMismatchFailsClosedWithoutLegacyMixing() {
+    void continuationFilterMismatchFailsClosedWithoutLegacyMixingInActiveMode() {
         ExploreCandidateSource candidateSource = mock(ExploreCandidateSource.class);
         PostService postService = mock(PostService.class);
         RegionService regionService = mock(RegionService.class);
-        ExploreRecommendationService service = new ExploreRecommendationService(
-                candidateSource, postService, regionService, SECRET);
+        ExploreRecommendationService service = service(
+                candidateSource, postService, regionService, ExploreRolloutMode.ACTIVE);
 
         when(regionService.countryCodeForSearch("서울")).thenReturn("KR");
         when(candidateSource.findCandidates(any())).thenReturn(List.of(
@@ -92,6 +136,34 @@ class ExploreRecommendationServiceTest {
                 .isInstanceOfSatisfying(DomainException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("EXPLORE_CURSOR_FILTER_MISMATCH"));
         verify(postService, never()).explore(any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    void nonActiveModeRejectsExistingCursorInsteadOfMixingLegacyOrdering() {
+        ExploreCandidateSource candidateSource = mock(ExploreCandidateSource.class);
+        PostService postService = mock(PostService.class);
+        RegionService regionService = mock(RegionService.class);
+        ExploreRecommendationService service = service(
+                candidateSource, postService, regionService, ExploreRolloutMode.LEGACY);
+
+        assertThatThrownBy(() -> service.discovery("old-active-cursor", null, 20, null))
+                .isInstanceOfSatisfying(DomainException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo("EXPLORE_CURSOR_MODE_MISMATCH"));
+        verify(postService, never()).explore(any(), any(), any(Pageable.class));
+        verify(candidateSource, never()).findCandidates(any());
+    }
+
+    private static ExploreRecommendationService service(
+            ExploreCandidateSource candidateSource,
+            PostService postService,
+            RegionService regionService,
+            ExploreRolloutMode mode) {
+        return new ExploreRecommendationService(
+                candidateSource,
+                postService,
+                regionService,
+                SECRET,
+                mode.name());
     }
 
     private static ExploreCandidateRow candidate(long id, long author, long likes, long bookmarks) {

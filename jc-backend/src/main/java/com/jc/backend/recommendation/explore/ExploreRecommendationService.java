@@ -18,6 +18,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class ExploreRecommendationService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExploreRecommendationService.class);
 
     static final int RECENT_CANDIDATE_LIMIT = 75;
     static final int QUALITY_CANDIDATE_LIMIT = 75;
@@ -42,13 +46,15 @@ public class ExploreRecommendationService {
     private final ExploreDiversityReranker diversityReranker;
     private final ExploreSnapshotPager snapshotPager;
     private final ExploreCursorCodec cursorCodec;
+    private final ExploreRolloutMode rolloutMode;
 
     public ExploreRecommendationService(
             ExploreCandidateSource candidateSource,
             PostService postService,
             RegionService regionService,
             @Value("${app.recommendation.explore.cursor-secret:journey-connect-explore-local-dev-secret-32bytes}")
-                    String cursorSecret) {
+                    String cursorSecret,
+            @Value("${app.recommendation.explore.mode:LEGACY}") String rolloutMode) {
         this.candidateSource = candidateSource;
         this.postService = postService;
         this.regionService = regionService;
@@ -57,6 +63,7 @@ public class ExploreRecommendationService {
         this.diversityReranker = new ExploreDiversityReranker();
         this.snapshotPager = new ExploreSnapshotPager();
         this.cursorCodec = new ExploreCursorCodec(cursorSecret.getBytes(StandardCharsets.UTF_8));
+        this.rolloutMode = ExploreRolloutMode.parse(rolloutMode);
     }
 
     public CursorPageResponse<PostDtos.Summary> discovery(
@@ -65,6 +72,17 @@ public class ExploreRecommendationService {
             int size,
             Long userId) {
         int safeSize = Math.min(Math.max(size, 1), 100);
+
+        if (rolloutMode != ExploreRolloutMode.ACTIVE) {
+            if (cursor != null && !cursor.isBlank()) {
+                throw rolloutCursorError();
+            }
+            if (rolloutMode == ExploreRolloutMode.LEGACY) {
+                return legacyFirstPage(region, safeSize);
+            }
+            return shadowFirstPage(region, safeSize, userId);
+        }
+
         Instant now = Instant.now();
         ExploreRequestContext context = ExploreRequestContext.resolve(null, region);
         String fingerprint = ExploreCursorCodec.filterFingerprint(context);
@@ -72,7 +90,7 @@ public class ExploreRecommendationService {
 
         if (cursor == null || cursor.isBlank()) {
             try {
-                return firstPage(context, fingerprint, userBinding, safeSize, now);
+                return rankedFirstPage(context, fingerprint, userBinding, safeSize, now).response();
             } catch (RuntimeException exception) {
                 return legacyFirstPage(region, safeSize);
             }
@@ -93,7 +111,42 @@ public class ExploreRecommendationService {
         return pageFromSnapshot(snapshot, safeSize);
     }
 
-    private CursorPageResponse<PostDtos.Summary> firstPage(
+    private CursorPageResponse<PostDtos.Summary> shadowFirstPage(
+            String region,
+            int size,
+            Long userId) {
+        CursorPageResponse<PostDtos.Summary> legacy = legacyFirstPage(region, size);
+        ExploreRequestContext context = ExploreRequestContext.resolve(null, region);
+        String fingerprint = ExploreCursorCodec.filterFingerprint(context);
+        Optional<String> userBinding = opaqueUserBinding(userId);
+        Instant now = Instant.now();
+        long startedAt = System.nanoTime();
+
+        try {
+            RankedPage discovery = rankedFirstPage(
+                    context,
+                    fingerprint,
+                    userBinding,
+                    size,
+                    now);
+            ExploreShadowObservation observation = ExploreShadowObservation.compare(
+                    legacy.items(),
+                    discovery.response().items(),
+                    discovery.candidateCount(),
+                    System.nanoTime() - startedAt,
+                    context.hasExplicitRegion());
+            logShadowObservation(observation);
+        } catch (RuntimeException exception) {
+            LOGGER.warn(
+                    "explore_shadow_failed rankingVersion={} explicitRegion={} errorType={}",
+                    ExploreRankingPolicy.DISCOVERY_RANKING_VERSION,
+                    context.hasExplicitRegion(),
+                    exception.getClass().getSimpleName());
+        }
+        return legacy;
+    }
+
+    private RankedPage rankedFirstPage(
             ExploreRequestContext context,
             String fingerprint,
             Optional<String> userBinding,
@@ -107,7 +160,7 @@ public class ExploreRecommendationService {
                 RECENT_CANDIDATE_LIMIT,
                 QUALITY_CANDIDATE_LIMIT));
         if (candidates.isEmpty()) {
-            return CursorPageResponse.of(List.of(), null, false);
+            return new RankedPage(CursorPageResponse.of(List.of(), null, false), 0);
         }
 
         ExploreFeatureSnapshot snapshot = featureExtractor.extract(
@@ -130,7 +183,7 @@ public class ExploreRecommendationService {
                 orderedPostIds,
                 0,
                 now.plus(CURSOR_TTL));
-        return pageFromSnapshot(frozen, size);
+        return new RankedPage(pageFromSnapshot(frozen, size), candidates.size());
     }
 
     private CursorPageResponse<PostDtos.Summary> pageFromSnapshot(
@@ -169,6 +222,21 @@ public class ExploreRecommendationService {
                 region,
                 PageRequest.of(0, size));
         return CursorPageResponse.of(legacy.items(), null, false);
+    }
+
+    private static void logShadowObservation(ExploreShadowObservation observation) {
+        LOGGER.info(
+                "explore_shadow rankingVersion={} explicitRegion={} rankingLatencyMs={} candidateCount={} "
+                        + "topN={} topNOverlap={} uniqueAuthors={} uniqueRegions={} topAuthorShare={}",
+                observation.rankingVersion(),
+                observation.explicitRegion(),
+                observation.rankingLatencyMs(),
+                observation.candidateCount(),
+                observation.topN(),
+                observation.topNOverlap(),
+                observation.uniqueAuthors(),
+                observation.uniqueRegions(),
+                observation.topAuthorShare());
     }
 
     private static Optional<String> opaqueUserBinding(Long userId) {
@@ -210,4 +278,15 @@ public class ExploreRecommendationService {
                 code,
                 "탐색 커서가 유효하지 않습니다. 탐색을 처음부터 다시 시도해 주세요.");
     }
+
+    private static DomainException rolloutCursorError() {
+        return new DomainException(
+                HttpStatus.BAD_REQUEST,
+                "EXPLORE_CURSOR_MODE_MISMATCH",
+                "현재 탐색 모드에서는 이전 커서를 계속 사용할 수 없습니다. 탐색을 처음부터 다시 시도해 주세요.");
+    }
+
+    private record RankedPage(
+            CursorPageResponse<PostDtos.Summary> response,
+            int candidateCount) {}
 }

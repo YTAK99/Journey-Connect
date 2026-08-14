@@ -65,6 +65,7 @@ app:
     canary-cursor-secret: ${RECOMMENDATION_CANARY_CURSOR_SECRET:}
     canary-release-id: ${RECOMMENDATION_CANARY_RELEASE_ID:}
     explore:
+      mode: ${JC_EXPLORE_MODE:LEGACY}
       cursor-secret: ${JC_EXPLORE_CURSOR_SECRET:journey-connect-explore-local-dev-secret-32bytes}
     p1:
       mode: ${RECOMMENDATION_P1_MODE:OFF}
