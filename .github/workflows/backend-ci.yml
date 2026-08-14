@@ -3,21 +3,17 @@ name: Backend CI
 on:
   push:
     branches:
+      - develop
       - youngtak
       - "integration/**"
-      
     paths:
       - "jc-backend/**"
+      - "jc-recommendation-core/**"
       - ".github/workflows/backend-ci.yml"
+  workflow_call:
 
-  pull_request:
-    branches:
-      - youngtak
-      - develop
-
-    paths:
-      - "jc-backend/**"
-      - ".github/workflows/backend-ci.yml"
+permissions:
+  contents: read
 
 concurrency:
   group: backend-ci-${{ github.ref }}
@@ -26,6 +22,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -75,13 +72,14 @@ jobs:
       - name: CI 애플리케이션 설정 준비
         run: cp src/main/resources/application.yml.sample src/main/resources/application.yml
 
-      - name: 백엔드 테스트
-        run: ./gradlew test --no-daemon
+      - name: 백엔드 소비자 테스트
+        run: ./gradlew :test --no-daemon
 
-      - name: 테스트 결과 업로드
-        if: always()
+      - name: 실패 테스트 결과 업로드
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
           path: jc-backend/build/reports/tests/test
           if-no-files-found: ignore
+          retention-days: 7
