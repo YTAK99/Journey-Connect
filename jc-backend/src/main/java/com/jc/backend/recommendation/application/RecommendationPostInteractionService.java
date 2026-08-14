@@ -5,6 +5,9 @@ import com.jc.backend.recommendation.persistence.RecommendationPostInteractionSt
 import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.Action;
 import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.InteractionBindingException;
 import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.InteractionWrite;
+import com.jc.backend.recommendation.persistence.RecommendationRunStore;
+import com.jc.backend.recommendation.persistence.RecommendationRunStore.DeliveryContext;
+import com.jc.backend.recommendation.persistence.RecommendationStorageTypes.Surface;
 import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.Result;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,12 +31,15 @@ public final class RecommendationPostInteractionService {
 
     private final RecommendationCanonicalPayload canonicalPayload;
     private final RecommendationPostInteractionStore interactionStore;
+    private final RecommendationRunStore runStore;
 
     public RecommendationPostInteractionService(
             RecommendationCanonicalPayload canonicalPayload,
-            RecommendationPostInteractionStore interactionStore) {
+            RecommendationPostInteractionStore interactionStore,
+            RecommendationRunStore runStore) {
         this.canonicalPayload = canonicalPayload;
         this.interactionStore = interactionStore;
+        this.runStore = runStore;
     }
 
     public void apply(
@@ -54,14 +60,18 @@ public final class RecommendationPostInteractionService {
         }
         ClientIdentity identity = resolveClientIdentity(safeTracking);
         String sessionId = RecommendationSessionIds.fromJwt(userId, tokenId);
+        String surface = resolveSurface(runId, safeTracking.surface(), userId, sessionId);
         Instant occurredAt = (safeTracking.occurredAt() == null
                 ? Instant.now()
                 : safeTracking.occurredAt()).truncatedTo(ChronoUnit.MICROS);
         validateOccurredAt(occurredAt);
-        Map<String, Object> metadata = Map.of(
-                "action", action.value(),
-                "runBound", runId != null,
-                "source", "post-interaction-api");
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("action", action.value());
+        metadata.put("runBound", runId != null);
+        metadata.put("source", "post-interaction-api");
+        if (surface != null) {
+            metadata.put("surface", surface);
+        }
 
         CanonicalPostInteractionV1 canonical = new CanonicalPostInteractionV1(
                 identity.eventId(),
@@ -115,6 +125,54 @@ public final class RecommendationPostInteractionService {
         }
     }
 
+    private String resolveSurface(
+            String runId,
+            String requestedSurface,
+            long userId,
+            String sessionId) {
+        String normalizedSurface = normalizeSurface(requestedSurface);
+        if (runId == null) {
+            return normalizedSurface;
+        }
+
+        DeliveryContext context;
+        try {
+            context = runStore.requireDeliveryContext(runId);
+        } catch (RuntimeException exception) {
+            throw bindingInvalid();
+        }
+        if (context.userId() != userId || !context.sessionId().equals(sessionId)) {
+            throw bindingInvalid();
+        }
+        if (normalizedSurface != null && !context.surface().equals(normalizedSurface)) {
+            throw bindingInvalid();
+        }
+        return context.surface();
+    }
+
+    private String normalizeSurface(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        normalized = normalized.toLowerCase(java.util.Locale.ROOT);
+        for (Surface surface : Surface.values()) {
+            if (surface.value().equals(normalized)) {
+                return normalized;
+            }
+        }
+        throw badRequest(
+                "RECOMMENDATION_INTERACTION_SURFACE_INVALID",
+                "추천 화면 식별자가 올바르지 않습니다.");
+    }
+
+    private DomainException bindingInvalid() {
+        return new DomainException(
+                HttpStatus.FORBIDDEN,
+                "RECOMMENDATION_INTERACTION_BINDING_INVALID",
+                "추천 실행과 사용자·세션·화면 연결이 올바르지 않습니다.");
+    }
+
     private ClientIdentity resolveClientIdentity(TrackingContext tracking) {
         String eventId = blankToNull(tracking.eventId());
         String idempotencyKey = blankToNull(tracking.idempotencyKey());
@@ -152,11 +210,21 @@ public final class RecommendationPostInteractionService {
 
     public record TrackingContext(
             String runId,
+            String surface,
             String eventId,
             String idempotencyKey,
             Instant occurredAt) {
+
+        public TrackingContext(
+                String runId,
+                String eventId,
+                String idempotencyKey,
+                Instant occurredAt) {
+            this(runId, null, eventId, idempotencyKey, occurredAt);
+        }
+
         public static TrackingContext empty() {
-            return new TrackingContext(null, null, null, null);
+            return new TrackingContext(null, null, null, null, null);
         }
     }
 

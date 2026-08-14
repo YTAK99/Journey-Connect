@@ -54,12 +54,14 @@ class PostListQueryIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
+        int feedPageSize = Math.toIntExact(posts.count() + 32L);
+
         Statistics statistics = entityManager.getEntityManagerFactory()
                 .unwrap(SessionFactory.class)
                 .getStatistics();
         statistics.clear();
 
-        PageResponse<PostDtos.Summary> result = postService.feed(PageRequest.of(0, 20));
+        PageResponse<PostDtos.Summary> result = postService.feed(PageRequest.of(0, feedPageSize));
 
         Set<Long> createdIds = savedPosts.stream()
                 .map(JourneyPost::getId)

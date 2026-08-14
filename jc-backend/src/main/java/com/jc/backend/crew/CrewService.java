@@ -2,12 +2,14 @@ package com.jc.backend.crew;
 
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.post.TagService;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionService;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,16 +38,19 @@ public class CrewService {
     private final CrewMemberRepository members;
     private final UserRepository users;
     private final RegionService regionService;
+    private final TagService tagService;
 
     public CrewService(
             CrewRepository crews,
             CrewMemberRepository members,
             UserRepository users,
-            RegionService regionService) {
+            RegionService regionService,
+            TagService tagService) {
         this.crews = crews;
         this.members = members;
         this.users = users;
         this.regionService = regionService;
+        this.tagService = tagService;
     }
 
     public PageResponse<CrewDtos.View> list(Pageable pageable) {
@@ -53,19 +58,23 @@ public class CrewService {
         List<Long> crewIds = page.getContent().stream().map(Crew::getId).toList();
         Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
         Map<Long, Long> pendingCounts = countMap(crewIds, List.of(CrewMemberStatus.PENDING));
+        Map<Long, List<String>> tagsByCrewId = tagMap(crewIds);
 
         return PageResponse.from(page.map(crew -> view(
                 crew,
                 activeCounts.getOrDefault(crew.getId(), 0L),
-                pendingCounts.getOrDefault(crew.getId(), 0L))));
+                pendingCounts.getOrDefault(crew.getId(), 0L),
+                tagsByCrewId.getOrDefault(crew.getId(), List.of()))));
     }
 
     public CrewDtos.View detail(Long crewId) {
         Crew crew = findCrew(crewId);
+        Map<Long, List<String>> tagsByCrewId = tagMap(List.of(crewId));
         return view(
                 crew,
                 members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES),
-                members.countByCrewIdAndStatusIn(crewId, List.of(CrewMemberStatus.PENDING)));
+                members.countByCrewIdAndStatusIn(crewId, List.of(CrewMemberStatus.PENDING)),
+                tagsByCrewId.getOrDefault(crewId, List.of()));
     }
 
     @Transactional
@@ -81,9 +90,11 @@ public class CrewService {
                 request.description(),
                 request.travelDate(),
                 request.capacity(),
-                approvalRequired));
+                approvalRequired,
+                request.coverImageUrl(),
+                tagService.resolve(request.tags())));
         members.save(new CrewMember(crew, owner, CrewMemberStatus.OWNER));
-        return view(crew, 1L, 0L);
+        return view(crew, 1L, 0L, crew.getTags().stream().map(tag -> tag.getName()).toList());
     }
 
     /**
@@ -199,6 +210,17 @@ public class CrewService {
         return applicationView(application);
     }
 
+    private Map<Long, List<String>> tagMap(List<Long> crewIds) {
+        if (crewIds.isEmpty()) {
+            return Map.of();
+        }
+        return crews.findTagsByCrewIds(crewIds).stream()
+                .collect(Collectors.groupingBy(
+                        CrewTagProjection::getCrewId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(CrewTagProjection::getTagName, Collectors.toList())));
+    }
+
     private Map<Long, Long> countMap(
             List<Long> crewIds,
             Collection<CrewMemberStatus> statuses) {
@@ -260,13 +282,19 @@ public class CrewService {
                         "사용자를 찾을 수 없습니다."));
     }
 
-    private CrewDtos.View view(Crew crew, long memberCount, long pendingCount) {
+    private CrewDtos.View view(
+            Crew crew,
+            long memberCount,
+            long pendingCount,
+            List<String> tags) {
         return new CrewDtos.View(
                 crew.getId(),
                 crew.getTitle(),
                 crew.getRegion().getCode(),
                 crew.getRegionName(),
                 crew.getDescription(),
+                crew.getCoverImageUrl(),
+                tags,
                 crew.getTravelDate(),
                 crew.getCapacity(),
                 memberCount,

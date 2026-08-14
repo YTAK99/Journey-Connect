@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExploreRecommendationService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ExploreRecommendationService.class);
+    private static final String RECOMMENDATION_SURFACE = "search";
 
     static final int RECENT_CANDIDATE_LIMIT = 75;
     static final int QUALITY_CANDIDATE_LIMIT = 75;
@@ -78,7 +79,7 @@ public class ExploreRecommendationService {
                 throw rolloutCursorError();
             }
             if (rolloutMode == ExploreRolloutMode.LEGACY) {
-                return legacyFirstPage(region, safeSize);
+                return legacyFirstPage(region, safeSize, userId);
             }
             return shadowFirstPage(region, safeSize, userId);
         }
@@ -90,9 +91,9 @@ public class ExploreRecommendationService {
 
         if (cursor == null || cursor.isBlank()) {
             try {
-                return rankedFirstPage(context, fingerprint, userBinding, safeSize, now).response();
+                return rankedFirstPage(context, fingerprint, userBinding, userId, safeSize, now).response();
             } catch (RuntimeException exception) {
-                return legacyFirstPage(region, safeSize);
+                return legacyFirstPage(region, safeSize, userId);
             }
         }
 
@@ -108,14 +109,14 @@ public class ExploreRecommendationService {
         } catch (ExploreCursorException exception) {
             throw cursorError(exception);
         }
-        return pageFromSnapshot(snapshot, safeSize);
+        return pageFromSnapshot(snapshot, safeSize, userId);
     }
 
     private CursorPageResponse<PostDtos.Summary> shadowFirstPage(
             String region,
             int size,
             Long userId) {
-        CursorPageResponse<PostDtos.Summary> legacy = legacyFirstPage(region, size);
+        CursorPageResponse<PostDtos.Summary> legacy = legacyFirstPage(region, size, userId);
         ExploreRequestContext context = ExploreRequestContext.resolve(null, region);
         String fingerprint = ExploreCursorCodec.filterFingerprint(context);
         Optional<String> userBinding = opaqueUserBinding(userId);
@@ -127,6 +128,7 @@ public class ExploreRecommendationService {
                     context,
                     fingerprint,
                     userBinding,
+                    userId,
                     size,
                     now);
             ExploreShadowObservation observation = ExploreShadowObservation.compare(
@@ -150,6 +152,7 @@ public class ExploreRecommendationService {
             ExploreRequestContext context,
             String fingerprint,
             Optional<String> userBinding,
+            Long userId,
             int size,
             Instant now) {
         String countryCode = regionService.countryCodeForSearch(context.region());
@@ -160,7 +163,8 @@ public class ExploreRecommendationService {
                 RECENT_CANDIDATE_LIMIT,
                 QUALITY_CANDIDATE_LIMIT));
         if (candidates.isEmpty()) {
-            return new RankedPage(CursorPageResponse.of(List.of(), null, false), 0);
+            return new RankedPage(
+                    CursorPageResponse.contextual(List.of(), null, false, RECOMMENDATION_SURFACE), 0);
         }
 
         ExploreFeatureSnapshot snapshot = featureExtractor.extract(
@@ -183,16 +187,17 @@ public class ExploreRecommendationService {
                 orderedPostIds,
                 0,
                 now.plus(CURSOR_TTL));
-        return new RankedPage(pageFromSnapshot(frozen, size), candidates.size());
+        return new RankedPage(pageFromSnapshot(frozen, size, userId), candidates.size());
     }
 
     private CursorPageResponse<PostDtos.Summary> pageFromSnapshot(
             ExploreCursorCodec.Snapshot snapshot,
-            int size) {
+            int size,
+            Long userId) {
         List<Long> remaining = snapshot.orderedPostIds().subList(
                 snapshot.nextOffset(),
                 snapshot.orderedPostIds().size());
-        List<PostDtos.Summary> visibleSummaries = postService.visibleSummariesByIds(remaining);
+        List<PostDtos.Summary> visibleSummaries = postService.visibleSummariesByIds(remaining, userId);
         Map<Long, PostDtos.Summary> summaryById = visibleSummaries.stream()
                 .collect(Collectors.toMap(
                         PostDtos.Summary::id,
@@ -213,15 +218,19 @@ public class ExploreRecommendationService {
         String nextCursor = page.hasNext()
                 ? cursorCodec.encode(snapshot.withNextOffset(page.nextOffset()))
                 : null;
-        return CursorPageResponse.of(items, nextCursor, page.hasNext());
+        return CursorPageResponse.contextual(
+                items, nextCursor, page.hasNext(), RECOMMENDATION_SURFACE);
     }
 
-    private CursorPageResponse<PostDtos.Summary> legacyFirstPage(String region, int size) {
+    private CursorPageResponse<PostDtos.Summary> legacyFirstPage(
+            String region, int size, Long userId) {
         PageResponse<PostDtos.Summary> legacy = postService.explore(
                 "",
                 region,
-                PageRequest.of(0, size));
-        return CursorPageResponse.of(legacy.items(), null, false);
+                PageRequest.of(0, size),
+                userId);
+        return CursorPageResponse.contextual(
+                legacy.items(), null, false, RECOMMENDATION_SURFACE);
     }
 
     private static void logShadowObservation(ExploreShadowObservation observation) {

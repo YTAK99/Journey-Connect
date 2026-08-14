@@ -47,6 +47,7 @@ public class PostService {
     private final RichTextSanitizer richTextSanitizer;
     private final TagService tagService;
     private final PostContentAnalysisJobService contentAnalysisJobs;
+    private final PostSummaryAssembler summaryAssembler;
 
     public PostService(
             JourneyPostRepository posts,
@@ -59,7 +60,8 @@ public class PostService {
             CursorCodec cursorCodec,
             RichTextSanitizer richTextSanitizer,
             TagService tagService,
-            PostContentAnalysisJobService contentAnalysisJobs) {
+            PostContentAnalysisJobService contentAnalysisJobs,
+            PostSummaryAssembler summaryAssembler) {
         this.posts = posts;
         this.likes = likes;
         this.bookmarks = bookmarks;
@@ -71,10 +73,16 @@ public class PostService {
         this.richTextSanitizer = richTextSanitizer;
         this.tagService = tagService;
         this.contentAnalysisJobs = contentAnalysisJobs;
+        this.summaryAssembler = summaryAssembler;
     }
 
     /** 신규 피드 API: 전체 개수 쿼리 없이 size + 1 방식으로 다음 페이지 여부를 계산합니다. */
     public CursorPageResponse<PostDtos.Summary> feed(String cursor, int size) {
+        return feed(cursor, size, null);
+    }
+
+    public CursorPageResponse<PostDtos.Summary> feed(
+            String cursor, int size, Long viewerId) {
         int safeSize = Math.min(Math.max(size, 1), 100);
         CursorCodec.CursorPosition position = cursorCodec.decode(cursor);
 
@@ -86,7 +94,7 @@ public class PostService {
         List<JourneyPost> pageItems = hasNext
                 ? fetched.subList(0, safeSize)
                 : fetched;
-        List<PostDtos.Summary> summaries = summaries(pageItems);
+        List<PostDtos.Summary> summaries = summaries(pageItems, viewerId);
 
         String nextCursor = null;
         if (hasNext && !pageItems.isEmpty()) {
@@ -98,13 +106,27 @@ public class PostService {
 
     /** 기존 페이지 번호 기반 호출을 사용하는 내부 화면·테스트용 호환 API입니다. */
     public PageResponse<PostDtos.Summary> feed(Pageable pageable) {
-        return summaries(posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", pageable));
+        return feed(pageable, null);
+    }
+
+    public PageResponse<PostDtos.Summary> feed(Pageable pageable, Long viewerId) {
+        return summaries(
+                posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", pageable),
+                viewerId);
     }
 
     public PageResponse<PostDtos.Summary> explore(
             String keyword,
             String region,
             Pageable pageable) {
+        return explore(keyword, region, pageable, null);
+    }
+
+    public PageResponse<PostDtos.Summary> explore(
+            String keyword,
+            String region,
+            Pageable pageable,
+            Long viewerId) {
         String normalizedKeyword = blankToEmpty(keyword);
         String normalizedRegion = blankToEmpty(region);
         return summaries(posts.explore(
@@ -112,7 +134,8 @@ public class PostService {
                 normalizedRegion,
                 regionService.countryCodeForSearch(normalizedKeyword),
                 regionService.countryCodeForSearch(normalizedRegion),
-                pageable));
+                pageable),
+                viewerId);
     }
 
     /**
@@ -251,18 +274,25 @@ public class PostService {
     }
 
     public PageResponse<PostDtos.Summary> publicUserPosts(Long userId, Pageable pageable) {
+        return publicUserPosts(userId, null, pageable);
+    }
+
+    public PageResponse<PostDtos.Summary> publicUserPosts(
+            Long userId, Long viewerId, Pageable pageable) {
         return summaries(
-                posts.findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(userId, "visible", pageable));
+                posts.findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+                        userId, "visible", pageable),
+                viewerId);
     }
 
     public PageResponse<PostDtos.Summary> myPosts(Long userId, Pageable pageable) {
-        return summaries(posts.findByAuthorIdOrderByCreatedAtDescIdDesc(userId, pageable));
+        return summaries(posts.findByAuthorIdOrderByCreatedAtDescIdDesc(userId, pageable), userId);
     }
 
     public PageResponse<PostDtos.Summary> myBookmarks(Long userId, Pageable pageable) {
         Page<JourneyPost> bookmarkedPosts =
                 bookmarks.findVisibleByUserId(userId, pageable).map(Bookmark::getPost);
-        return summaries(bookmarkedPosts);
+        return summaries(bookmarkedPosts, userId);
     }
 
     /**
@@ -270,6 +300,11 @@ public class PostService {
      * post별 exists 조회 대신 한 번의 bulk post query와 기존 bulk count 변환을 사용합니다.
      */
     public List<PostDtos.Summary> visibleSummariesByIds(List<Long> orderedPostIds) {
+        return visibleSummariesByIds(orderedPostIds, null);
+    }
+
+    public List<PostDtos.Summary> visibleSummariesByIds(
+            List<Long> orderedPostIds, Long viewerId) {
         if (orderedPostIds == null || orderedPostIds.isEmpty()) {
             return List.of();
         }
@@ -283,7 +318,7 @@ public class PostService {
                 .map(visibleById::get)
                 .filter(java.util.Objects::nonNull)
                 .toList();
-        return summaries(orderedVisible);
+        return summaries(orderedVisible, viewerId);
     }
 
     private JourneyPost readablePost(Long postId, Long viewerId) {
@@ -337,7 +372,12 @@ public class PostService {
     }
 
     private PageResponse<PostDtos.Summary> summaries(Page<JourneyPost> page) {
-        List<PostDtos.Summary> items = summaries(page.getContent());
+        return summaries(page, null);
+    }
+
+    private PageResponse<PostDtos.Summary> summaries(
+            Page<JourneyPost> page, Long viewerId) {
+        List<PostDtos.Summary> items = summaries(page.getContent(), viewerId);
         return new PageResponse<>(
                 items,
                 page.getNumber(),
@@ -348,55 +388,12 @@ public class PostService {
     }
 
     private List<PostDtos.Summary> summaries(List<JourneyPost> postsPage) {
-        // 카드마다 집계 쿼리를 실행하지 않도록 현재 페이지의 좋아요·북마크 수를 한 번씩 묶어 조회합니다.
-        List<Long> postIds = postsPage.stream().map(JourneyPost::getId).toList();
-        if (postIds.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, Long> likeCounts = countMap(likes.countByPostIds(postIds));
-        Map<Long, Long> bookmarkCounts = countMap(bookmarks.countByPostIds(postIds));
-        Map<Long, Map<String, String>> regionNamesById = regionService.localizedNamesByRegionIds(
-                postsPage.stream()
-                        .map(post -> post.getRegion().getId())
-                        .distinct()
-                        .toList());
-        return postsPage.stream()
-                .map(post -> summary(
-                        post, likeCounts, bookmarkCounts,
-                        regionNamesById.getOrDefault(post.getRegion().getId(), Map.of())))
-                .toList();
+        return summaries(postsPage, null);
     }
 
-    private Map<Long, Long> countMap(List<PostCountProjection> counts) {
-        if (counts.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return counts.stream().collect(Collectors.toUnmodifiableMap(
-                PostCountProjection::getPostId,
-                PostCountProjection::getTotal,
-                (existing, ignored) -> existing));
-    }
-
-    private PostDtos.Summary summary(
-            JourneyPost post,
-            Map<Long, Long> likeCounts,
-            Map<Long, Long> bookmarkCounts,
-            Map<String, String> localizedRegionNames) {
-        return new PostDtos.Summary(
-                post.getId(),
-                post.getTitle(),
-                post.getRegion().getCode(),
-                post.getRegion().getGooglePlaceId(),
-                post.getRegionName(),
-                localizedRegionNames,
-                regionService.searchText(post.getRegion()),
-                post.getCoverImageUrl(),
-                tagNames(post),
-                post.getViewCount(),
-                likeCounts.getOrDefault(post.getId(), 0L),
-                bookmarkCounts.getOrDefault(post.getId(), 0L),
-                author(post.getAuthor()),
-                post.getCreatedAt());
+    private List<PostDtos.Summary> summaries(
+            List<JourneyPost> postsPage, Long viewerId) {
+        return summaryAssembler.summaries(postsPage, viewerId);
     }
 
     private PostDtos.Detail detailView(JourneyPost post, Long viewerId) {

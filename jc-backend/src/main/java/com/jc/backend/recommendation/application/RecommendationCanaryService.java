@@ -126,7 +126,7 @@ public class RecommendationCanaryService {
         List<Long> postIds = candidates.stream()
                 .map(PersistedRankedCandidate::sourceEntityId)
                 .toList();
-        List<PostDtos.Summary> items = postSummarySource.findVisibleByOrderedIds(postIds);
+        List<PostDtos.Summary> items = postSummarySource.findVisibleByOrderedIds(postIds, userId);
         if (items.size() != postIds.size()
                 || !items.stream().map(PostDtos.Summary::id).toList().equals(postIds)) {
             throw new IllegalStateException("CANARY page contains content that is no longer public");
@@ -136,7 +136,8 @@ public class RecommendationCanaryService {
                 ? cursorCodec.encode(runId, end, userId, sessionId)
                 : null;
         persistExposure(context, candidates, offset, hasNext, nextCursor);
-        return CursorPageResponse.recommendation(items, nextCursor, hasNext, runId);
+        return CursorPageResponse.recommendation(
+                items, nextCursor, hasNext, runId, Surface.HOME.value());
     }
 
     private void persistExposure(

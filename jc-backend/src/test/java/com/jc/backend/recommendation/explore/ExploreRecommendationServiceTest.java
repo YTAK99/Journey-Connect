@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,7 +34,7 @@ class ExploreRecommendationServiceTest {
         RegionService regionService = mock(RegionService.class);
         ExploreRecommendationService service = service(
                 candidateSource, postService, regionService, ExploreRolloutMode.LEGACY);
-        when(postService.explore(eq(""), eq("서울"), any(Pageable.class))).thenReturn(
+        when(postService.explore(eq(""), eq("서울"), any(Pageable.class), isNull())).thenReturn(
                 new PageResponse<>(List.of(summary(99L)), 0, 20, 1, 1, true));
 
         var response = service.discovery(null, "서울", 20, null);
@@ -51,13 +52,13 @@ class ExploreRecommendationServiceTest {
         RegionService regionService = mock(RegionService.class);
         ExploreRecommendationService service = service(
                 candidateSource, postService, regionService, ExploreRolloutMode.SHADOW);
-        when(postService.explore(eq(""), eq(null), any(Pageable.class))).thenReturn(
+        when(postService.explore(eq(""), eq(null), any(Pageable.class), isNull())).thenReturn(
                 new PageResponse<>(List.of(summary(99L)), 0, 20, 1, 1, true));
         when(regionService.countryCodeForSearch(null)).thenReturn("");
         when(candidateSource.findCandidates(any())).thenReturn(List.of(
                 candidate(1L, 10L, 1L, 0L),
                 candidate(2L, 20L, 0L, 1L)));
-        when(postService.visibleSummariesByIds(anyList())).thenAnswer(invocation ->
+        when(postService.visibleSummariesByIds(anyList(), isNull())).thenAnswer(invocation ->
                 ((List<Long>) invocation.getArgument(0)).stream()
                         .map(ExploreRecommendationServiceTest::summary)
                         .toList());
@@ -83,7 +84,7 @@ class ExploreRecommendationServiceTest {
                 candidate(1L, 10L, 1L, 0L),
                 candidate(2L, 20L, 0L, 1L),
                 candidate(3L, 30L, 0L, 0L)));
-        when(postService.visibleSummariesByIds(anyList())).thenAnswer(invocation ->
+        when(postService.visibleSummariesByIds(anyList(), isNull())).thenAnswer(invocation ->
                 ((List<Long>) invocation.getArgument(0)).stream().map(ExploreRecommendationServiceTest::summary).toList());
 
         var response = service.discovery(null, "서울", 2, null);
@@ -91,7 +92,7 @@ class ExploreRecommendationServiceTest {
         assertThat(response.items()).hasSize(2);
         assertThat(response.hasNext()).isTrue();
         assertThat(response.nextCursor()).isNotBlank();
-        verify(postService, never()).explore(any(), any(), any(Pageable.class));
+        verify(postService, never()).explore(any(), any(), any(Pageable.class), any());
     }
 
     @Test
@@ -104,7 +105,7 @@ class ExploreRecommendationServiceTest {
 
         when(regionService.countryCodeForSearch(null)).thenReturn("");
         when(candidateSource.findCandidates(any())).thenThrow(new IllegalStateException("ranking unavailable"));
-        when(postService.explore(eq(""), eq(null), any(Pageable.class))).thenReturn(
+        when(postService.explore(eq(""), eq(null), any(Pageable.class), isNull())).thenReturn(
                 new PageResponse<>(List.of(summary(99L)), 0, 20, 1, 1, true));
 
         var response = service.discovery(null, null, 20, null);
@@ -127,7 +128,7 @@ class ExploreRecommendationServiceTest {
                 candidate(1L, 10L, 1L, 0L),
                 candidate(2L, 20L, 0L, 1L),
                 candidate(3L, 30L, 0L, 0L)));
-        when(postService.visibleSummariesByIds(anyList())).thenAnswer(invocation ->
+        when(postService.visibleSummariesByIds(anyList(), eq(7L))).thenAnswer(invocation ->
                 ((List<Long>) invocation.getArgument(0)).stream().map(ExploreRecommendationServiceTest::summary).toList());
 
         var first = service.discovery(null, "서울", 1, 7L);
@@ -135,7 +136,7 @@ class ExploreRecommendationServiceTest {
         assertThatThrownBy(() -> service.discovery(first.nextCursor(), "부산", 1, 7L))
                 .isInstanceOfSatisfying(DomainException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("EXPLORE_CURSOR_FILTER_MISMATCH"));
-        verify(postService, never()).explore(any(), any(), any(Pageable.class));
+        verify(postService, never()).explore(any(), any(), any(Pageable.class), any());
     }
 
     @Test
@@ -149,7 +150,7 @@ class ExploreRecommendationServiceTest {
         assertThatThrownBy(() -> service.discovery("old-active-cursor", null, 20, null))
                 .isInstanceOfSatisfying(DomainException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo("EXPLORE_CURSOR_MODE_MISMATCH"));
-        verify(postService, never()).explore(any(), any(), any(Pageable.class));
+        verify(postService, never()).explore(any(), any(), any(Pageable.class), any());
         verify(candidateSource, never()).findCandidates(any());
     }
 

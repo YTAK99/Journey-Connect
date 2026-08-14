@@ -22,4 +22,14 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Modifying // SELECT가 아닌 삭제 JPQL임을 Spring Data에 알립니다.
     @Query("delete from RefreshToken r where r.expiresAt < :cutoff")
     int deleteExpiredBefore(@Param("cutoff") Instant cutoff);
+
+    @Modifying
+    @Query("""
+            update RefreshToken r
+            set r.revokedAt = :revokedAt
+            where r.user.id = :userId and r.revokedAt is null
+            """)
+    int revokeAllByUserId(
+            @Param("userId") Long userId,
+            @Param("revokedAt") Instant revokedAt);
 }

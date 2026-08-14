@@ -55,6 +55,7 @@ class SecurityConfig(
                         "/api/v1/auth/login",
                         "/api/v1/auth/refresh",
                         "/api/v1/auth/logout",
+                        "/api/v1/auth/password-reset/**",
                         "/api/v1/test/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
@@ -117,7 +118,15 @@ class SecurityConfig(
         val configuration = CorsConfiguration().apply {
             this.allowedOrigins = allowedOrigins
             allowedMethods = listOf("GET", "POST", "PATCH", "DELETE", "OPTIONS")
-            allowedHeaders = listOf("Authorization", "Content-Type")
+            allowedHeaders = listOf(
+                "Authorization",
+                "Content-Type",
+                "Idempotency-Key",
+                "X-Recommendation-Run-Id",
+                "X-Recommendation-Surface",
+                "X-Recommendation-Event-Id",
+                "X-Recommendation-Occurred-At",
+            )
             allowCredentials = true
         }
 
