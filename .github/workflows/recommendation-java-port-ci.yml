@@ -1,13 +1,18 @@
 name: Recommendation Java Core CI
 
 on:
-  pull_request:
+  push:
+    branches:
+      - develop
+      - youngtak
+      - "integration/**"
     paths:
       - "jc-recommendation-core/**"
       - "jc-backend/settings.gradle.kts"
       - "jc-backend/build.gradle.kts"
       - ".github/workflows/recommendation-java-port-ci.yml"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
