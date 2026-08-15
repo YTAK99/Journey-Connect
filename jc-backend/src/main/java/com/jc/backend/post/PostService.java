@@ -295,6 +295,12 @@ public class PostService {
         return summaries(bookmarkedPosts, userId);
     }
 
+    public PageResponse<PostDtos.Summary> myLikes(Long userId, Pageable pageable) {
+        Page<JourneyPost> likedPosts =
+                likes.findVisibleByUserId(userId, pageable).map(PostLike::getPost);
+        return summaries(likedPosts, userId);
+    }
+
     /**
      * Explore frozen ordering을 현재 visibility 기준으로 재검증하고 입력 ID 순서대로 Summary를 반환합니다.
      * post별 exists 조회 대신 한 번의 bulk post query와 기존 bulk count 변환을 사용합니다.
