@@ -35,4 +35,11 @@ class ThirdPhaseSecurityIntegrationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
     }
+
+    @Test
+    void notificationInboxRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/notifications"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
 }

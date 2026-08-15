@@ -2,6 +2,7 @@ package com.jc.backend.admin;
 
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.notification.NotificationService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -28,10 +29,15 @@ public class AdminService {
 
     private final JdbcTemplate jdbc;
     private final AdminGuard guard;
+    private final NotificationService notifications;
 
-    public AdminService(JdbcTemplate jdbc, AdminGuard guard) {
+    public AdminService(
+            JdbcTemplate jdbc,
+            AdminGuard guard,
+            NotificationService notifications) {
         this.jdbc = jdbc;
         this.guard = guard;
+        this.notifications = notifications;
     }
 
     public AdminDtos.Dashboard dashboard() {
@@ -230,6 +236,7 @@ public class AdminService {
         if (!("pending".equals(current)||"in_review".equals(current))) throw AdminQueryPolicy.conflict("이미 종료된 신고입니다.");
         jdbc.update("update admin_report set status=?, handled_by=?, handled_at=current_timestamp, resolution_note=? where id=?", targetState, actor.userId(), reason, reportId);
         audit(actor, action, "report", reportId, reason);
+        notifications.reportHandled(reportId, targetState);
         return new AdminDtos.CommandResult(reportId, targetState, true, Instant.now());
     }
 
