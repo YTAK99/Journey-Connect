@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
@@ -57,11 +58,22 @@ public class CrewService {
     }
 
     public PageResponse<CrewDtos.View> list(Pageable pageable) {
-        return list(null, pageable);
+        return list(null, null, null, pageable);
     }
 
     public PageResponse<CrewDtos.View> list(Long viewerId, Pageable pageable) {
-        Page<Crew> page = crews.findByRecruitingTrueOrderByCreatedAtDescIdDesc(pageable);
+        return list(viewerId, null, null, pageable);
+    }
+
+    public PageResponse<CrewDtos.View> list(
+            Long viewerId,
+            String keyword,
+            String region,
+            Pageable pageable) {
+        Page<Crew> page = crews.searchRecruiting(
+                normalizeSearch(keyword),
+                normalizeSearch(region),
+                pageable);
         List<Long> crewIds = page.getContent().stream().map(Crew::getId).toList();
         Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
         Map<Long, Long> pendingCounts = countMap(crewIds, List.of(CrewMemberStatus.PENDING));
@@ -98,6 +110,16 @@ public class CrewService {
                 members.countByCrewIdAndStatusIn(crewId, List.of(CrewMemberStatus.PENDING)),
                 tagsByCrewId.getOrDefault(crewId, List.of()),
                 viewer(crew, viewerId, viewerStatus, memberCount));
+    }
+
+    public PageResponse<CrewDtos.MemberView> members(Long crewId, Pageable pageable) {
+        findCrew(crewId);
+        return PageResponse.from(members
+                .findByCrewIdAndStatusInOrderByCreatedAtAscIdAsc(
+                        crewId,
+                        ACTIVE_STATUSES,
+                        pageable)
+                .map(this::memberView));
     }
 
     public PageResponse<CrewDtos.MyCrewItem> myCrews(Long userId, Pageable pageable) {
@@ -306,6 +328,13 @@ public class CrewService {
         return members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES);
     }
 
+    private String normalizeSearch(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
     private Crew findCrew(Long crewId) {
         return crews.findWithOwnerAndRegionById(crewId)
                 .orElseThrow(this::crewNotFound);
@@ -412,6 +441,17 @@ public class CrewService {
                 crew.getOwner().getNickname(),
                 crew.getCreatedAt(),
                 viewer);
+    }
+
+    private CrewDtos.MemberView memberView(CrewMember member) {
+        return new CrewDtos.MemberView(
+                member.getUser().getId(),
+                member.getUser().getNickname(),
+                member.getUser().getProfileImageUrl(),
+                member.getStatus() == CrewMemberStatus.OWNER
+                        ? CrewDtos.MemberRole.OWNER
+                        : CrewDtos.MemberRole.MEMBER,
+                joinedOrAppliedAt(member));
     }
 
     private CrewDtos.ApplicationView applicationView(CrewMember application) {

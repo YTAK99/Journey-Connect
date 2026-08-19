@@ -18,6 +18,66 @@ public interface CrewRepository extends JpaRepository<Crew, Long> {
     Page<Crew> findByRecruitingTrueOrderByCreatedAtDescIdDesc(Pageable pageable);
 
     @EntityGraph(attributePaths = {"owner", "region"})
+    @Query(
+            value = """
+                    select c
+                    from Crew c
+                    where c.recruiting = true
+                      and (
+                          :region is null
+                          or lower(c.region.code) = :region
+                          or lower(c.region.displayName) = :region
+                      )
+                      and (
+                          :keyword is null
+                          or lower(c.title) like concat('%', :keyword, '%')
+                          or lower(c.description) like concat('%', :keyword, '%')
+                          or lower(c.owner.nickname) like concat('%', :keyword, '%')
+                          or lower(c.region.code) like concat('%', :keyword, '%')
+                          or lower(c.region.displayName) like concat('%', :keyword, '%')
+                          or lower(c.region.searchText) like concat('%', :keyword, '%')
+                          or exists (
+                              select candidate.id
+                              from Crew candidate
+                              join candidate.tags tag
+                              where candidate.id = c.id
+                                and lower(tag.name) like concat('%', :keyword, '%')
+                          )
+                      )
+                    order by c.createdAt desc, c.id desc
+                    """,
+            countQuery = """
+                    select count(c)
+                    from Crew c
+                    where c.recruiting = true
+                      and (
+                          :region is null
+                          or lower(c.region.code) = :region
+                          or lower(c.region.displayName) = :region
+                      )
+                      and (
+                          :keyword is null
+                          or lower(c.title) like concat('%', :keyword, '%')
+                          or lower(c.description) like concat('%', :keyword, '%')
+                          or lower(c.owner.nickname) like concat('%', :keyword, '%')
+                          or lower(c.region.code) like concat('%', :keyword, '%')
+                          or lower(c.region.displayName) like concat('%', :keyword, '%')
+                          or lower(c.region.searchText) like concat('%', :keyword, '%')
+                          or exists (
+                              select candidate.id
+                              from Crew candidate
+                              join candidate.tags tag
+                              where candidate.id = c.id
+                                and lower(tag.name) like concat('%', :keyword, '%')
+                          )
+                      )
+                    """)
+    Page<Crew> searchRecruiting(
+            @Param("keyword") String keyword,
+            @Param("region") String region,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"owner", "region"})
     @Query("select c from Crew c where c.id = :crewId")
     Optional<Crew> findWithOwnerAndRegionById(@Param("crewId") Long crewId);
 

@@ -50,6 +50,12 @@ public interface CrewMemberRepository extends JpaRepository<CrewMember, Long> {
             Collection<CrewMemberStatus> statuses,
             Pageable pageable);
 
+    @EntityGraph(attributePaths = {"user"})
+    Page<CrewMember> findByCrewIdAndStatusInOrderByCreatedAtAscIdAsc(
+            Long crewId,
+            Collection<CrewMemberStatus> statuses,
+            Pageable pageable);
+
     @EntityGraph(attributePaths = {"crew", "user", "reviewedBy"}) // 응답 변환에 필요한 관계를 한 번에 로딩합니다.
     Page<CrewMember> findByCrewIdAndStatusOrderByCreatedAtAsc(
             Long crewId,

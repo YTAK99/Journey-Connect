@@ -71,6 +71,18 @@ public final class CrewDtos {
             CrewMemberStatus membershipStatus,
             LocalDateTime joinedOrAppliedAt) {}
 
+    public enum MemberRole {
+        OWNER,
+        MEMBER
+    }
+
+    public record MemberView(
+            Long userId,
+            String nickname,
+            String profileImageUrl,
+            MemberRole role,
+            LocalDateTime joinedAt) {}
+
     public record ApplicationView(
             Long id,
             Long crewId,
