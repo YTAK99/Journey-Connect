@@ -3,7 +3,7 @@ name: Deploy Journey Connect
 on:
   push:
     branches:
-      - develop
+      - deploy/aws-test
 
 concurrency:
   group: journey-connect-production
