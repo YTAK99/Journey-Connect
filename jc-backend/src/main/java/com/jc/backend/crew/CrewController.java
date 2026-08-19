@@ -31,13 +31,16 @@ public class CrewController {
 
     @GetMapping
     ApiResponse<PageResponse<CrewDtos.View>> list(
+            @AuthenticationPrincipal Jwt token,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(crewService.list(pageable));
+        return ApiResponse.ok(crewService.list(userIdOrNull(token), pageable));
     }
 
     @GetMapping("/{crewId}")
-    ApiResponse<CrewDtos.View> detail(@PathVariable Long crewId) {
-        return ApiResponse.ok(crewService.detail(crewId));
+    ApiResponse<CrewDtos.View> detail(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long crewId) {
+        return ApiResponse.ok(crewService.detail(userIdOrNull(token), crewId));
     }
 
     @PostMapping
@@ -86,5 +89,9 @@ public class CrewController {
 
     private long userId(Jwt token) {
         return Long.parseLong(token.getSubject());
+    }
+
+    private Long userIdOrNull(Jwt token) {
+        return token == null ? null : userId(token);
     }
 }

@@ -7,6 +7,7 @@ import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionService;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -33,6 +34,8 @@ public class CrewService {
             List.of(CrewMemberStatus.OWNER, CrewMemberStatus.APPROVED);
     private static final Collection<CrewMemberStatus> EXISTING_APPLICATION_STATUSES =
             List.of(CrewMemberStatus.OWNER, CrewMemberStatus.PENDING, CrewMemberStatus.APPROVED);
+    private static final Collection<CrewMemberStatus> MY_CREW_STATUSES =
+            List.of(CrewMemberStatus.OWNER, CrewMemberStatus.APPROVED, CrewMemberStatus.PENDING);
 
     private final CrewRepository crews;
     private final CrewMemberRepository members;
@@ -54,27 +57,76 @@ public class CrewService {
     }
 
     public PageResponse<CrewDtos.View> list(Pageable pageable) {
+        return list(null, pageable);
+    }
+
+    public PageResponse<CrewDtos.View> list(Long viewerId, Pageable pageable) {
         Page<Crew> page = crews.findByRecruitingTrueOrderByCreatedAtDescIdDesc(pageable);
         List<Long> crewIds = page.getContent().stream().map(Crew::getId).toList();
         Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
         Map<Long, Long> pendingCounts = countMap(crewIds, List.of(CrewMemberStatus.PENDING));
         Map<Long, List<String>> tagsByCrewId = tagMap(crewIds);
+        Map<Long, CrewMemberStatus> viewerStatuses = viewerStatusMap(crewIds, viewerId);
 
-        return PageResponse.from(page.map(crew -> view(
-                crew,
-                activeCounts.getOrDefault(crew.getId(), 0L),
-                pendingCounts.getOrDefault(crew.getId(), 0L),
-                tagsByCrewId.getOrDefault(crew.getId(), List.of()))));
+        return PageResponse.from(page.map(crew -> {
+            long memberCount = activeCounts.getOrDefault(crew.getId(), 0L);
+            return view(
+                    crew,
+                    memberCount,
+                    pendingCounts.getOrDefault(crew.getId(), 0L),
+                    tagsByCrewId.getOrDefault(crew.getId(), List.of()),
+                    viewer(crew, viewerId, viewerStatuses.get(crew.getId()), memberCount));
+        }));
     }
 
     public CrewDtos.View detail(Long crewId) {
+        return detail(null, crewId);
+    }
+
+    public CrewDtos.View detail(Long viewerId, Long crewId) {
         Crew crew = findCrew(crewId);
         Map<Long, List<String>> tagsByCrewId = tagMap(List.of(crewId));
+        long memberCount = members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES);
+        CrewMemberStatus viewerStatus = viewerId == null
+                ? null
+                : members.findByCrewIdAndUserId(crewId, viewerId)
+                        .map(CrewMember::getStatus)
+                        .orElse(null);
         return view(
                 crew,
-                members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES),
+                memberCount,
                 members.countByCrewIdAndStatusIn(crewId, List.of(CrewMemberStatus.PENDING)),
-                tagsByCrewId.getOrDefault(crewId, List.of()));
+                tagsByCrewId.getOrDefault(crewId, List.of()),
+                viewer(crew, viewerId, viewerStatus, memberCount));
+    }
+
+    public PageResponse<CrewDtos.MyCrewItem> myCrews(Long userId, Pageable pageable) {
+        user(userId);
+        Page<CrewMember> page = members.findByUserIdAndStatusInOrderByUpdatedAtDescIdDesc(
+                userId,
+                MY_CREW_STATUSES,
+                pageable);
+        List<Long> crewIds = page.getContent().stream()
+                .map(member -> member.getCrew().getId())
+                .toList();
+        Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
+        Map<Long, Long> pendingCounts = countMap(crewIds, List.of(CrewMemberStatus.PENDING));
+        Map<Long, List<String>> tagsByCrewId = tagMap(crewIds);
+
+        return PageResponse.from(page.map(member -> {
+            Crew crew = member.getCrew();
+            long memberCount = activeCounts.getOrDefault(crew.getId(), 0L);
+            CrewDtos.View crewView = view(
+                    crew,
+                    memberCount,
+                    pendingCounts.getOrDefault(crew.getId(), 0L),
+                    tagsByCrewId.getOrDefault(crew.getId(), List.of()),
+                    viewer(crew, userId, member.getStatus(), memberCount));
+            return new CrewDtos.MyCrewItem(
+                    crewView,
+                    member.getStatus(),
+                    joinedOrAppliedAt(member));
+        }));
     }
 
     @Transactional
@@ -94,7 +146,12 @@ public class CrewService {
                 request.coverImageUrl(),
                 tagService.resolve(request.tags())));
         members.save(new CrewMember(crew, owner, CrewMemberStatus.OWNER));
-        return view(crew, 1L, 0L, crew.getTags().stream().map(tag -> tag.getName()).toList());
+        return view(
+                crew,
+                1L,
+                0L,
+                crew.getTags().stream().map(tag -> tag.getName()).toList(),
+                viewer(crew, userId, CrewMemberStatus.OWNER, 1L));
     }
 
     /**
@@ -221,6 +278,16 @@ public class CrewService {
                         Collectors.mapping(CrewTagProjection::getTagName, Collectors.toList())));
     }
 
+    private Map<Long, CrewMemberStatus> viewerStatusMap(List<Long> crewIds, Long viewerId) {
+        if (viewerId == null || crewIds.isEmpty()) {
+            return Map.of();
+        }
+        return members.findViewerMemberships(crewIds, viewerId).stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        CrewViewerMembershipProjection::getCrewId,
+                        CrewViewerMembershipProjection::getStatus));
+    }
+
     private Map<Long, Long> countMap(
             List<Long> crewIds,
             Collection<CrewMemberStatus> statuses) {
@@ -282,11 +349,51 @@ public class CrewService {
                         "사용자를 찾을 수 없습니다."));
     }
 
+    private CrewDtos.Viewer viewer(
+            Crew crew,
+            Long viewerId,
+            CrewMemberStatus membershipStatus,
+            long memberCount) {
+        if (viewerId == null) {
+            return null;
+        }
+
+        boolean owner = crew.getOwner().getId().equals(viewerId);
+        CrewMemberStatus effectiveStatus = owner ? CrewMemberStatus.OWNER : membershipStatus;
+        boolean canJoin = !owner
+                && (effectiveStatus == null
+                        || effectiveStatus == CrewMemberStatus.REJECTED
+                        || effectiveStatus == CrewMemberStatus.CANCELLED)
+                && crew.isRecruiting()
+                && memberCount < crew.getCapacity();
+        boolean canCancel = effectiveStatus == CrewMemberStatus.PENDING
+                || effectiveStatus == CrewMemberStatus.APPROVED;
+
+        return new CrewDtos.Viewer(
+                effectiveStatus,
+                owner,
+                canJoin,
+                canCancel,
+                owner);
+    }
+
+    private LocalDateTime joinedOrAppliedAt(CrewMember member) {
+        if (member.getStatus() == CrewMemberStatus.PENDING) {
+            return member.getUpdatedAt();
+        }
+        if (member.getStatus() == CrewMemberStatus.APPROVED
+                && member.getReviewedAt() != null) {
+            return member.getReviewedAt();
+        }
+        return member.getCreatedAt();
+    }
+
     private CrewDtos.View view(
             Crew crew,
             long memberCount,
             long pendingCount,
-            List<String> tags) {
+            List<String> tags,
+            CrewDtos.Viewer viewer) {
         return new CrewDtos.View(
                 crew.getId(),
                 crew.getTitle(),
@@ -303,7 +410,8 @@ public class CrewService {
                 crew.isApprovalRequired(),
                 crew.getOwner().getId(),
                 crew.getOwner().getNickname(),
-                crew.getCreatedAt());
+                crew.getCreatedAt(),
+                viewer);
     }
 
     private CrewDtos.ApplicationView applicationView(CrewMember application) {

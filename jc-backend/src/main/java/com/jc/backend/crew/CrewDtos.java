@@ -56,7 +56,20 @@ public final class CrewDtos {
             boolean approvalRequired,
             Long ownerId,
             String ownerNickname,
-            LocalDateTime createdAt) {}
+            LocalDateTime createdAt,
+            Viewer viewer) {}
+
+    public record Viewer(
+            CrewMemberStatus membershipStatus,
+            boolean owner,
+            boolean canJoin,
+            boolean canCancel,
+            boolean canManageApplications) {}
+
+    public record MyCrewItem(
+            View crew,
+            CrewMemberStatus membershipStatus,
+            LocalDateTime joinedOrAppliedAt) {}
 
     public record ApplicationView(
             Long id,
