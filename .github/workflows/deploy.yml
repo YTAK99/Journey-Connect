@@ -1,11 +1,12 @@
 name: Deploy Journey Connect
 
-#on:
-#  push:
-#    branches:
-#      - deploy/aws-test
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+##수동으로 전환할때
+#on:
+#  workflow_dispatch:
 
 concurrency:
   group: journey-connect-production
