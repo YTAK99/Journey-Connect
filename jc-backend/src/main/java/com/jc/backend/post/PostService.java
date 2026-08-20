@@ -7,6 +7,7 @@ import com.jc.backend.common.PageResponse;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisInputV1;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisJobService;
 import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisSourceVersion;
+import com.jc.backend.notification.NotificationService;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionDtos;
 import com.jc.backend.region.RegionService;
@@ -48,6 +49,7 @@ public class PostService {
     private final TagService tagService;
     private final PostContentAnalysisJobService contentAnalysisJobs;
     private final PostSummaryAssembler summaryAssembler;
+    private final NotificationService notifications;
 
     public PostService(
             JourneyPostRepository posts,
@@ -61,7 +63,8 @@ public class PostService {
             RichTextSanitizer richTextSanitizer,
             TagService tagService,
             PostContentAnalysisJobService contentAnalysisJobs,
-            PostSummaryAssembler summaryAssembler) {
+            PostSummaryAssembler summaryAssembler,
+            NotificationService notifications) {
         this.posts = posts;
         this.likes = likes;
         this.bookmarks = bookmarks;
@@ -74,6 +77,7 @@ public class PostService {
         this.tagService = tagService;
         this.contentAnalysisJobs = contentAnalysisJobs;
         this.summaryAssembler = summaryAssembler;
+        this.notifications = notifications;
     }
 
     /** 신규 피드 API: 전체 개수 쿼리 없이 size + 1 방식으로 다음 페이지 여부를 계산합니다. */
@@ -205,10 +209,16 @@ public class PostService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void like(Long userId, Long postId) {
         // 중복 삽입 충돌만 독립 트랜잭션에서 처리하도록 바깥 트랜잭션을 만들지 않습니다.
-        publishedPost(postId);
+        JourneyPost post = publishedPost(postId);
         user(userId);
         try {
-            interactionWriter.addLike(postId, userId);
+            boolean created = interactionWriter.addLike(postId, userId);
+            if (created) {
+                notifications.postLiked(
+                        userId,
+                        post.getAuthor().getId(),
+                        postId);
+            }
         } catch (DataIntegrityViolationException exception) {
             if (!likes.existsByPostIdAndUserId(postId, userId)) {
                 throw exception;
@@ -257,6 +267,11 @@ public class PostService {
     public PostDtos.CommentView addComment(Long userId, Long postId, String content) {
         JourneyPost post = publishedPost(postId);
         Comment comment = comments.save(new Comment(post, user(userId), content.trim()));
+        notifications.postCommented(
+                userId,
+                post.getAuthor().getId(),
+                postId,
+                comment.getId());
         return commentView(comment);
     }
 
@@ -293,6 +308,12 @@ public class PostService {
         Page<JourneyPost> bookmarkedPosts =
                 bookmarks.findVisibleByUserId(userId, pageable).map(Bookmark::getPost);
         return summaries(bookmarkedPosts, userId);
+    }
+
+    public PageResponse<PostDtos.Summary> myLikes(Long userId, Pageable pageable) {
+        Page<JourneyPost> likedPosts =
+                likes.findVisibleByUserId(userId, pageable).map(PostLike::getPost);
+        return summaries(likedPosts, userId);
     }
 
     /**

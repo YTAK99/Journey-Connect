@@ -65,6 +65,10 @@ public class UserService {
         return posts.myBookmarks(userId, pageable);
     }
 
+    public PageResponse<PostDtos.Summary> myLikes(long userId, Pageable pageable) {
+        return posts.myLikes(userId, pageable);
+    }
+
     private UserAccount user(long userId) {
         return users.findById(userId)
                 .orElseThrow(() -> new DomainException(
