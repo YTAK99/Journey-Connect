@@ -1,9 +1,11 @@
 name: Deploy Journey Connect
 
+#on:
+#  push:
+#    branches:
+#      - deploy/aws-test
 on:
-  push:
-    branches:
-      - deploy/aws-test
+  workflow_dispatch:
 
 concurrency:
   group: journey-connect-production
