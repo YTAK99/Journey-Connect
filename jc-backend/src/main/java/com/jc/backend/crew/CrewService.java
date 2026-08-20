@@ -2,6 +2,7 @@ package com.jc.backend.crew;
 
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.notification.NotificationService;
 import com.jc.backend.post.Tag;
 import com.jc.backend.post.TagService;
 import com.jc.backend.region.Region;
@@ -45,18 +46,21 @@ public class CrewService {
     private final UserRepository users;
     private final RegionService regionService;
     private final TagService tagService;
+    private final NotificationService notificationService;
 
     public CrewService(
             CrewRepository crews,
             CrewMemberRepository members,
             UserRepository users,
             RegionService regionService,
-            TagService tagService) {
+            TagService tagService,
+            NotificationService notificationService) {
         this.crews = crews;
         this.members = members;
         this.users = users;
         this.regionService = regionService;
         this.tagService = tagService;
+        this.notificationService = notificationService;
     }
 
     public PageResponse<CrewDtos.View> list(Pageable pageable) {
@@ -297,6 +301,14 @@ public class CrewService {
             existing.reapply(nextStatus);
             application = existing;
         }
+        if (nextStatus == CrewMemberStatus.PENDING) {
+            notificationService.crewApplication(
+                    userId,
+                    crew.getOwner().getId(),
+                    crewId,
+                    application.getId(),
+                    LocalDateTime.now());
+        }
         return applicationView(application);
     }
 
@@ -371,8 +383,20 @@ public class CrewService {
                         "크루 정원이 가득 찼습니다.");
             }
             application.approve(owner);
+            notificationService.crewApproved(
+                    ownerId,
+                    application.getUser().getId(),
+                    crewId,
+                    application.getId(),
+                    application.getReviewedAt());
         } else {
             application.reject(owner);
+            notificationService.crewRejected(
+                    ownerId,
+                    application.getUser().getId(),
+                    crewId,
+                    application.getId(),
+                    application.getReviewedAt());
         }
         return applicationView(application);
     }

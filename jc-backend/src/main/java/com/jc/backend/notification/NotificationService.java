@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -104,6 +105,42 @@ public class NotificationService {
     }
 
     @Transactional
+    public void crewApplication(
+            long actorId,
+            long recipientId,
+            long crewId,
+            long applicationId,
+            LocalDateTime eventAt) {
+        if (actorId == recipientId) return;
+        insert(recipientId, actorId, "crew_application", "crew", crewId,
+                crewEventKey("crew_application", applicationId, eventAt));
+    }
+
+    @Transactional
+    public void crewApproved(
+            long actorId,
+            long recipientId,
+            long crewId,
+            long applicationId,
+            LocalDateTime eventAt) {
+        if (actorId == recipientId) return;
+        insert(recipientId, actorId, "crew_approved", "crew", crewId,
+                crewEventKey("crew_approved", applicationId, eventAt));
+    }
+
+    @Transactional
+    public void crewRejected(
+            long actorId,
+            long recipientId,
+            long crewId,
+            long applicationId,
+            LocalDateTime eventAt) {
+        if (actorId == recipientId) return;
+        insert(recipientId, actorId, "crew_rejected", "crew", crewId,
+                crewEventKey("crew_rejected", applicationId, eventAt));
+    }
+
+    @Transactional
     public void reportHandled(long reportId, String state) {
         String type = switch (state) {
             case "resolved" -> "report_resolved";
@@ -122,6 +159,13 @@ public class NotificationService {
                 || !(targetValue instanceof Number targetNumber)) return;
         insert(reporterNumber.longValue(), null, type, "post", targetNumber.longValue(),
                 "report:" + reportId + ":" + state);
+    }
+
+    private String crewEventKey(String type, long applicationId, LocalDateTime eventAt) {
+        if (eventAt == null) {
+            throw new IllegalArgumentException("crew notification eventAt must not be null");
+        }
+        return type + ":" + applicationId + ":" + eventAt;
     }
 
     private void insert(long recipientId, Long actorId, String type,
