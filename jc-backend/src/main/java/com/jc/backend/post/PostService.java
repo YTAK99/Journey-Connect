@@ -300,6 +300,10 @@ public class PostService {
                 viewerId);
     }
 
+    public long publicPostCount(Long userId) {
+        return posts.countByAuthorIdAndPublishedTrueAndModerationStatus(userId, "visible");
+    }
+
     public PageResponse<PostDtos.Summary> myPosts(Long userId, Pageable pageable) {
         return summaries(posts.findByAuthorIdOrderByCreatedAtDescIdDesc(userId, pageable), userId);
     }
