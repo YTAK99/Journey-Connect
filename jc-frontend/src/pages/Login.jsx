@@ -1,86 +1,79 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
+import { getApiErrorMessage } from "../services/apiClient";
 import { login } from "../services/auth";
 
-// 사용자 로그인 화면이다.
 export default function Login() {
+  // 로그인 성공 시 토큰 저장은 auth 서비스에 맡기고 피드 화면으로 이동합니다.
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-    const navigate = useNavigate();
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert("이메일과 비밀번호를 입력해주세요.");
+      return;
+    }
 
-    const [id, setId] = useState("");
-    const [pw, setPw] = useState("");
+    try {
+      setSubmitting(true);
+      await login(email, password);
+      navigate("/feed", { replace: true });
+    } catch (error) {
+      alert(getApiErrorMessage(error, "로그인에 실패했습니다."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
+  return (
+    <main className="flex h-screen items-center justify-center bg-gray-100 px-4">
+      <section className="w-96 max-w-full rounded-lg bg-white p-8 shadow-lg">
+        <h1 className="mb-8 text-center text-3xl font-bold text-title">Journey Connect</h1>
 
-    const handleLogin = () => {
+        <input
+          className="mb-4 w-full rounded-lg border p-3"
+          placeholder="이메일"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
 
-        if (!id || !pw) {
-            alert("아이디와 비밀번호를 입력하세요.");
-            return;
-        }
+        <input
+          type="password"
+          className="mb-6 w-full rounded-lg border p-3"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") handleLogin();
+          }}
+        />
 
-        const result = login(id, pw);
+        <button
+          type="button"
+          onClick={handleLogin}
+          disabled={submitting}
+          className="w-full rounded-lg bg-blue-600 py-3 text-white hover:bg-blue-700 disabled:opacity-60"
+        >
+          {submitting ? "로그인 중..." : "로그인"}
+        </button>
 
-        if (result) {
-            alert("로그인 성공!");
-            navigate("/feedpage");
-        } else {
-            alert("아이디 또는 비밀번호가 틀렸습니다.");
-        }
-    };
-
-
-    return (
-        <div className="flex justify-center items-center h-screen bg-gray-100">
-
-            <div className="w-96 bg-white rounded-xl shadow-lg p-8">
-                <h1 className="text-3xl font-bold text-center mb-8">
-                    Journey Connect
-                </h1>
-                <input
-                    className="w-full border rounded-lg p-3 mb-4"
-                    placeholder="아이디"
-                    value={id}
-                    onChange={(e) => setId(e.target.value)}/>
-
-                <input
-                    type="password"
-                    className="w-full border rounded-lg p-3 mb-6"
-                    placeholder="비밀번호"
-                    value={pw}
-                    onChange={(e) => setPw(e.target.value)}/>
-
-<button
-    onClick={handleLogin}
-    className="w-full bg-blue-600 text-white rounded-lg py-3 hover:bg-blue-700"
->
-    로그인
-</button>
-
-<div className="flex justify-center items-center gap-3 mt-4 text-sm">
-    <Link
-        to="/find-id"
-        className="text-blue-600 hover:underline"
-    >
-        아이디 찾기
-    </Link>
-
-    <span className="text-gray-400">|</span>
-
-    <Link
-        to="/find-password"
-        className="text-blue-600 hover:underline"
-    >
-        비밀번호 찾기
-    </Link>
-</div>
-
-<Link
-    to="/signup"
-    className="block text-center mt-4 text-blue-600 hover:underline">
-    회원가입
-</Link>
-            </div>
+        <div className="mt-4 flex items-center justify-center gap-3 text-sm">
+          <Link to="/find-id" className="text-blue-600 hover:underline">
+            아이디 찾기
+          </Link>
+          <span className="text-gray-400">|</span>
+          <Link to="/find-password" className="text-blue-600 hover:underline">
+            비밀번호 찾기
+          </Link>
         </div>
-    );
 
+        <Link to="/signup" className="mt-4 block text-center text-blue-600 hover:underline">
+          회원가입
+        </Link>
+      </section>
+    </main>
+  );
 }

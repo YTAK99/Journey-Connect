@@ -1,18 +1,49 @@
-import { create } from 'zustand';
+import { create } from "zustand";
+import { getLocale, resolveLanguage } from "../i18n";
 
-/**
- * 글로벌 다국어 설정(Language Switch)을 제어하는 Zustand 전역 스토어
- * 새로고침 시에도 유저가 선택한 언어가 유지되도록 로컬스토리지를 연동합니다.
- */
+// 앱 초기 로드 시 사용할 언어를 결정합니다.
+// 1) 로컬 스토리지에 저장된 언어가 있으면 그 값을 사용하고,
+// 2) 없다면 브라우저가 제공하는 기본 언어를 사용합니다.
+const getInitialLanguage = () => {
+  const storedLanguage =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("lang")
+      : null;
+
+  const browserLanguage =
+    typeof navigator !== "undefined"
+      ? navigator.languages?.[0] || navigator.language
+      : null;
+
+  return resolveLanguage(storedLanguage || browserLanguage);
+};
+
+// 문서의 html lang 속성을 현재 언어에 맞춰 업데이트합니다.
+const applyDocumentLanguage = (language) => {
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = getLocale(language);
+  }
+};
+
+const initialLanguage = getInitialLanguage();
+applyDocumentLanguage(initialLanguage);
+
 const useLangStore = create((set) => ({
-    // 초기값 설정: 이전에 선택한 언어가 없다면 기본값은 한국어('ko')
-    currentLang: localStorage.getItem('lang') || 'ko',
+  currentLang: initialLanguage,
 
-    // 글로벌 언어 변경 액션 함수
-    setLang: (lang) => {
-        localStorage.setItem('lang', lang); // 사용자가 고른 언어 스토리지에 세이브
-        set({ currentLang: lang }); // 상태 변경 트리거 실행
+  // 언어 변경 함수
+  // 입력된 언어 값을 normalize(resolve)하고,
+  // 로컬 스토리지에 저장한 뒤 문서 lang 속성을 갱신합니다.
+  setLang: (language) => {
+    const nextLanguage = resolveLanguage(language);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("lang", nextLanguage);
     }
+
+    applyDocumentLanguage(nextLanguage);
+    set({ currentLang: nextLanguage });
+  },
 }));
 
 export default useLangStore;

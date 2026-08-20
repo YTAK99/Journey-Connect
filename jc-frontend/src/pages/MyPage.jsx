@@ -1,238 +1,347 @@
-import { useState } from "react";
-import { User, Heart, Map, FileText, LogOut, Camera } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { logout } from "../services/auth";
-import { getUser } from "../services/auth";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  Bookmark,
+  Camera,
+  Edit3,
+  FileText,
+  Heart,
+  MessageCircle,
+  Plus,
+  User,
+  Users,
+  X,
+} from "lucide-react";
+import { useNavigate } from "react-router";
+import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/apiClient";
+import { getUser, isLogin } from "../services/auth";
+import { getFeedItems } from "../services/postApi";
+import useLangStore from "../store/useLangStore";
 
-function MyPage() {
+const fallbackAvatar = "/user_1.jpg";
+const fallbackPostImage = "/ex_1.jpg";
+
+const copy = {
+  ko: {
+    back: "돌아가기",
+    editProfile: "프로필 편집",
+    posts: "게시글",
+    likes: "좋아요",
+    comments: "댓글",
+    tabs: ["내가 쓴 글", "좋아요한 곳", "저장한 곳", "크루 활동"],
+    loading: "게시물을 불러오는 중입니다.",
+    loadError: "마이페이지 게시물을 불러오지 못했습니다.",
+    emptyPosts: "아직 작성한 글이 없습니다.",
+    emptyBookmarks: "아직 저장한 곳이 없습니다.",
+    unavailableLikes: "좋아요한 장소 목록은 아직 준비 중입니다.",
+    unavailableCrew: "참여한 크루 활동은 아직 준비 중입니다.",
+    write: "첫 여행 기록 작성하기",
+    nickname: "닉네임",
+    email: "이메일",
+    cancel: "취소",
+    save: "저장",
+    close: "닫기",
+    editHint: "프로필 이미지는 이 화면에서 미리보기로 반영됩니다.",
+  },
+  en: {
+    back: "Back",
+    editProfile: "Edit profile",
+    posts: "Posts",
+    likes: "Likes",
+    comments: "Comments",
+    tabs: ["My journeys", "Liked places", "Saved", "Crew activity"],
+    loading: "Loading your posts.",
+    loadError: "Could not load your profile posts.",
+    emptyPosts: "You have not written a journey yet.",
+    emptyBookmarks: "You have not saved a place yet.",
+    unavailableLikes: "Your liked places list is coming soon.",
+    unavailableCrew: "Your crew activity is coming soon.",
+    write: "Write your first journey",
+    nickname: "Nickname",
+    email: "Email",
+    cancel: "Cancel",
+    save: "Save",
+    close: "Close",
+    editHint: "The profile image is previewed on this screen only.",
+  },
+};
+
+function PostTile({ post }) {
   const navigate = useNavigate();
+  const image = post.coverImageUrl || post.image || fallbackPostImage;
 
-  const handleLogout = async () => {
-    const ok = window.confirm("로그아웃 하시겠습니까?");
-    if (!ok) return;
-    await logout();
-    alert("로그아웃 되었습니다.");
-    navigate("/login");
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/post/${post.id}`)}
+      className="group overflow-hidden rounded-2xl border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/40"
+    >
+      <div className="aspect-[16/10] overflow-hidden bg-secondary">
+        <img
+          src={image}
+          alt=""
+          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          onError={(event) => {
+            event.currentTarget.src = fallbackPostImage;
+          }}
+        />
+      </div>
+      <div className="p-3 sm:p-4">
+        <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-foreground">{post.title}</h3>
+        <div className="mt-2 flex items-center gap-3 text-xs text-muted">
+          <span className="flex items-center gap-1">
+            <Heart size={13} /> {post.likeCount ?? 0}
+          </span>
+          <span className="flex items-center gap-1">
+            <MessageCircle size={13} /> {post.commentCount ?? 0}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function EmptyState({ icon: Icon, message, actionLabel, onAction }) {
+  return (
+    <div className="col-span-full flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/70 px-6 text-center">
+      <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-primary">
+        <Icon size={22} />
+      </span>
+      <p className="text-sm text-muted">{message}</p>
+      {onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
+        >
+          <Plus size={15} /> {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ProfileEditor({ user, labels, onClose, onSave }) {
+  const [name, setName] = useState(user.name);
+  const [image, setImage] = useState(user.image);
+
+  const handleImage = (event) => {
+    const file = event.target.files?.[0];
+    if (file) setImage(URL.createObjectURL(file));
   };
 
-  const [editOpen, setEditOpen] = useState(false);
-  const loginUser = getUser();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm" onMouseDown={onClose}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-editor-title"
+        className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="mb-6 flex items-center justify-between">
+          <h2 id="profile-editor-title" className="text-xl font-bold text-foreground">{labels.editProfile}</h2>
+          <button type="button" onClick={onClose} className="rounded-full p-2 text-muted hover:bg-secondary" aria-label={labels.close}>
+            <X size={18} />
+          </button>
+        </div>
 
+        <div className="mb-6 flex flex-col items-center">
+          <label htmlFor="profile-image" className="group relative h-28 w-28 cursor-pointer overflow-hidden rounded-full border-4 border-secondary bg-secondary">
+            {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <User className="m-7 h-14 w-14 text-primary" />}
+            <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/40 group-hover:opacity-100">
+              <Camera size={25} />
+            </span>
+          </label>
+          <input id="profile-image" type="file" accept="image/*" className="hidden" onChange={handleImage} />
+          <p className="mt-3 text-center text-xs text-muted">{labels.editHint}</p>
+        </div>
+
+        <label htmlFor="profile-name" className="text-sm font-semibold text-foreground">{labels.nickname}</label>
+        <input
+          id="profile-name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          className="mb-4 mt-2 w-full rounded-xl border border-border bg-inputBg px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+        <label htmlFor="profile-email" className="text-sm font-semibold text-foreground">{labels.email}</label>
+        <input id="profile-email" value={user.email} readOnly className="mt-2 w-full cursor-not-allowed rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-muted" />
+
+        <div className="mt-7 flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-muted hover:bg-secondary">
+            {labels.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave({ name: name.trim() || user.name, image })}
+            className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primaryHover"
+          >
+            {labels.save}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default function MyPage() {
+  const navigate = useNavigate();
+  const { currentLang } = useLangStore();
+  const labels = copy[currentLang] || copy.ko;
+  const loginUser = getUser();
+  const [activeTab, setActiveTab] = useState(0);
+  const [posts, setPosts] = useState([]);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
   const [user, setUser] = useState({
-    name: loginUser?.nickname || loginUser?.email || "사용자",
+    name: loginUser?.nickname || loginUser?.email || (currentLang === "ko" ? "여행자" : "Traveler"),
     email: loginUser?.email || "",
-    image: loginUser?.profileImageUrl || null,
+    image: loginUser?.profileImageUrl || fallbackAvatar,
   });
 
-  const [editName, setEditName] = useState(user.name);
-  const [editEmail, setEditEmail] = useState(user.email);
-  const [currentPw, setCurrentPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-
-  const handleImage = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setUser({ ...user, image: URL.createObjectURL(file) });
+  useEffect(() => {
+    if (!isLogin()) {
+      navigate("/login", { replace: true });
+      return undefined;
     }
-  };
 
-  const saveProfile = () => {
-    if (newPw !== confirmPw) {
-      alert("새 비밀번호가 일치하지 않습니다.");
-      return;
+    let active = true;
+    Promise.all([
+      apiClient.get("/users/me/posts", { params: { size: 100 } }),
+      apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
+    ])
+      .then(([postResponse, bookmarkResponse]) => {
+        if (!active) return;
+        setPosts(getFeedItems(unwrapApiResponse(postResponse)));
+        setBookmarks(getFeedItems(unwrapApiResponse(bookmarkResponse)));
+      })
+      .catch((requestError) => {
+        if (active) setError(getApiErrorMessage(requestError, labels.loadError));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [labels.loadError, navigate]);
+
+  const stats = useMemo(
+    () => ({
+      posts: posts.length,
+      likes: posts.reduce((total, post) => total + (post.likeCount ?? 0), 0),
+      comments: posts.reduce((total, post) => total + (post.commentCount ?? 0), 0),
+    }),
+    [posts],
+  );
+
+  const renderContent = () => {
+    if (loading) return <div className="col-span-full py-24 text-center text-sm text-muted">{labels.loading}</div>;
+    if (error) return <div className="col-span-full rounded-2xl border border-rose-200 bg-rose-50 px-5 py-10 text-center text-sm text-rose-600 dark:border-rose-900/50 dark:bg-rose-950/30">{error}</div>;
+
+    if (activeTab === 0) {
+      if (!posts.length) return <EmptyState icon={FileText} message={labels.emptyPosts} actionLabel={labels.write} onAction={() => navigate("/write")} />;
+      return posts.map((post) => <PostTile key={post.id} post={post} />);
     }
-    setUser({ ...user, name: editName, email: editEmail });
-    alert("프로필이 수정되었습니다.");
-    setEditOpen(false);
+    if (activeTab === 1) return <EmptyState icon={Heart} message={labels.unavailableLikes} />;
+    if (activeTab === 2) {
+      if (!bookmarks.length) return <EmptyState icon={Bookmark} message={labels.emptyBookmarks} />;
+      return bookmarks.map((post) => <PostTile key={post.id} post={post} />);
+    }
+    return <EmptyState icon={Users} message={labels.unavailableCrew} />;
   };
 
   return (
-      <div className="min-h-screen bg-background text-text">
-        <div className="p-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-title"> 마이페이지 </h1>
-          <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-semibold hover:text-red-600 transition">
-            <LogOut size={20} /> 로그아웃 </button>
-        </div>
+    <main className="min-h-screen bg-background px-4 pb-14 pt-24 text-foreground sm:px-6 sm:pt-28">
+      <div className="mx-auto max-w-3xl">
+        <button type="button" onClick={() => navigate(-1)} className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-primary">
+          <ArrowLeft size={16} /> {labels.back}
+        </button>
 
-        {/* 프로필 */}
-        <div className="mx-8 rounded-3xl p-8 shadow bg-card">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 rounded-full bg-primary overflow-hidden flex items-center justify-center">
-
-              {user.image ? (
-                  <img
-                      src={user.image}
-                      alt="profile"
-                      className="w-full h-full object-cover"
-                  />
-              ) : (
-                  <User size={45} color="white" />
-              )}
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-bold text-title">
-                {user.name}
-              </h2>
-              <p className="text-muted">
-                {user.email}
-              </p>
-              <button onClick={() => setEditOpen(true)}
-                      className="mt-4 bg-primary text-white font-semibold px-4 py-2 rounded-xl hover:bg-primaryHover" >
-                프로필 편집
-              </button>
-            </div>
-
-          </div>
-        </div>
-
-        {/* 메뉴 (설정 칸이 깔끔하게 제외된 영역) */}
-        <div className="mx-8 mt-8 flex flex-col gap-5">
-
-          {/* 글 작성 */}
-          <Link to="/write">
-            <Menu
-                icon={<FileText />}
-                title="글 작성"
-            />
-          </Link>
-
-          {/* 내가 작성한 글 */}
-          <Link to="/myposts">
-            <Menu
-                icon={<FileText />}
-                title="내가 작성한 글"
-            />
-          </Link>
-
-          {/* 찜한 여행 */}
-          <Menu
-              icon={<Heart />}
-              title="찜한 여행"
-          />
-
-          {/* 내 여행 지도 */}
-          <div onClick={() => alert("지도 기능은 준비 중입니다.")}>
-            <Menu
-                icon={<Map />}
-                title="내 여행 지도"
-            />
-          </div>
-
-        </div>
-
-        {/* 프로필 편집 모달 */}
-        {editOpen && (
-            <>
-              <div
-                  className="fixed inset-0 bg-black/50 z-50"
-                  onClick={() => setEditOpen(false)}
-              />
-
-              <div className="fixed inset-0 flex justify-center items-center z-50">
-                <div className="bg-card w-[450px] rounded-2xl p-8">
-                  <h2 className="text-2xl font-bold mb-6 text-title">
-                    프로필 편집
-                  </h2>
-
-                  <div className="flex flex-col items-center mb-5">
-                    <label htmlFor="profileImage" className="w-28 h-28 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition">
-                      {user.image ? (
-                          <img src={user.image} alt="preview" className="w-full h-full object-cover"/>
-                      ) : (
-                          <Camera size={40} />
-                      )}
-                    </label>
-
-                    <input
-                        id="profileImage"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImage}
-                        className="hidden"
-                    />
-                  </div>
-
-                  <label className="font-semibold text-text">
-                    닉네임
-                  </label>
-                  <input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
-                  />
-
-                  <label className="font-semibold text-text">
-                    이메일
-                  </label>
-                  <input
-                      value={editEmail}
-                      onChange={(e) => setEditEmail(e.target.value)}
-                      className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
-                  />
-
-                  <label className="font-semibold text-text">
-                    현재 비밀번호
-                  </label>
-                  <input
-                      type="password"
-                      value={currentPw}
-                      onChange={(e) => setCurrentPw(e.target.value)}
-                      className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
-                  />
-
-                  <label className="font-semibold text-text">
-                    새 비밀번호
-                  </label>
-                  <input
-                      type="password"
-                      value={newPw}
-                      onChange={(e) => setNewPw(e.target.value)}
-                      className="w-full border rounded-lg p-2 mt-2 mb-4 text-text"
-                  />
-
-                  <label className="font-semibold text-text">
-                    새 비밀번호 확인
-                  </label>
-                  <input
-                      type="password"
-                      value={confirmPw}
-                      onChange={(e) => setConfirmPw(e.target.value)}
-                      className="w-full border rounded-lg p-2 mt-2 text-text"
-                  />
-
-                  <div className="flex justify-end gap-3 mt-8">
-                    <button
-                        onClick={() => setEditOpen(false)}
-                        className="px-5 py-2 rounded-lg bg-gray-300"
-                    >
-                      취소
-                    </button>
-                    <button
-                        onClick={saveProfile}
-                        className="px-5 py-2 rounded-lg bg-primary hover:bg-primaryHover text-white font-semibold"
-                    >
-                      저장
-                    </button>
-                  </div>
-                </div>
+        <section className="mb-6 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5">
+              <div className="relative shrink-0">
+                <img
+                  src={user.image || fallbackAvatar}
+                  alt=""
+                  className="h-20 w-20 rounded-full border-4 border-secondary object-cover sm:h-24 sm:w-24"
+                  onError={(event) => {
+                    event.currentTarget.src = fallbackAvatar;
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(true)}
+                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white shadow ring-2 ring-card"
+                  aria-label={labels.editProfile}
+                >
+                  <Edit3 size={12} />
+                </button>
               </div>
-            </>
-        )}
+
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-lg font-bold sm:text-xl">{user.name}</h1>
+                <p className="truncate text-sm text-muted">{user.email}</p>
+                <dl className="mt-4 flex gap-5 sm:gap-7">
+                  {[
+                    [stats.posts, labels.posts],
+                    [stats.likes, labels.likes],
+                    [stats.comments, labels.comments],
+                  ].map(([value, label]) => (
+                    <div key={label} className="text-center">
+                      <dt className="text-xs text-muted">{label}</dt>
+                      <dd className="text-sm font-bold text-foreground sm:text-base">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="self-start rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted transition hover:border-primary/40 hover:bg-secondary hover:text-primary"
+            >
+              {labels.editProfile}
+            </button>
+          </div>
+        </section>
+
+        <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1 sm:grid-cols-4" role="tablist" aria-label="Profile content">
+          {labels.tabs.map((tab, index) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === index}
+              onClick={() => setActiveTab(index)}
+              className={`rounded-xl px-2 py-2.5 text-xs font-semibold transition ${
+                activeTab === index ? "bg-card text-primary shadow-sm" : "text-muted hover:text-foreground"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{renderContent()}</section>
       </div>
+
+      {editOpen && (
+        <ProfileEditor
+          user={user}
+          labels={labels}
+          onClose={() => setEditOpen(false)}
+          onSave={(nextUser) => {
+            setUser((current) => ({ ...current, ...nextUser }));
+            setEditOpen(false);
+          }}
+        />
+      )}
+    </main>
   );
 }
-
-function Menu({ icon, title }) {
-  return (
-      <div className="rounded-2xl p-5 shadow cursor-pointer hover:scale-[1.02] transition flex items-center gap-4 bg-card">
-        {icon}
-        <span className="font-semibold text-title">
-        {title}
-      </span>
-      </div>
-  );
-}
-
-export default MyPage;

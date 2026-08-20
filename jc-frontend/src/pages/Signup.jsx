@@ -1,153 +1,101 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
+import { getApiErrorMessage } from "../services/apiClient";
 import { signup } from "../services/auth";
 
-// 신규 사용자 회원가입 페이지다.
-function Signup(){
-
+function Signup() {
+  // 클라이언트 입력 확인 후 회원가입하며, 성공 응답의 토큰으로 즉시 로그인 상태가 됩니다.
   const navigate = useNavigate();
+  const [nickname, setNickname] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-
-  const [id,setId] = useState("");
-  const [pw,setPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [email,setEmail] = useState("");
-  const [name,setName] = useState("");
-
-
-
-  const handleSignup = ()=>{
-
-    if(!id || !pw || !email){
-      alert("모든 항목을 입력해주세요");
+  const handleSignup = async () => {
+    if (!nickname || !email || !password || !confirmPassword) {
+      alert("모든 항목을 입력해주세요.");
       return;
     }
-    if (pw !== confirmPw) {
+
+    if (password !== confirmPassword) {
       alert("비밀번호가 일치하지 않습니다.");
       return;
     }
-    
-    if (id.length < 4) {
-      alert("아이디는 4자 이상 입력해주세요.");
-      return;
-    }
-    
-    if (pw.length < 8) {
+
+    if (password.length < 8) {
       alert("비밀번호는 8자 이상 입력해주세요.");
       return;
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(email)) {
-      alert("올바른 이메일 형식을 입력해주세요.");
-      return;
+    try {
+      setSubmitting(true);
+      await signup({ email, password, nickname });
+      navigate("/feed", { replace: true });
+    } catch (error) {
+      alert(getApiErrorMessage(error, "회원가입에 실패했습니다."));
+    } finally {
+      setSubmitting(false);
     }
-    const result = signup({
-      id,
-      pw,
-      email,
-      name
-    });
-
-
-
-    if(result){
-
-      alert("회원가입 완료");
-
-      navigate("/login");
-
-    }
-    else{
-
-      alert("이미 존재하는 아이디입니다.");
-
-    }
-
   };
 
-
-
-  return(
-
-    <div className="min-h-screen flex justify-center items-center bg-slate-100">
-
-
-      <div className="bg-white p-8 rounded-2xl shadow w-[400px]">
-
-
-        <h1 className="text-3xl font-bold mb-6">
-          회원가입
-        </h1>
-
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+      <section className="w-[400px] max-w-full rounded-lg bg-white p-8 shadow">
+        <h1 className="mb-6 text-3xl font-bold text-title">회원가입</h1>
 
         <input
           placeholder="닉네임"
-          value={name}
-          onChange={(e)=>setName(e.target.value)}
-          className="w-full border p-3 mb-3 rounded"
+          value={nickname}
+          onChange={(event) => setNickname(event.target.value)}
+          className="mb-3 w-full rounded border p-3"
         />
-
-
-        <input
-          placeholder="아이디"
-          value={id}
-          onChange={(e)=>setId(e.target.value)}
-          className="w-full border p-3 mb-3 rounded"
-        />
-
 
         <input
           placeholder="이메일"
+          type="email"
           value={email}
-          onChange={(e)=>setEmail(e.target.value)}
-          className="w-full border p-3 mb-3 rounded"
+          onChange={(event) => setEmail(event.target.value)}
+          className="mb-3 w-full rounded border p-3"
         />
-
 
         <input
           type="password"
           placeholder="비밀번호"
-          value={pw}
-          onChange={(e)=>setPw(e.target.value)}
-          className="w-full border p-3 mb-5 rounded"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className="mb-3 w-full rounded border p-3"
         />
-<input
-  type="password"
-  placeholder="비밀번호 확인"
-  value={confirmPw}
-  onChange={(e) => setConfirmPw(e.target.value)}
-  className="w-full border p-3 mb-5 rounded"
-/>
 
+        <input
+          type="password"
+          placeholder="비밀번호 확인"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          className="mb-5 w-full rounded border p-3"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") handleSignup();
+          }}
+        />
 
+        <button
+          type="button"
+          onClick={handleSignup}
+          disabled={submitting}
+          className="w-full rounded-lg bg-blue-600 py-3 text-white hover:bg-blue-700 disabled:opacity-60"
+        >
+          {submitting ? "가입 중..." : "회원가입"}
+        </button>
 
-<button
-  onClick={handleSignup}
-  className="w-full bg-blue-600 text-white rounded-lg py-3 hover:bg-blue-700"
->
-  회원가입
-</button>
-
-<p className="text-center mt-4 text-sm">
-  이미 계정이 있으신가요?
-
-  <button
-    onClick={() => navigate("/login")}
-    className="text-blue-600 ml-2 hover:underline"
-  >
-    로그인
-  </button>
-</p>
-
-      </div>
-
-
-    </div>
-
+        <p className="mt-4 text-center text-sm">
+          이미 계정이 있나요?
+          <button type="button" onClick={() => navigate("/login")} className="ml-2 text-blue-600 hover:underline">
+            로그인
+          </button>
+        </p>
+      </section>
+    </main>
   );
-
 }
-
 
 export default Signup;

@@ -1,0 +1,45 @@
+name: Deploy Journey Connect
+
+on:
+  push:
+    branches:
+      - master
+##수동으로 전환할때
+#on:
+#  workflow_dispatch:
+
+concurrency:
+  group: journey-connect-production
+  cancel-in-progress: true
+
+jobs:
+  test-and-deploy:
+    name: Test and deploy
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore production environment
+        run: |
+          cp /opt/journey-connect/.env .env
+          chmod 600 .env
+
+      - name: Validate Docker Compose
+        run: docker compose --env-file .env config --quiet
+
+      - name: Build and deploy containers
+        run: |
+          docker compose --env-file .env up -d --build --remove-orphans
+
+      - name: Show deployment status
+        run: docker compose --env-file .env ps
+
+      - name: Remove unused Docker images
+        run: docker image prune -f

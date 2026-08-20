@@ -1,25 +1,26 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-    content: [
-        "./index.html",
-        "./src/**/*.{js,ts,jsx,tsx}",
-    ],
-    theme: {
-        extend: {
-            colors: {
-                primary: '#14B8A6',
-                primaryHover: '#0F766E',
-                background: '#F3FAF8',
-                card: '#FFFFFF',
-                title: '#064E4F',
-                text: '#1F2937',
-                muted: '#6B7280',
-            },
-            fontFamily: {
-                // 글로벌 폰트 가독성 설정
-                sans: ['Pretendard', 'Inter', 'sans-serif'],
-            }
-        },
+  darkMode: "class",
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {
+      colors: {
+        primary: "var(--primary)",
+        primaryHover: "var(--accent)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+        card: "var(--card)",
+        title: "var(--foreground)",
+        text: "var(--foreground)",
+        muted: "var(--muted-foreground)",
+        secondary: "var(--secondary)",
+        border: "var(--border)",
+        inputBg: "var(--input-background)",
+      },
+      fontFamily: {
+        sans: ["Pretendard", "Inter", "sans-serif"],
+      },
     },
-    plugins: [],
-}
+  },
+  plugins: [],
+};
