@@ -2,11 +2,13 @@ package com.jc.backend.crew;
 
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.post.Tag;
 import com.jc.backend.post.TagService;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionService;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
@@ -157,6 +159,7 @@ public class CrewService {
         Region region = regionService.require(request.regionCode(), request.regionName());
         boolean approvalRequired = request.approvalRequired() == null
                 || request.approvalRequired();
+        ensureTravelDateNotPassed(request.travelDate());
         Crew crew = crews.save(new Crew(
                 owner,
                 region,
@@ -176,6 +179,90 @@ public class CrewService {
                 viewer(crew, userId, CrewMemberStatus.OWNER, 1L));
     }
 
+
+    @Transactional
+    public CrewDtos.View update(
+            Long ownerId,
+            Long crewId,
+            CrewDtos.UpdateRequest request) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+
+        long memberCount = approvedMemberCount(crewId);
+        int nextCapacity = request.capacity() == null ? crew.getCapacity() : request.capacity();
+        if (nextCapacity < memberCount) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_CAPACITY_BELOW_ACTIVE_MEMBERS",
+                    "현재 참가 인원보다 정원을 작게 설정할 수 없습니다.");
+        }
+
+        Region nextRegion = crew.getRegion();
+        if (request.regionCode() != null || request.regionName() != null) {
+            nextRegion = regionService.require(request.regionCode(), request.regionName());
+        }
+
+        String nextTitle = patchedRequired(
+                request.title(),
+                crew.getTitle(),
+                "CREW_TITLE_REQUIRED",
+                "크루 제목은 비워둘 수 없습니다.");
+        String nextDescription = patchedRequired(
+                request.description(),
+                crew.getDescription(),
+                "CREW_DESCRIPTION_REQUIRED",
+                "크루 설명은 비워둘 수 없습니다.");
+        LocalDate nextTravelDate = request.travelDate() == null
+                ? crew.getTravelDate()
+                : request.travelDate();
+        if (crew.isRecruiting()) {
+            ensureTravelDateNotPassed(nextTravelDate);
+        }
+
+        String nextCoverImageUrl = request.coverImageUrl() == null
+                ? crew.getCoverImageUrl()
+                : normalizeOptional(request.coverImageUrl());
+        List<Tag> nextTags = request.tags() == null
+                ? crew.getTags()
+                : tagService.resolve(request.tags());
+
+        crew.updateDetails(
+                nextRegion,
+                nextTitle,
+                nextDescription,
+                nextTravelDate,
+                nextCapacity,
+                nextCoverImageUrl,
+                nextTags);
+        return managementView(crew, ownerId, memberCount);
+    }
+
+    @Transactional
+    public CrewDtos.View closeRecruitment(Long ownerId, Long crewId) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+        crew.closeRecruitment();
+        return managementView(crew, ownerId, approvedMemberCount(crewId));
+    }
+
+    @Transactional
+    public CrewDtos.View reopenRecruitment(Long ownerId, Long crewId) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+        ensureTravelDateNotPassed(crew.getTravelDate());
+
+        long memberCount = approvedMemberCount(crewId);
+        if (memberCount >= crew.getCapacity()) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_FULL",
+                    "정원이 가득 찬 크루는 모집을 재개할 수 없습니다.");
+        }
+
+        crew.reopenRecruitment();
+        return managementView(crew, ownerId, memberCount);
+    }
+
     /**
      * 참가 신청은 모집 중인 크루에 대해서만 허용하고, 정원이 가득 차면 거절합니다.
      * 이미 처리된 신청이 있으면 재신청이 아니라 기존 상태를 유지해 멱등하게 동작합니다.
@@ -185,6 +272,7 @@ public class CrewService {
         // 크루 행 잠금 뒤 정원을 다시 세어 동시 신청이 capacity를 넘지 않게 합니다.
         Crew crew = lockedCrew(crewId);
         ensureRecruiting(crew);
+        ensureTravelDateNotPassed(crew.getTravelDate());
         UserAccount applicant = user(userId);
 
         CrewMember existing = members.findByCrewIdAndUserId(crewId, userId).orElse(null);
@@ -287,6 +375,49 @@ public class CrewService {
             application.reject(owner);
         }
         return applicationView(application);
+    }
+
+
+    private CrewDtos.View managementView(Crew crew, Long ownerId, long memberCount) {
+        return view(
+                crew,
+                memberCount,
+                members.countByCrewIdAndStatusIn(crew.getId(), List.of(CrewMemberStatus.PENDING)),
+                crew.getTags().stream().map(Tag::getName).toList(),
+                viewer(crew, ownerId, CrewMemberStatus.OWNER, memberCount));
+    }
+
+    private String patchedRequired(
+            String requested,
+            String current,
+            String code,
+            String message) {
+        if (requested == null) {
+            return current;
+        }
+        String value = requested.trim();
+        if (value.isBlank()) {
+            throw new DomainException(HttpStatus.BAD_REQUEST, code, message);
+        }
+        return value;
+    }
+
+    private String normalizeOptional(String value) {
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private boolean travelDatePassed(LocalDate travelDate) {
+        return travelDate != null && travelDate.isBefore(LocalDate.now());
+    }
+
+    private void ensureTravelDateNotPassed(LocalDate travelDate) {
+        if (travelDatePassed(travelDate)) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_TRAVEL_DATE_PASSED",
+                    "이미 지난 여행일의 크루는 모집할 수 없습니다.");
+        }
     }
 
     private Map<Long, List<String>> tagMap(List<Long> crewIds) {
@@ -394,6 +525,7 @@ public class CrewService {
                         || effectiveStatus == CrewMemberStatus.REJECTED
                         || effectiveStatus == CrewMemberStatus.CANCELLED)
                 && crew.isRecruiting()
+                && !travelDatePassed(crew.getTravelDate())
                 && memberCount < crew.getCapacity();
         boolean canCancel = effectiveStatus == CrewMemberStatus.PENDING
                 || effectiveStatus == CrewMemberStatus.APPROVED;

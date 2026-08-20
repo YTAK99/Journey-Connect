@@ -38,6 +38,16 @@ public final class CrewDtos {
         }
     }
 
+    public record UpdateRequest(
+            @Size(max = 120) String title,
+            @Size(max = 50) String regionCode,
+            @Size(max = 100) String regionName,
+            String description,
+            LocalDate travelDate,
+            @Min(2) @Max(100) Integer capacity,
+            @Size(max = 500) String coverImageUrl,
+            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {}
+
     public record ReviewRequest(CrewMemberStatus status) {}
 
     public record View(

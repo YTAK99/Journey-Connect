@@ -59,6 +59,28 @@ public class CrewController {
         return ApiResponse.created(crewService.create(userId(token), request));
     }
 
+    @PatchMapping("/{crewId}")
+    ApiResponse<CrewDtos.View> update(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long crewId,
+            @Valid @RequestBody CrewDtos.UpdateRequest request) {
+        return ApiResponse.ok(crewService.update(userId(token), crewId, request));
+    }
+
+    @PostMapping("/{crewId}/close")
+    ApiResponse<CrewDtos.View> closeRecruitment(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long crewId) {
+        return ApiResponse.ok(crewService.closeRecruitment(userId(token), crewId));
+    }
+
+    @PostMapping("/{crewId}/reopen")
+    ApiResponse<CrewDtos.View> reopenRecruitment(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long crewId) {
+        return ApiResponse.ok(crewService.reopenRecruitment(userId(token), crewId));
+    }
+
     @PostMapping("/{crewId}/join")
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<CrewDtos.ApplicationView> join(

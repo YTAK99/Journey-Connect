@@ -109,6 +109,32 @@ public class Crew extends BaseTimeEntity {
         replaceTags(tags);
     }
 
+    public void updateDetails(
+            Region region,
+            String title,
+            String description,
+            LocalDate travelDate,
+            int capacity,
+            String coverImageUrl,
+            List<Tag> tags) {
+        this.region = region;
+        this.regionName = region.getDisplayName();
+        this.title = title;
+        this.description = description;
+        this.travelDate = travelDate;
+        this.capacity = capacity;
+        this.coverImageUrl = coverImageUrl;
+        replaceTags(tags);
+    }
+
+    public void closeRecruitment() {
+        recruiting = false;
+    }
+
+    public void reopenRecruitment() {
+        recruiting = true;
+    }
+
     public void replaceTags(List<Tag> tags) {
         this.tags.clear();
         if (tags != null) this.tags.addAll(tags);
