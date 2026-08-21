@@ -105,6 +105,13 @@ public class NotificationService {
     }
 
     @Transactional
+    public void commentReplied(long actorId, long recipientId, long postId, long replyCommentId) {
+        if (actorId == recipientId) return;
+        insert(recipientId, actorId, "comment_reply", "post", postId,
+                "comment_reply:" + replyCommentId);
+    }
+
+    @Transactional
     public void crewApplication(
             long actorId,
             long recipientId,

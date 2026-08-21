@@ -15,7 +15,10 @@ import jakarta.persistence.Table;
 
 /** 게시물에 달린 댓글과 작성자 관계를 저장하는 JPA 엔티티입니다. */
 @Entity
-@Table(name = "post_comment", indexes = @Index(name = "idx_comment_post", columnList = "post_id"))
+@Table(name = "post_comment", indexes = {
+        @Index(name = "idx_comment_post", columnList = "post_id"),
+        @Index(name = "idx_comment_parent", columnList = "parent_comment_id")
+})
 public class Comment extends BaseTimeEntity {
 
     @Id
@@ -30,23 +33,40 @@ public class Comment extends BaseTimeEntity {
     @JoinColumn(name = "author_id", nullable = false)
     private UserAccount author;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_comment_id")
+    private Comment parent;
+
     @Column(nullable = false, length = 1000)
     private String content;
 
     protected Comment() {}
 
     public Comment(JourneyPost post, UserAccount author, String content) {
+        this(post, author, content, null);
+    }
+
+    public Comment(JourneyPost post, UserAccount author, String content, Comment parent) {
         this.post = post;
         this.author = author;
         this.content = content;
+        this.parent = parent;
     }
 
     public Long getId() {
         return id;
     }
 
+    public JourneyPost getPost() {
+        return post;
+    }
+
     public UserAccount getAuthor() {
         return author;
+    }
+
+    public Comment getParent() {
+        return parent;
     }
 
     public String getContent() {
