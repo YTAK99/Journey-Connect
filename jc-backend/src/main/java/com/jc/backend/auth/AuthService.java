@@ -37,6 +37,8 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository users;
+    private final UserExternalIdentityRepository externalIdentities;
+    private final GoogleIdentityVerifier googleIdentityVerifier;
     private final RefreshTokenRepository refreshTokens;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder jwtEncoder;
@@ -49,6 +51,8 @@ public class AuthService {
 
     public AuthService(
             UserRepository users,
+            UserExternalIdentityRepository externalIdentities,
+            GoogleIdentityVerifier googleIdentityVerifier,
             RefreshTokenRepository refreshTokens,
             PasswordEncoder passwordEncoder,
             JwtEncoder jwtEncoder,
@@ -60,6 +64,8 @@ public class AuthService {
             @Value("${app.security.password-reset-expose-token:false}")
                     boolean exposePasswordResetToken) {
         this.users = users;
+        this.externalIdentities = externalIdentities;
+        this.googleIdentityVerifier = googleIdentityVerifier;
         this.refreshTokens = refreshTokens;
         this.passwordEncoder = passwordEncoder;
         this.jwtEncoder = jwtEncoder;
@@ -98,6 +104,98 @@ public class AuthService {
         }
         requireActive(user);
         return issueTokenPair(user);
+    }
+
+
+    @Transactional
+    public AuthDtos.TokenResponse googleLogin(AuthDtos.GoogleLoginRequest request) {
+        GoogleIdentity identity = googleIdentityVerifier.verify(request.idToken());
+        UserExternalIdentity linked = externalIdentities
+                .findByProviderAndProviderSubject("google", identity.subject())
+                .orElse(null);
+        if (linked != null) {
+            requireActive(linked.getUser());
+            return issueTokenPair(linked.getUser());
+        }
+
+        String email = normalizeEmail(identity.email());
+        UserAccount user = users.findByEmail(email).orElse(null);
+        if (user != null) {
+            requireActive(user);
+            if (!googleCanAutoLink(identity)) {
+                throw new DomainException(
+                        HttpStatus.CONFLICT,
+                        "GOOGLE_ACCOUNT_LINK_REQUIRED",
+                        "기존 계정으로 로그인한 뒤 Google 계정을 연결해주세요.");
+            }
+            ensureGoogleProviderAvailable(user.getId(), identity.subject());
+        } else {
+            user = new UserAccount(
+                    email,
+                    passwordEncoder.encode(randomToken()),
+                    googleNickname(identity));
+            if (hasText(identity.pictureUrl())) {
+                user.updateProfile(null, null, identity.pictureUrl().trim());
+            }
+            user = users.save(user);
+        }
+
+        externalIdentities.save(new UserExternalIdentity(
+                user,
+                "google",
+                identity.subject(),
+                email));
+        return issueTokenPair(user);
+    }
+
+    @Transactional
+    public AuthDtos.UserSummary linkGoogle(
+            long userId,
+            AuthDtos.GoogleLoginRequest request) {
+        UserAccount user = users.findById(userId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "사용자를 찾을 수 없습니다."));
+        requireActive(user);
+
+        GoogleIdentity identity = googleIdentityVerifier.verify(request.idToken());
+        UserExternalIdentity bySubject = externalIdentities
+                .findByProviderAndProviderSubject("google", identity.subject())
+                .orElse(null);
+        if (bySubject != null) {
+            if (!bySubject.getUser().getId().equals(userId)) {
+                throw new DomainException(
+                        HttpStatus.CONFLICT,
+                        "GOOGLE_ACCOUNT_ALREADY_LINKED",
+                        "이미 다른 계정에 연결된 Google 계정입니다.");
+            }
+            return summary(user);
+        }
+
+        UserExternalIdentity existingForUser = externalIdentities
+                .findByUserIdAndProvider(userId, "google")
+                .orElse(null);
+        if (existingForUser != null) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "GOOGLE_IDENTITY_ALREADY_LINKED",
+                    "이미 다른 Google 계정이 연결되어 있습니다.");
+        }
+
+        if (!normalizeEmail(user.getEmail()).equals(normalizeEmail(identity.email()))) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "GOOGLE_EMAIL_MISMATCH",
+                    "현재 계정과 Google 계정의 이메일이 일치하지 않습니다.");
+        }
+
+        externalIdentities.save(new UserExternalIdentity(
+                user,
+                "google",
+                identity.subject(),
+                normalizeEmail(identity.email())));
+        return summary(user);
     }
 
     /**
@@ -235,6 +333,56 @@ public class AuthService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
         }
+    }
+
+
+    private boolean googleCanAutoLink(GoogleIdentity identity) {
+        String email = normalizeEmail(identity.email());
+        return email.endsWith("@gmail.com") || hasText(identity.hostedDomain());
+    }
+
+    private void ensureGoogleProviderAvailable(long userId, String subject) {
+        UserExternalIdentity existing = externalIdentities
+                .findByUserIdAndProvider(userId, "google")
+                .orElse(null);
+        if (existing != null && !existing.getProviderSubject().equals(subject)) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "GOOGLE_IDENTITY_ALREADY_LINKED",
+                    "이미 다른 Google 계정이 연결되어 있습니다.");
+        }
+    }
+
+    private String googleNickname(GoogleIdentity identity) {
+        String base = hasText(identity.name())
+                ? identity.name().trim().replaceAll("\\s+", " ")
+                : normalizeEmail(identity.email()).split("@", 2)[0];
+        if (base.isBlank()) {
+            base = "traveler";
+        }
+        if (base.length() > 30) {
+            base = base.substring(0, 30);
+        }
+
+        String candidate = base + "-" + hash(identity.subject()).substring(0, 8);
+        if (!users.existsByNickname(candidate)) {
+            return candidate;
+        }
+        for (int attempt = 0; attempt < 10; attempt++) {
+            String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            candidate = base + "-" + suffix;
+            if (!users.existsByNickname(candidate)) {
+                return candidate;
+            }
+        }
+        throw new DomainException(
+                HttpStatus.CONFLICT,
+                "NICKNAME_GENERATION_FAILED",
+                "Google 계정용 닉네임을 생성할 수 없습니다.");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String normalizeEmail(String email) {

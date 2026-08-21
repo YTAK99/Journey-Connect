@@ -1,0 +1,196 @@
+diff --git a/jc-backend/src/test/java/com/jc/backend/auth/GoogleAuthIntegrationTest.java b/jc-backend/src/test/java/com/jc/backend/auth/GoogleAuthIntegrationTest.java
+index e30d174..f2e8021 100644
+--- a/jc-backend/src/test/java/com/jc/backend/auth/GoogleAuthIntegrationTest.java
++++ b/jc-backend/src/test/java/com/jc/backend/auth/GoogleAuthIntegrationTest.java
+@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
+ import com.jc.backend.common.DomainException;
+ import com.jc.backend.user.UserAccount;
+ import com.jc.backend.user.UserRepository;
++import java.util.UUID;
+ import org.junit.jupiter.api.Test;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+@@ -21,10 +22,12 @@ import org.springframework.http.HttpStatus;
+ import org.springframework.http.MediaType;
+ import org.springframework.security.crypto.password.PasswordEncoder;
+ import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.transaction.annotation.Transactional;
+ 
+ @SpringBootTest
+ @AutoConfigureMockMvc
+ @Import(GoogleAuthIntegrationTest.GoogleVerifierTestConfig.class)
++@Transactional
+ class GoogleAuthIntegrationTest {
+ 
+     @Autowired private MockMvc mockMvc;
+@@ -34,41 +37,50 @@ class GoogleAuthIntegrationTest {
+ 
+     @Test
+     void googleLoginCreatesAccountAndUsesSubjectForRepeatLogin() throws Exception {
++        String suffix = fixtureId();
++        String idToken = "new-google:" + suffix;
++        String email = "new-google-" + suffix + "@gmail.com";
++        String subject = "sub-new-google-" + suffix;
++
+         mockMvc.perform(post("/api/v1/auth/google")
+                         .contentType(MediaType.APPLICATION_JSON)
+-                        .content("{\"idToken\":\"new-google\"}"))
++                        .content("{\"idToken\":\"" + idToken + "\"}"))
+                 .andExpect(status().isOk())
+-                .andExpect(jsonPath("$.data.user.email").value("new-google@gmail.com"));
++                .andExpect(jsonPath("$.data.user.email").value(email));
+ 
+-        UserAccount created = users.findByEmail("new-google@gmail.com").orElseThrow();
++        UserAccount created = users.findByEmail(email).orElseThrow();
+         assertThat(externalIdentities
+-                .findByProviderAndProviderSubject("google", "sub-new-google")
++                .findByProviderAndProviderSubject("google", subject)
+                 .orElseThrow()
+                 .getUser()
+                 .getId()).isEqualTo(created.getId());
+ 
+         mockMvc.perform(post("/api/v1/auth/google")
+                         .contentType(MediaType.APPLICATION_JSON)
+-                        .content("{\"idToken\":\"new-google\"}"))
++                        .content("{\"idToken\":\"" + idToken + "\"}"))
+                 .andExpect(status().isOk())
+                 .andExpect(jsonPath("$.data.user.id").value(created.getId()));
+     }
+ 
+     @Test
+     void authoritativeGoogleEmailCanAutoLinkExistingLocalAccount() throws Exception {
++        String suffix = fixtureId();
++        String idToken = "existing-gmail:" + suffix;
++        String email = "existing-google-" + suffix + "@gmail.com";
++        String subject = "sub-existing-gmail-" + suffix;
+         UserAccount existing = users.save(new UserAccount(
+-                "existing-google@gmail.com",
++                email,
+                 passwordEncoder.encode("password123"),
+-                "existing-google-user"));
++                "existing-google-user-" + suffix));
+ 
+         mockMvc.perform(post("/api/v1/auth/google")
+                         .contentType(MediaType.APPLICATION_JSON)
+-                        .content("{\"idToken\":\"existing-gmail\"}"))
++                        .content("{\"idToken\":\"" + idToken + "\"}"))
+                 .andExpect(status().isOk())
+                 .andExpect(jsonPath("$.data.user.id").value(existing.getId()));
+ 
+         assertThat(externalIdentities
+-                .findByProviderAndProviderSubject("google", "sub-existing-gmail")
++                .findByProviderAndProviderSubject("google", subject)
+                 .orElseThrow()
+                 .getUser()
+                 .getId()).isEqualTo(existing.getId());
+@@ -76,32 +88,35 @@ class GoogleAuthIntegrationTest {
+ 
+     @Test
+     void nonAuthoritativeEmailRequiresAuthenticatedExplicitLink() throws Exception {
++        String suffix = fixtureId();
++        String idToken = "legacy-google:" + suffix;
++        String email = "legacy-google-" + suffix + "@example.com";
+         UserAccount existing = users.save(new UserAccount(
+-                "legacy-google@example.com",
++                email,
+                 passwordEncoder.encode("password123"),
+-                "legacy-google-user"));
++                "legacy-google-user-" + suffix));
+ 
+         mockMvc.perform(post("/api/v1/auth/google")
+                         .contentType(MediaType.APPLICATION_JSON)
+-                        .content("{\"idToken\":\"legacy-google\"}"))
++                        .content("{\"idToken\":\"" + idToken + "\"}"))
+                 .andExpect(status().isConflict())
+                 .andExpect(jsonPath("$.code").value("GOOGLE_ACCOUNT_LINK_REQUIRED"));
+ 
+         mockMvc.perform(post("/api/v1/auth/google/link")
+                         .contentType(MediaType.APPLICATION_JSON)
+-                        .content("{\"idToken\":\"legacy-google\"}"))
++                        .content("{\"idToken\":\"" + idToken + "\"}"))
+                 .andExpect(status().isUnauthorized());
+ 
+         mockMvc.perform(post("/api/v1/auth/google/link")
+                         .with(jwt().jwt(token -> token.subject(existing.getId().toString())))
+                         .contentType(MediaType.APPLICATION_JSON)
+-                        .content("{\"idToken\":\"legacy-google\"}"))
++                        .content("{\"idToken\":\"" + idToken + "\"}"))
+                 .andExpect(status().isOk())
+                 .andExpect(jsonPath("$.data.id").value(existing.getId()));
+ 
+         mockMvc.perform(post("/api/v1/auth/google")
+                         .contentType(MediaType.APPLICATION_JSON)
+-                        .content("{\"idToken\":\"legacy-google\"}"))
++                        .content("{\"idToken\":\"" + idToken + "\"}"))
+                 .andExpect(status().isOk())
+                 .andExpect(jsonPath("$.data.user.id").value(existing.getId()));
+     }
+@@ -112,30 +127,48 @@ class GoogleAuthIntegrationTest {
+         @Bean
+         @Primary
+         GoogleIdentityVerifier googleIdentityVerifier() {
+-            return idToken -> switch (idToken) {
+-                case "new-google" -> new GoogleIdentity(
+-                        "sub-new-google",
+-                        "new-google@gmail.com",
+-                        "New Google",
+-                        "https://example.com/google.png",
+-                        null);
+-                case "existing-gmail" -> new GoogleIdentity(
+-                        "sub-existing-gmail",
+-                        "existing-google@gmail.com",
+-                        "Existing Google",
+-                        null,
+-                        null);
+-                case "legacy-google" -> new GoogleIdentity(
+-                        "sub-legacy-google",
+-                        "legacy-google@example.com",
+-                        "Legacy Google",
+-                        null,
+-                        null);
+-                default -> throw new DomainException(
++            return idToken -> {
++                if (idToken.startsWith("new-google:")) {
++                    String suffix = tokenSuffix(idToken);
++                    return new GoogleIdentity(
++                            "sub-new-google-" + suffix,
++                            "new-google-" + suffix + "@gmail.com",
++                            "New Google",
++                            "https://example.com/google.png",
++                            null);
++                }
++                if (idToken.startsWith("existing-gmail:")) {
++                    String suffix = tokenSuffix(idToken);
++                    return new GoogleIdentity(
++                            "sub-existing-gmail-" + suffix,
++                            "existing-google-" + suffix + "@gmail.com",
++                            "Existing Google",
++                            null,
++                            null);
++                }
++                if (idToken.startsWith("legacy-google:")) {
++                    String suffix = tokenSuffix(idToken);
++                    return new GoogleIdentity(
++                            "sub-legacy-google-" + suffix,
++                            "legacy-google-" + suffix + "@example.com",
++                            "Legacy Google",
++                            null,
++                            null);
++                }
++                throw new DomainException(
+                         HttpStatus.UNAUTHORIZED,
+                         "INVALID_GOOGLE_ID_TOKEN",
+                         "Google ID 토큰이 유효하지 않습니다.");
+             };
+         }
++
++        private String tokenSuffix(String idToken) {
++            int separator = idToken.indexOf(':');
++            return separator < 0 ? "" : idToken.substring(separator + 1);
++        }
++    }
++
++    private String fixtureId() {
++        return UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+     }
+ }

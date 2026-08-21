@@ -54,6 +54,7 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   google:
     api-key: ${GOOGLE_API_KEY:여기에구글API키입력}
+    oauth-client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
   upload:
     directory: ${UPLOAD_DIR:./uploads/images}
   recommendation:
