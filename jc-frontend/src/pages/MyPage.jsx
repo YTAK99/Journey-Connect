@@ -15,8 +15,7 @@ import {
 import { useNavigate } from "react-router";
 import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/apiClient";
 import { getUser, isLogin } from "../services/auth";
-import { getFeedItems } from "../services/postApi";
-import useLangStore from "../store/useLangStore";
+import { getFeed, getFeedItems } from "../services/postApi";import useLangStore from "../store/useLangStore";
 
 const fallbackAvatar = "/user_1.jpg";
 const fallbackPostImage = "/ex_1.jpg";
@@ -191,6 +190,7 @@ export default function MyPage() {
   const loginUser = getUser();
   const [activeTab, setActiveTab] = useState(0);
   const [posts, setPosts] = useState([]);
+  const [likedPosts, setLikedPosts] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -211,11 +211,22 @@ export default function MyPage() {
     Promise.all([
       apiClient.get("/users/me/posts", { params: { size: 100 } }),
       apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
+      getFeed({ size: 100 }),
     ])
-      .then(([postResponse, bookmarkResponse]) => {
+      .then(([postResponse, bookmarkResponse, feedResponse]) => {
         if (!active) return;
-        setPosts(getFeedItems(unwrapApiResponse(postResponse)));
-        setBookmarks(getFeedItems(unwrapApiResponse(bookmarkResponse)));
+    
+        const myPosts = getFeedItems(unwrapApiResponse(postResponse));
+        const myBookmarks = getFeedItems(unwrapApiResponse(bookmarkResponse));
+        const feedPosts = getFeedItems(feedResponse);
+
+        console.log("피드 게시글:", feedPosts);
+
+        setPosts(myPosts);
+        setBookmarks(myBookmarks);
+    
+        // 내가 좋아요한 게시글만 골라냄
+        setLikedPosts(feedPosts.filter((post) => post.liked === true));
       })
       .catch((requestError) => {
         if (active) setError(getApiErrorMessage(requestError, labels.loadError));
@@ -246,8 +257,20 @@ export default function MyPage() {
       if (!posts.length) return <EmptyState icon={FileText} message={labels.emptyPosts} actionLabel={labels.write} onAction={() => navigate("/write")} />;
       return posts.map((post) => <PostTile key={post.id} post={post} />);
     }
-    if (activeTab === 1) return <EmptyState icon={Heart} message={labels.unavailableLikes} />;
-    if (activeTab === 2) {
+    if (activeTab === 1) {
+      if (!likedPosts.length) {
+        return (
+          <EmptyState
+            icon={Heart}
+            message="아직 좋아요한 글이 없습니다."
+          />
+        );
+      }
+    
+      return likedPosts.map((post) => (
+        <PostTile key={post.id} post={post} />
+      ));
+    }    if (activeTab === 2) {
       if (!bookmarks.length) return <EmptyState icon={Bookmark} message={labels.emptyBookmarks} />;
       return bookmarks.map((post) => <PostTile key={post.id} post={post} />);
     }

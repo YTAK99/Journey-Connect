@@ -31,13 +31,7 @@ const handleFindPassword = () => {
         <h1 className="text-3xl font-bold text-center mb-8">
           비밀번호 찾기
         </h1>
-        <input
-  type="text"
-  className="w-full border rounded-lg p-3 mb-4"
-  placeholder="아이디"
-  value={id}
-  onChange={(e) => setId(e.target.value)}
-/>
+
 
         <input
           type="email"
