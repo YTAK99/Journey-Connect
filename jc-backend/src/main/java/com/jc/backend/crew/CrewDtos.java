@@ -19,7 +19,7 @@ public final class CrewDtos {
             @Size(max = 100) String regionName,
             @NotBlank String description,
             LocalDate travelDate,
-            @Min(2) @Max(100) int capacity,
+            @Min(2) @Max(20) int capacity,
             Boolean approvalRequired,
             @Size(max = 500) String coverImageUrl,
             @Size(max = 500) String openChatUrl,
@@ -60,7 +60,7 @@ public final class CrewDtos {
             @Size(max = 100) String regionName,
             String description,
             LocalDate travelDate,
-            @Min(2) @Max(100) Integer capacity,
+            @Min(2) @Max(20) Integer capacity,
             @Size(max = 500) String coverImageUrl,
             @Size(max = 500) String openChatUrl,
             @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {

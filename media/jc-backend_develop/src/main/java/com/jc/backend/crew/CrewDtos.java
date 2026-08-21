@@ -17,7 +17,7 @@ public final class CrewDtos {
             @Size(max = 100) String regionName,
             @NotBlank String description,
             LocalDate travelDate,
-            @Min(2) @Max(100) int capacity,
+            @Min(2) @Max(20) int capacity,
             Boolean approvalRequired) {}
 
     public record ReviewRequest(CrewMemberStatus status) {}
