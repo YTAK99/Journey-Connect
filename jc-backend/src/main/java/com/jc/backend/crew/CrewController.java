@@ -3,6 +3,7 @@ package com.jc.backend.crew;
 import com.jc.backend.common.ApiResponse;
 import com.jc.backend.common.PageResponse;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -25,9 +26,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class CrewController {
 
     private final CrewService crewService;
+    private final CrewRecommendationService crewRecommendationService;
 
-    public CrewController(CrewService crewService) {
+    public CrewController(
+            CrewService crewService,
+            CrewRecommendationService crewRecommendationService) {
         this.crewService = crewService;
+        this.crewRecommendationService = crewRecommendationService;
     }
 
     @GetMapping
@@ -41,6 +46,13 @@ public class CrewController {
                 keyword,
                 region,
                 pageable));
+    }
+
+    @GetMapping("/recommended")
+    ApiResponse<List<CrewRecommendationDtos.Item>> recommended(
+            @AuthenticationPrincipal Jwt token,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.ok(crewRecommendationService.recommend(userId(token), size));
     }
 
     @GetMapping("/{crewId}")
