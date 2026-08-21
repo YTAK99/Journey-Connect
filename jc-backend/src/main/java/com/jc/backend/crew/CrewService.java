@@ -9,6 +9,7 @@ import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionService;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -164,7 +165,7 @@ public class CrewService {
         boolean approvalRequired = request.approvalRequired() == null
                 || request.approvalRequired();
         ensureTravelDateNotPassed(request.travelDate());
-        Crew crew = crews.save(new Crew(
+        Crew crew = new Crew(
                 owner,
                 region,
                 request.title().trim(),
@@ -173,7 +174,9 @@ public class CrewService {
                 request.capacity(),
                 approvalRequired,
                 request.coverImageUrl(),
-                tagService.resolve(request.tags())));
+                tagService.resolve(request.tags()));
+        crew.updateOpenChatUrl(normalizeOpenChatUrl(request.openChatUrl()));
+        crew = crews.save(crew);
         members.save(new CrewMember(crew, owner, CrewMemberStatus.OWNER));
         return view(
                 crew,
@@ -226,6 +229,9 @@ public class CrewService {
         String nextCoverImageUrl = request.coverImageUrl() == null
                 ? crew.getCoverImageUrl()
                 : normalizeOptional(request.coverImageUrl());
+        String nextOpenChatUrl = request.openChatUrl() == null
+                ? crew.getOpenChatUrl()
+                : normalizeOpenChatUrl(request.openChatUrl());
         List<Tag> nextTags = request.tags() == null
                 ? crew.getTags()
                 : tagService.resolve(request.tags());
@@ -238,6 +244,7 @@ public class CrewService {
                 nextCapacity,
                 nextCoverImageUrl,
                 nextTags);
+        crew.updateOpenChatUrl(nextOpenChatUrl);
         return managementView(crew, ownerId, memberCount);
     }
 
@@ -431,6 +438,27 @@ public class CrewService {
         return normalized.isBlank() ? null : normalized;
     }
 
+    private String normalizeOpenChatUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        try {
+            URI uri = URI.create(normalized);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || uri.getHost() == null
+                    || uri.getUserInfo() != null) {
+                throw new IllegalArgumentException("invalid open chat URL");
+            }
+            return normalized;
+        } catch (IllegalArgumentException exception) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CREW_OPEN_CHAT_URL",
+                    "오픈채팅 주소는 유효한 HTTPS URL이어야 합니다.");
+        }
+    }
+
     private boolean travelDatePassed(LocalDate travelDate) {
         return travelDate != null && travelDate.isBefore(LocalDate.now());
     }
@@ -553,13 +581,16 @@ public class CrewService {
                 && memberCount < crew.getCapacity();
         boolean canCancel = effectiveStatus == CrewMemberStatus.PENDING
                 || effectiveStatus == CrewMemberStatus.APPROVED;
+        boolean canAccessOpenChat = crew.getOpenChatUrl() != null
+                && (owner || effectiveStatus == CrewMemberStatus.APPROVED);
 
         return new CrewDtos.Viewer(
                 effectiveStatus,
                 owner,
                 canJoin,
                 canCancel,
-                owner);
+                owner,
+                canAccessOpenChat);
     }
 
     private LocalDateTime joinedOrAppliedAt(CrewMember member) {
@@ -586,6 +617,9 @@ public class CrewService {
                 crew.getRegionName(),
                 crew.getDescription(),
                 crew.getCoverImageUrl(),
+                viewer != null && viewer.canAccessOpenChat()
+                        ? crew.getOpenChatUrl()
+                        : null,
                 tags,
                 crew.getTravelDate(),
                 crew.getCapacity(),

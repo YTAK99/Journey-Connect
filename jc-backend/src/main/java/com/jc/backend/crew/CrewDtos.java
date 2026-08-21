@@ -22,7 +22,23 @@ public final class CrewDtos {
             @Min(2) @Max(100) int capacity,
             Boolean approvalRequired,
             @Size(max = 500) String coverImageUrl,
+            @Size(max = 500) String openChatUrl,
             @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {
+
+        public CreateRequest(
+                String title,
+                String regionCode,
+                String regionName,
+                String description,
+                LocalDate travelDate,
+                int capacity,
+                Boolean approvalRequired,
+                String coverImageUrl,
+                List<String> tags) {
+            this(
+                    title, regionCode, regionName, description,
+                    travelDate, capacity, approvalRequired, coverImageUrl, null, tags);
+        }
 
         public CreateRequest(
                 String title,
@@ -34,7 +50,7 @@ public final class CrewDtos {
                 Boolean approvalRequired) {
             this(
                     title, regionCode, regionName, description,
-                    travelDate, capacity, approvalRequired, null, List.of());
+                    travelDate, capacity, approvalRequired, null, null, List.of());
         }
     }
 
@@ -46,7 +62,23 @@ public final class CrewDtos {
             LocalDate travelDate,
             @Min(2) @Max(100) Integer capacity,
             @Size(max = 500) String coverImageUrl,
-            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {}
+            @Size(max = 500) String openChatUrl,
+            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {
+
+        public UpdateRequest(
+                String title,
+                String regionCode,
+                String regionName,
+                String description,
+                LocalDate travelDate,
+                Integer capacity,
+                String coverImageUrl,
+                List<String> tags) {
+            this(
+                    title, regionCode, regionName, description, travelDate,
+                    capacity, coverImageUrl, null, tags);
+        }
+    }
 
     public record ReviewRequest(CrewMemberStatus status) {}
 
@@ -57,6 +89,7 @@ public final class CrewDtos {
             String regionName,
             String description,
             String coverImageUrl,
+            String openChatUrl,
             List<String> tags,
             LocalDate travelDate,
             int capacity,
@@ -74,7 +107,8 @@ public final class CrewDtos {
             boolean owner,
             boolean canJoin,
             boolean canCancel,
-            boolean canManageApplications) {}
+            boolean canManageApplications,
+            boolean canAccessOpenChat) {}
 
     public record MyCrewItem(
             View crew,

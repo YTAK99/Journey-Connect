@@ -1,0 +1,349 @@
+diff --git a/jc-backend/src/main/java/com/jc/backend/crew/Crew.java b/jc-backend/src/main/java/com/jc/backend/crew/Crew.java
+index 1465e02..57a0e8d 100644
+--- a/jc-backend/src/main/java/com/jc/backend/crew/Crew.java
++++ b/jc-backend/src/main/java/com/jc/backend/crew/Crew.java
+@@ -55,6 +55,9 @@ public class Crew extends BaseTimeEntity {
+     @Column(name = "cover_image_url", length = 500)
+     private String coverImageUrl;
+ 
++    @Column(name = "open_chat_url", length = 500)
++    private String openChatUrl;
++
+     private LocalDate travelDate;
+ 
+     @Column(nullable = false)
+@@ -127,6 +130,10 @@ public class Crew extends BaseTimeEntity {
+         replaceTags(tags);
+     }
+ 
++    public void updateOpenChatUrl(String openChatUrl) {
++        this.openChatUrl = openChatUrl;
++    }
++
+     public void closeRecruitment() {
+         recruiting = false;
+     }
+@@ -168,6 +175,10 @@ public class Crew extends BaseTimeEntity {
+         return coverImageUrl;
+     }
+ 
++    public String getOpenChatUrl() {
++        return openChatUrl;
++    }
++
+     public List<Tag> getTags() {
+         return List.copyOf(tags);
+     }
+diff --git a/jc-backend/src/main/java/com/jc/backend/crew/CrewDtos.java b/jc-backend/src/main/java/com/jc/backend/crew/CrewDtos.java
+index 65a5c23..2e4b9cb 100644
+--- a/jc-backend/src/main/java/com/jc/backend/crew/CrewDtos.java
++++ b/jc-backend/src/main/java/com/jc/backend/crew/CrewDtos.java
+@@ -22,8 +22,24 @@ public final class CrewDtos {
+             @Min(2) @Max(100) int capacity,
+             Boolean approvalRequired,
+             @Size(max = 500) String coverImageUrl,
++            @Size(max = 500) String openChatUrl,
+             @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {
+ 
++        public CreateRequest(
++                String title,
++                String regionCode,
++                String regionName,
++                String description,
++                LocalDate travelDate,
++                int capacity,
++                Boolean approvalRequired,
++                String coverImageUrl,
++                List<String> tags) {
++            this(
++                    title, regionCode, regionName, description,
++                    travelDate, capacity, approvalRequired, coverImageUrl, null, tags);
++        }
++
+         public CreateRequest(
+                 String title,
+                 String regionCode,
+@@ -34,7 +50,7 @@ public final class CrewDtos {
+                 Boolean approvalRequired) {
+             this(
+                     title, regionCode, regionName, description,
+-                    travelDate, capacity, approvalRequired, null, List.of());
++                    travelDate, capacity, approvalRequired, null, null, List.of());
+         }
+     }
+ 
+@@ -46,7 +62,23 @@ public final class CrewDtos {
+             LocalDate travelDate,
+             @Min(2) @Max(100) Integer capacity,
+             @Size(max = 500) String coverImageUrl,
+-            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {}
++            @Size(max = 500) String openChatUrl,
++            @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags) {
++
++        public UpdateRequest(
++                String title,
++                String regionCode,
++                String regionName,
++                String description,
++                LocalDate travelDate,
++                Integer capacity,
++                String coverImageUrl,
++                List<String> tags) {
++            this(
++                    title, regionCode, regionName, description, travelDate,
++                    capacity, coverImageUrl, null, tags);
++        }
++    }
+ 
+     public record ReviewRequest(CrewMemberStatus status) {}
+ 
+@@ -57,6 +89,7 @@ public final class CrewDtos {
+             String regionName,
+             String description,
+             String coverImageUrl,
++            String openChatUrl,
+             List<String> tags,
+             LocalDate travelDate,
+             int capacity,
+@@ -74,7 +107,8 @@ public final class CrewDtos {
+             boolean owner,
+             boolean canJoin,
+             boolean canCancel,
+-            boolean canManageApplications) {}
++            boolean canManageApplications,
++            boolean canAccessOpenChat) {}
+ 
+     public record MyCrewItem(
+             View crew,
+diff --git a/jc-backend/src/main/java/com/jc/backend/crew/CrewService.java b/jc-backend/src/main/java/com/jc/backend/crew/CrewService.java
+index c1c4bc5..7e62d1f 100644
+--- a/jc-backend/src/main/java/com/jc/backend/crew/CrewService.java
++++ b/jc-backend/src/main/java/com/jc/backend/crew/CrewService.java
+@@ -9,6 +9,7 @@ import com.jc.backend.region.Region;
+ import com.jc.backend.region.RegionService;
+ import com.jc.backend.user.UserAccount;
+ import com.jc.backend.user.UserRepository;
++import java.net.URI;
+ import java.time.LocalDate;
+ import java.time.LocalDateTime;
+ import java.util.Collection;
+@@ -164,7 +165,7 @@ public class CrewService {
+         boolean approvalRequired = request.approvalRequired() == null
+                 || request.approvalRequired();
+         ensureTravelDateNotPassed(request.travelDate());
+-        Crew crew = crews.save(new Crew(
++        Crew crew = new Crew(
+                 owner,
+                 region,
+                 request.title().trim(),
+@@ -173,7 +174,9 @@ public class CrewService {
+                 request.capacity(),
+                 approvalRequired,
+                 request.coverImageUrl(),
+-                tagService.resolve(request.tags())));
++                tagService.resolve(request.tags()));
++        crew.updateOpenChatUrl(normalizeOpenChatUrl(request.openChatUrl()));
++        crew = crews.save(crew);
+         members.save(new CrewMember(crew, owner, CrewMemberStatus.OWNER));
+         return view(
+                 crew,
+@@ -228,6 +231,9 @@ public class CrewService {
+         String nextCoverImageUrl = request.coverImageUrl() == null
+                 ? crew.getCoverImageUrl()
+                 : normalizeOptional(request.coverImageUrl());
++        String nextOpenChatUrl = request.openChatUrl() == null
++                ? crew.getOpenChatUrl()
++                : normalizeOpenChatUrl(request.openChatUrl());
+         List<Tag> nextTags = request.tags() == null
+                 ? crew.getTags()
+                 : tagService.resolve(request.tags());
+@@ -240,6 +246,7 @@ public class CrewService {
+                 nextCapacity,
+                 nextCoverImageUrl,
+                 nextTags);
++        crew.updateOpenChatUrl(nextOpenChatUrl);
+         return managementView(crew, ownerId, memberCount);
+     }
+ 
+@@ -428,6 +435,27 @@ public class CrewService {
+         String normalized = value.trim();
+         return normalized.isBlank() ? null : normalized;
+     }
++
++    private String normalizeOpenChatUrl(String value) {
++        if (value == null || value.isBlank()) {
++            return null;
++        }
++        String normalized = value.trim();
++        try {
++            URI uri = URI.create(normalized);
++            if (!"https".equalsIgnoreCase(uri.getScheme())
++                    || uri.getHost() == null
++                    || uri.getUserInfo() != null) {
++                throw new IllegalArgumentException("invalid open chat URL");
++            }
++            return normalized;
++        } catch (IllegalArgumentException exception) {
++            throw new DomainException(
++                    HttpStatus.BAD_REQUEST,
++                    "INVALID_CREW_OPEN_CHAT_URL",
++                    "오픈채팅 주소는 유효한 HTTPS URL이어야 합니다.");
++        }
++    }
+ 
+     private boolean travelDatePassed(LocalDate travelDate) {
+         return travelDate != null && travelDate.isBefore(LocalDate.now());
+@@ -552,13 +580,16 @@ public class CrewService {
+                 && memberCount < crew.getCapacity();
+         boolean canCancel = effectiveStatus == CrewMemberStatus.PENDING
+                 || effectiveStatus == CrewMemberStatus.APPROVED;
++        boolean canAccessOpenChat = crew.getOpenChatUrl() != null
++                && (owner || effectiveStatus == CrewMemberStatus.APPROVED);
+ 
+         return new CrewDtos.Viewer(
+                 effectiveStatus,
+                 owner,
+                 canJoin,
+                 canCancel,
+-                owner);
++                owner,
++                canAccessOpenChat);
+     }
+ 
+     private LocalDateTime joinedOrAppliedAt(CrewMember member) {
+@@ -588,6 +619,9 @@ public class CrewService {
+                 crew.getRegionName(),
+                 crew.getDescription(),
+                 crew.getCoverImageUrl(),
++                viewer != null && viewer.canAccessOpenChat()
++                        ? crew.getOpenChatUrl()
++                        : null,
+                 tags,
+                 crew.getTravelDate(),
+                 crew.getCapacity(),
+diff --git a/jc-backend/src/main/resources/db/migration/V20__crew_open_chat.sql b/jc-backend/src/main/resources/db/migration/V20__crew_open_chat.sql
+new file mode 100644
+index 0000000..9299c19
+--- /dev/null
++++ b/jc-backend/src/main/resources/db/migration/V20__crew_open_chat.sql
+@@ -0,0 +1,3 @@
++-- 승인된 크루 멤버에게만 노출할 외부 오픈채팅 URL을 저장합니다.
++ALTER TABLE crew
++    ADD COLUMN IF NOT EXISTS open_chat_url VARCHAR(500);
+diff --git a/jc-backend/src/test/java/com/jc/backend/crew/CrewOpenChatIntegrationTest.java b/jc-backend/src/test/java/com/jc/backend/crew/CrewOpenChatIntegrationTest.java
+new file mode 100644
+index 0000000..19db28c
+--- /dev/null
++++ b/jc-backend/src/test/java/com/jc/backend/crew/CrewOpenChatIntegrationTest.java
+@@ -0,0 +1,111 @@
++package com.jc.backend.crew;
++
++import static com.jc.backend.support.TestRegionFixtures.region;
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.assertj.core.api.Assertions.assertThatThrownBy;
++
++import com.jc.backend.common.DomainException;
++import com.jc.backend.region.RegionRepository;
++import com.jc.backend.user.UserAccount;
++import com.jc.backend.user.UserRepository;
++import java.time.LocalDate;
++import java.util.List;
++import java.util.UUID;
++import org.junit.jupiter.api.Test;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.transaction.annotation.Transactional;
++
++@SpringBootTest
++@Transactional
++class CrewOpenChatIntegrationTest {
++
++    @Autowired private UserRepository users;
++    @Autowired private RegionRepository regions;
++    @Autowired private CrewService crewService;
++
++    @Test
++    void openChatUrlIsVisibleOnlyToOwnerAndApprovedMembers() {
++        String suffix = UUID.randomUUID().toString().substring(0, 8);
++        UserAccount owner = user("chat-owner-" + suffix, "chat-owner-" + suffix);
++        UserAccount applicant = user("chat-applicant-" + suffix, "chat-applicant-" + suffix);
++        UserAccount outsider = user("chat-outsider-" + suffix, "chat-outsider-" + suffix);
++        region(regions, "KR-SEOUL", "KR", "Seoul");
++        String openChatUrl = "https://open.kakao.com/o/test-" + suffix;
++
++        CrewDtos.View created = crewService.create(owner.getId(), new CrewDtos.CreateRequest(
++                "open chat crew",
++                "KR-SEOUL",
++                null,
++                "description",
++                LocalDate.now().plusDays(10),
++                4,
++                true,
++                null,
++                openChatUrl,
++                List.of()));
++
++        assertThat(created.openChatUrl()).isEqualTo(openChatUrl);
++        assertThat(created.viewer().canAccessOpenChat()).isTrue();
++
++        CrewDtos.View anonymousView = crewService.detail(created.id());
++        assertThat(anonymousView.openChatUrl()).isNull();
++        assertThat(anonymousView.viewer()).isNull();
++
++        CrewDtos.ApplicationView pending = crewService.join(applicant.getId(), created.id());
++        assertThat(pending.status()).isEqualTo(CrewMemberStatus.PENDING);
++        CrewDtos.View pendingView = crewService.detail(applicant.getId(), created.id());
++        assertThat(pendingView.openChatUrl()).isNull();
++        assertThat(pendingView.viewer().canAccessOpenChat()).isFalse();
++
++        CrewDtos.View outsiderView = crewService.detail(outsider.getId(), created.id());
++        assertThat(outsiderView.openChatUrl()).isNull();
++        assertThat(outsiderView.viewer().canAccessOpenChat()).isFalse();
++
++        crewService.review(
++                owner.getId(),
++                created.id(),
++                pending.id(),
++                new CrewDtos.ReviewRequest(CrewMemberStatus.APPROVED));
++
++        CrewDtos.View approvedView = crewService.detail(applicant.getId(), created.id());
++        assertThat(approvedView.openChatUrl()).isEqualTo(openChatUrl);
++        assertThat(approvedView.viewer().canAccessOpenChat()).isTrue();
++    }
++
++    @Test
++    void ownerCanChangeOrClearOpenChatUrlAndInvalidUrlsAreRejected() {
++        String suffix = UUID.randomUUID().toString().substring(0, 8);
++        UserAccount owner = user("chat-manage-owner-" + suffix, "chat-manage-owner-" + suffix);
++        region(regions, "KR-SEOUL", "KR", "Seoul");
++
++        CrewDtos.View created = crewService.create(owner.getId(), new CrewDtos.CreateRequest(
++                "managed chat crew",
++                "KR-SEOUL",
++                null,
++                "description",
++                LocalDate.now().plusDays(10),
++                4,
++                true));
++
++        String updatedUrl = "https://open.kakao.com/o/updated-" + suffix;
++        CrewDtos.View updated = crewService.update(owner.getId(), created.id(), new CrewDtos.UpdateRequest(
++                null, null, null, null, null, null, null, updatedUrl, null));
++        assertThat(updated.openChatUrl()).isEqualTo(updatedUrl);
++        assertThat(updated.viewer().canAccessOpenChat()).isTrue();
++
++        assertThatThrownBy(() -> crewService.update(owner.getId(), created.id(), new CrewDtos.UpdateRequest(
++                null, null, null, null, null, null, null, "http://open.kakao.com/o/insecure", null)))
++                .isInstanceOfSatisfying(DomainException.class, exception ->
++                        assertThat(exception.getCode()).isEqualTo("INVALID_CREW_OPEN_CHAT_URL"));
++
++        CrewDtos.View cleared = crewService.update(owner.getId(), created.id(), new CrewDtos.UpdateRequest(
++                null, null, null, null, null, null, null, "   ", null));
++        assertThat(cleared.openChatUrl()).isNull();
++        assertThat(cleared.viewer().canAccessOpenChat()).isFalse();
++    }
++
++    private UserAccount user(String emailPrefix, String nickname) {
++        return users.save(new UserAccount(emailPrefix + "@example.com", "hash", nickname));
++    }
++}

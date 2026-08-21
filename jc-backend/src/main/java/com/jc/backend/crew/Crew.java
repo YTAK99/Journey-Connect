@@ -55,6 +55,9 @@ public class Crew extends BaseTimeEntity {
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
 
+    @Column(name = "open_chat_url", length = 500)
+    private String openChatUrl;
+
     private LocalDate travelDate;
 
     @Column(nullable = false)
@@ -127,6 +130,10 @@ public class Crew extends BaseTimeEntity {
         replaceTags(tags);
     }
 
+    public void updateOpenChatUrl(String openChatUrl) {
+        this.openChatUrl = openChatUrl;
+    }
+
     public void closeRecruitment() {
         recruiting = false;
     }
@@ -166,6 +173,10 @@ public class Crew extends BaseTimeEntity {
 
     public String getCoverImageUrl() {
         return coverImageUrl;
+    }
+
+    public String getOpenChatUrl() {
+        return openChatUrl;
     }
 
     public List<Tag> getTags() {
