@@ -48,6 +48,7 @@ public class CrewService {
     private final RegionService regionService;
     private final TagService tagService;
     private final NotificationService notificationService;
+    private final CrewRecommendationFeedbackService recommendationFeedback;
 
     public CrewService(
             CrewRepository crews,
@@ -55,13 +56,15 @@ public class CrewService {
             UserRepository users,
             RegionService regionService,
             TagService tagService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            CrewRecommendationFeedbackService recommendationFeedback) {
         this.crews = crews;
         this.members = members;
         this.users = users;
         this.regionService = regionService;
         this.tagService = tagService;
         this.notificationService = notificationService;
+        this.recommendationFeedback = recommendationFeedback;
     }
 
     public PageResponse<CrewDtos.View> list(Pageable pageable) {
@@ -315,6 +318,8 @@ public class CrewService {
                     crewId,
                     application.getId(),
                     LocalDateTime.now());
+        } else {
+            recommendationFeedback.recordApprovedJoin(userId, crewId);
         }
         return applicationView(application);
     }
@@ -390,6 +395,7 @@ public class CrewService {
                         "크루 정원이 가득 찼습니다.");
             }
             application.approve(owner);
+            recommendationFeedback.recordApprovedJoin(application.getUser().getId(), crewId);
             notificationService.crewApproved(
                     ownerId,
                     application.getUser().getId(),
