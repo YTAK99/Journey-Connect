@@ -52,7 +52,26 @@ class CrewRecommendationScorerTest {
 
         assertThat(first).isEqualTo(repeated);
         assertThat(first.value()).isGreaterThan(other.value());
-        assertThat(first.reasons()).contains("REGION_MATCH", "TAG_MATCH");
+        assertThat(first.reasons()).contains(
+                CrewRecommendationReason.REGION_MATCH,
+                CrewRecommendationReason.TAG_MATCH);
+    }
+
+    @Test
+    void neutralOldSparseCrewStillHasStableFallbackReason() {
+        LocalDateTime referenceTime = LocalDateTime.of(2026, 8, 21, 12, 0);
+        Candidate candidate = new Candidate(
+                99L, "neutral", "UNKNOWN", "Unknown", "description",
+                null, null, 20, 1, 0, true, 199L, "owner",
+                referenceTime.minusDays(120), null, List.of());
+
+        CrewRecommendationScorer.Score score = scorer.score(
+                candidate,
+                Map.of(),
+                referenceTime);
+
+        assertThat(score.reasons())
+                .containsExactly(CrewRecommendationReason.GENERAL_RECOMMENDATION);
     }
 
     private Candidate candidate(

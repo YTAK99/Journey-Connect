@@ -61,7 +61,9 @@ class CrewRecommendationFeedbackIntegrationTest {
         List<CrewRecommendationDtos.Item> recommendations = recommendationService.recommend(member.getId(), 10);
         assertThat(recommendations).isNotEmpty();
         assertThat(recommendations.get(0).crew().id()).isEqualTo(similar.id());
-        assertThat(recommendations.get(0).reasons()).contains("REGION_MATCH", "TAG_MATCH");
+        assertThat(recommendations.get(0).reasons()).contains(
+                CrewRecommendationReason.REGION_MATCH,
+                CrewRecommendationReason.TAG_MATCH);
 
         crewService.cancelJoin(member.getId(), source.id());
         crewService.join(member.getId(), source.id());
