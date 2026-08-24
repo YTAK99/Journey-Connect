@@ -5,6 +5,7 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, getExplore, getFeed, getFeedItems, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
+import { parseApiDate } from "../utils/dateTime";
 import useLangStore from "../store/useLangStore";
 import TagChips from "./TagChips";
 
@@ -13,7 +14,7 @@ const fallbackAvatar = "/user_1.jpg";
 
 const getRelativeDate = (createdAt) => {
   if (!createdAt) return "방금 전";
-  const date = new Date(createdAt);
+  const date = parseApiDate(createdAt);
   if (Number.isNaN(date.getTime())) return String(createdAt).slice(0, 10);
 
   const diffMs = Date.now() - date.getTime();
