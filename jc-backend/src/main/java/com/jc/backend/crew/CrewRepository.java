@@ -92,6 +92,12 @@ public interface CrewRepository extends JpaRepository<Crew, Long> {
             """, nativeQuery = true)
     List<CrewTagProjection> findTagsByCrewIds(@Param("crewIds") List<Long> crewIds);
 
+    @Query("""
+            select count(c) from Crew c
+            where c.owner.id = :ownerId and c.recruiting = true
+            """)
+    long countRecruitingByOwnerId(@Param("ownerId") Long ownerId);
+
     /** 동일 크루의 정원 판정과 승인 처리를 직렬화합니다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE) // 마지막 한 자리의 동시 승인/참가를 직렬화합니다.
     @Query("select c from Crew c where c.id = :crewId")

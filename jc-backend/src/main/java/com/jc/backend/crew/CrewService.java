@@ -41,6 +41,7 @@ public class CrewService {
             List.of(CrewMemberStatus.OWNER, CrewMemberStatus.PENDING, CrewMemberStatus.APPROVED);
     private static final Collection<CrewMemberStatus> MY_CREW_STATUSES =
             List.of(CrewMemberStatus.OWNER, CrewMemberStatus.APPROVED, CrewMemberStatus.PENDING);
+    private static final int MAX_RECRUITING_OWNED_CREWS = 3;
 
     private final CrewRepository crews;
     private final CrewMemberRepository members;
@@ -160,7 +161,8 @@ public class CrewService {
 
     @Transactional
     public CrewDtos.View create(Long userId, CrewDtos.CreateRequest request) {
-        UserAccount owner = user(userId);
+        UserAccount owner = lockedUser(userId);
+        ensureOwnedRecruitingLimit(userId);
         Region region = regionService.require(request.regionCode(), request.regionName());
         boolean approvalRequired = request.approvalRequired() == null
                 || request.approvalRequired();
@@ -268,6 +270,10 @@ public class CrewService {
                     HttpStatus.CONFLICT,
                     "CREW_FULL",
                     "정원이 가득 찬 크루는 모집을 재개할 수 없습니다.");
+        }
+        if (!crew.isRecruiting()) {
+            lockedUser(ownerId);
+            ensureOwnedRecruitingLimit(ownerId);
         }
 
         crew.reopenRecruitment();
@@ -511,6 +517,15 @@ public class CrewService {
         return members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES);
     }
 
+    private void ensureOwnedRecruitingLimit(Long ownerId) {
+        if (crews.countRecruitingByOwnerId(ownerId) >= MAX_RECRUITING_OWNED_CREWS) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_OWNER_ACTIVE_LIMIT_EXCEEDED",
+                    "한 사용자는 모집 중인 크루를 최대 3개까지 개설할 수 있습니다.");
+        }
+    }
+
     private String normalizeSearch(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -551,6 +566,14 @@ public class CrewService {
                 HttpStatus.NOT_FOUND,
                 "CREW_NOT_FOUND",
                 "크루를 찾을 수 없습니다.");
+    }
+
+    private UserAccount lockedUser(Long userId) {
+        return users.findByIdForUpdate(userId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "사용자를 찾을 수 없습니다."));
     }
 
     private UserAccount user(Long userId) {
