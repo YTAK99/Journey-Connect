@@ -71,6 +71,7 @@ function FeedItem({ post }) {
     try {
       if (nextLiked) await likePost(post.id);
       else await unlikePost(post.id);
+      window.dispatchEvent(new Event("likeChanged"));
     } catch (error) {
       setLiked(!nextLiked);
       setLikeCount((count) => Math.max(0, count + (nextLiked ? -1 : 1)));
