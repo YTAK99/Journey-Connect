@@ -33,18 +33,21 @@ public class CrewRecommendationScorer {
                 + CrewRecommendationPolicy.BALANCE_WEIGHT * balance
                 + CrewRecommendationPolicy.FRESHNESS_WEIGHT * freshness;
 
-        List<String> reasons = new ArrayList<>();
+        List<CrewRecommendationReason> reasons = new ArrayList<>();
         if (regionAffinity > 0.5d) {
-            reasons.add("REGION_MATCH");
+            reasons.add(CrewRecommendationReason.REGION_MATCH);
         }
         if (tagAffinity > 0.5d) {
-            reasons.add("TAG_MATCH");
+            reasons.add(CrewRecommendationReason.TAG_MATCH);
         }
         if (balance >= 0.75d) {
-            reasons.add("GOOD_CAPACITY");
+            reasons.add(CrewRecommendationReason.GOOD_CAPACITY);
         }
         if (freshness >= 0.75d) {
-            reasons.add("FRESH_CREW");
+            reasons.add(CrewRecommendationReason.FRESH_CREW);
+        }
+        if (reasons.isEmpty()) {
+            reasons.add(CrewRecommendationReason.GENERAL_RECOMMENDATION);
         }
         return new Score(round4(clamp(total)), reasons);
     }
@@ -104,7 +107,7 @@ public class CrewRecommendationScorer {
         return Math.round(value * 10_000.0d) / 10_000.0d;
     }
 
-    public record Score(double value, List<String> reasons) {
+    public record Score(double value, List<CrewRecommendationReason> reasons) {
         public Score {
             reasons = List.copyOf(reasons);
         }

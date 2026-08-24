@@ -10,10 +10,12 @@ public final class CrewRecommendationDtos {
     public record Item(
             CrewDtos.View crew,
             double score,
-            List<String> reasons) {
+            List<CrewRecommendationReason> reasons,
+            String policyVersion) {
 
         public Item {
             reasons = List.copyOf(reasons);
+            if (policyVersion == null || policyVersion.isBlank()) throw new IllegalArgumentException("policyVersion must not be blank");
         }
     }
 }

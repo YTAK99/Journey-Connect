@@ -85,7 +85,8 @@ public class CrewRecommendationService {
                 .map(item -> new CrewRecommendationDtos.Item(
                         view(item.candidate()),
                         item.score().value(),
-                        item.score().reasons()))
+                        item.score().reasons(),
+                        CrewRecommendationPolicy.VERSION))
                 .toList();
     }
 

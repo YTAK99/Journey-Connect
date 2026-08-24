@@ -78,7 +78,8 @@ class CrewRecommendationIntegrationTest {
                 .andExpect(jsonPath("$.data[0].crew.id").value(preferred.id()))
                 .andExpect(jsonPath("$.data[0].crew.travelDate").value(nullValue()))
                 .andExpect(jsonPath("$.data[0].reasons", hasItem("REGION_MATCH")))
-                .andExpect(jsonPath("$.data[0].reasons", hasItem("TAG_MATCH")));
+                .andExpect(jsonPath("$.data[0].reasons", hasItem("TAG_MATCH")))
+                .andExpect(jsonPath("$.data[0].policyVersion").value("crew-recommendation-v1"));
 
         mockMvc.perform(get("/api/v1/crews/recommended"))
                 .andExpect(status().isUnauthorized());
