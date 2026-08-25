@@ -57,6 +57,11 @@ public class GoogleLocationService {
     }
 
     public List<GoogleLocationDtos.LocationSuggestion> suggest(String query, String languageCode) {
+        return suggest(query, languageCode, "region");
+    }
+
+    public List<GoogleLocationDtos.LocationSuggestion> suggest(
+            String query, String languageCode, String scope) {
         // 도시·행정구역 중심의 후보만 받아 작성 화면에서 임의 문자열 대신 Place ID를 선택하게 합니다.
         if (query == null || query.trim().length() < 2) {
             return List.of();
@@ -65,14 +70,15 @@ public class GoogleLocationService {
             throw new DomainException(HttpStatus.INTERNAL_SERVER_ERROR, "GOOGLE_API_KEY_MISSING", "Google API key is not configured.");
         }
 
-        URI uri = UriComponentsBuilder
+        UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString("https://maps.googleapis.com/maps/api/place/autocomplete/json")
                 .queryParam("input", query.trim())
-                .queryParam("types", "(regions)")
                 .queryParam("language", normalizeLanguage(languageCode))
-                .queryParam("key", apiKey)
-                .build()
-                .toUri();
+                .queryParam("key", apiKey);
+        if (!"place".equalsIgnoreCase(scope)) {
+            builder.queryParam("types", "(regions)");
+        }
+        URI uri = builder.build().toUri();
 
         JsonNode body = get(uri, "Places Autocomplete");
         if (!"OK".equals(body.path("status").asText()) && !"ZERO_RESULTS".equals(body.path("status").asText())) {

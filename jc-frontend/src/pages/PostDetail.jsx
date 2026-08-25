@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
+import PostRouteMap from "../components/PostRouteMap";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
 import { deletePost, getPost, getPostAnalysis } from "../services/postApi";
@@ -106,7 +107,8 @@ function PostDetail() {
   const isAuthor = String(currentUser?.id) === String(post.author?.id);
   const location = getLocalizedRegionName(post, currentLang);
   // 대표 이미지는 상단 히어로에서 이미 사용하므로 본문 갤러리에서는 중복 노출하지 않습니다.
-  const galleryImages = (post.images || []).filter((image) => image.imageUrl !== post.coverImageUrl);
+  const galleryImages = post.images || [];
+  const routePlaces = Array.isArray(post.places) ? post.places : [];
   const hasTravelDates = post.travelStartDate || post.travelEndDate;
   const currentAnalysis =
     analysis?.postId === String(id)
@@ -214,10 +216,33 @@ function PostDetail() {
             )}
 
             {/* 저장 시 백엔드에서 허용된 HTML만 남기므로 정제된 리치 텍스트를 그대로 렌더링합니다. */}
-            <div
-              className="rich-text-content mx-auto max-w-3xl py-10 text-[1.05rem] leading-8 text-slate-700 dark:text-slate-200 sm:py-14 sm:text-lg sm:leading-9"
-              dangerouslySetInnerHTML={{ __html: normalizeEditorContent(post.content || "") }}
-            />
+            {routePlaces.length > 0 ? (
+              <section className="space-y-10 py-10 sm:py-14">
+                {routePlaces.map((place, placeIndex) => (
+                  <article key={place.id || `${place.placeName}-${placeIndex}`} className="mx-auto max-w-3xl">
+                    <header className="mb-5 flex items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500 text-sm font-extrabold text-white">{placeIndex + 1}</span>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Stop {placeIndex + 1}</p>
+                        <h2 className="text-xl font-extrabold text-title sm:text-2xl">{place.placeName || place.region?.displayName}</h2>
+                      </div>
+                    </header>
+                    {(place.images || []).length > 0 && (
+                      <div className="mb-6 grid grid-cols-2 gap-3">
+                        {place.images.map((image, imageIndex) => (
+                          <img key={image.id || image.imageUrl} src={image.imageUrl} alt={image.altText || `${place.placeName} ${imageIndex + 1}`} className={`w-full rounded-2xl object-cover ${imageIndex === 0 && place.images.length > 1 ? "col-span-2 max-h-[32rem]" : "h-52 sm:h-64"}`} />
+                        ))}
+                      </div>
+                    )}
+                    <div className="rich-text-content text-[1.05rem] leading-8 text-slate-700 dark:text-slate-200 sm:text-lg sm:leading-9" dangerouslySetInnerHTML={{ __html: normalizeEditorContent(place.content || "") }} />
+                  </article>
+                ))}
+              </section>
+            ) : (
+              <div className="rich-text-content mx-auto max-w-3xl py-10 text-[1.05rem] leading-8 text-slate-700 dark:text-slate-200 sm:py-14 sm:text-lg sm:leading-9" dangerouslySetInnerHTML={{ __html: normalizeEditorContent(post.content || "") }} />
+            )}
+
+            <PostRouteMap places={routePlaces} lang={currentLang} />
 
             {galleryImages.length > 0 && (
               <section className="border-t border-slate-100 pt-9 dark:border-slate-800">

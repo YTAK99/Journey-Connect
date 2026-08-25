@@ -42,14 +42,14 @@ const createCustomRegion = (name, summary = null) => ({
   custom: true,
 });
 
-export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
+export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searchMode = "region" }) {
   // 고정 지역 목록과 Google 자동완성 결과를 하나의 선택 UI로 합칩니다.
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [suggestionError, setSuggestionError] = useState("");
   const { currentLang } = useLangStore();
-  const filtered = REGIONS.filter((region) => {
+  const filtered = searchMode === "place" ? [] : REGIONS.filter((region) => {
     const q = query.toLowerCase();
     return region.label.ko.includes(query) || region.label.en.toLowerCase().includes(q);
   });
@@ -63,7 +63,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
 
     let active = true;
     const timer = setTimeout(() => {
-      getGoogleLocationSuggestions(trimmed, currentLang === "ko" ? "ko" : "en")
+      getGoogleLocationSuggestions(trimmed, currentLang === "ko" ? "ko" : "en", searchMode)
         .then((items) => {
           if (active) setSuggestions(Array.isArray(items) ? items : []);
         })
@@ -85,7 +85,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
       active = false;
       clearTimeout(timer);
     };
-  }, [currentLang, query]);
+  }, [currentLang, query, searchMode]);
 
   const visibleSuggestions = query.trim().length >= 2 ? suggestions : [];
 
@@ -120,7 +120,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl dark:bg-slate-900" onClick={(event) => event.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 dark:text-slate-100">{currentLang === "ko" ? "지역 선택" : "Select Region"}</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-slate-100">{searchMode === "place" ? (currentLang === "ko" ? "방문 장소 검색" : "Search a place") : (currentLang === "ko" ? "지역 선택" : "Select Region")}</h3>
           <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800">
             <X size={14} />
           </button>
@@ -143,7 +143,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
                   setSuggestionLoading(true);
                 }
               }}
-              placeholder={currentLang === "ko" ? "도시명 검색..." : "Search city..."}
+              placeholder={searchMode === "place" ? (currentLang === "ko" ? "카페, 식당, 관광지명을 검색하세요" : "Search cafés, restaurants, attractions") : (currentLang === "ko" ? "도시명 검색..." : "Search city...")}
               className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-8 pr-3 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>

@@ -28,7 +28,8 @@ public class GoogleLocationController {
     @GetMapping("/location-suggestions")
     ApiResponse<List<GoogleLocationDtos.LocationSuggestion>> locationSuggestions(
             @RequestParam String query,
-            @RequestParam(defaultValue = "ko") String languageCode) {
-        return ApiResponse.ok(googleLocationService.suggest(query, languageCode));
+            @RequestParam(defaultValue = "ko") String languageCode,
+            @RequestParam(defaultValue = "region") String scope) {
+        return ApiResponse.ok(googleLocationService.suggest(query, languageCode, scope));
     }
 }
