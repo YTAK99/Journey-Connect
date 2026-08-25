@@ -154,16 +154,28 @@ public class PostService {
 
     @Transactional
     public PostDtos.Detail create(Long userId, PostDtos.CreateRequest request) {
+        List<JourneyPost.PostPlaceData> placeData = placeData(request.places());
         Region region = regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId());
+        String content = placeData.isEmpty()
+                ? richTextSanitizer.sanitizeRequired(request.content())
+                : aggregateContent(placeData);
         JourneyPost post = new JourneyPost(
                 user(userId),
                 region,
                 request.title().trim(),
-                richTextSanitizer.sanitizeRequired(request.content()));
+                content);
         validateTravelDates(request.travelStartDate(), request.travelEndDate());
         post.updateTravelDates(request.travelStartDate(), request.travelEndDate());
         post.replaceTags(tagService.resolve(request.tags()));
-        post.replaceImages(imageData(request.images(), request.coverImageUrl()));
+        if (placeData.isEmpty()) {
+            post.replacePlaces(List.of(new JourneyPost.PostPlaceData(
+                    region,
+                    content,
+                    imageData(request.images(), request.coverImageUrl()))));
+        } else {
+            post.replacePlaces(placeData);
+        }
+        selectCover(post, request.coverImageUrl());
         JourneyPost saved = posts.save(post);
         enqueueContentAnalysis(saved);
         return detailView(saved, userId);
@@ -175,10 +187,13 @@ public class PostService {
             Long postId,
             PostDtos.UpdateRequest request) {
         JourneyPost post = ownedPost(userId, postId);
+        List<JourneyPost.PostPlaceData> placeData = placeData(request.places());
         Region region = hasText(request.regionCode()) || hasText(request.regionName()) || hasText(request.regionPlaceId())
                 ? regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId())
                 : null;
-        String sanitizedContent = request.content() == null
+        String sanitizedContent = !placeData.isEmpty()
+                ? aggregateContent(placeData)
+                : request.content() == null
                 ? null
                 : richTextSanitizer.sanitizeRequired(request.content());
         post.update(request.title(), sanitizedContent, region, request.published());
@@ -189,10 +204,20 @@ public class PostService {
         }
 
         // images가 전달되면 전체 교체합니다. 빈 배열은 이미지 전체 삭제를 의미합니다.
-        if (request.images() != null) {
-            post.replaceImages(imageData(request.images(), null));
-        } else if (request.coverImageUrl() != null) {
-            post.replaceImages(imageData(null, request.coverImageUrl()));
+        if (!placeData.isEmpty()) {
+            post.replacePlaces(placeData);
+            selectCover(post, request.coverImageUrl());
+        } else if (sanitizedContent != null || region != null
+                || request.images() != null || request.coverImageUrl() != null) {
+            List<JourneyPost.PostImageData> legacyImages = request.images() != null
+                    ? imageData(request.images(), null)
+                    : request.coverImageUrl() != null
+                    ? imageData(null, request.coverImageUrl())
+                    : currentImageData(post);
+            post.replacePlaces(List.of(new JourneyPost.PostPlaceData(
+                    post.getRegion(),
+                    post.getContent(),
+                    legacyImages)));
         }
         enqueueContentAnalysis(post);
         return detailView(post, userId);
@@ -441,7 +466,29 @@ public class PostService {
                 bookmarked,
                 author(post.getAuthor()),
                 post.getCreatedAt(),
-                post.getUpdatedAt());
+                post.getUpdatedAt(),
+                post.getPlaces().stream().map(place -> placeView(post, place)).toList());
+    }
+
+    private PostDtos.PlaceView placeView(JourneyPost post, PostPlace place) {
+        List<PostImage> placeImages = post.getImages().stream()
+                .filter(image -> samePlace(image.getPlace(), place)
+                        || (image.getPlace() == null && place.getSortOrder() == 0))
+                .toList();
+        return new PostDtos.PlaceView(
+                place.getId(),
+                regionView(place.getRegion()),
+                place.getPlaceName(),
+                place.getLatitude(),
+                place.getLongitude(),
+                place.getContent(),
+                place.getSortOrder(),
+                placeImages.stream().map(this::imageView).toList());
+    }
+
+    private boolean samePlace(PostPlace left, PostPlace right) {
+        if (left == right) return true;
+        return left != null && right != null && left.getId() != null && left.getId().equals(right.getId());
     }
 
     private PostDtos.ImageView imageView(PostImage image) {
@@ -486,6 +533,49 @@ public class PostService {
             return List.of(new JourneyPost.PostImageData(legacyCoverImageUrl.trim(), null));
         }
         return List.of();
+    }
+
+    private List<JourneyPost.PostImageData> currentImageData(JourneyPost post) {
+        return post.getImages().stream()
+                .map(image -> new JourneyPost.PostImageData(image.getImageUrl(), image.getAltText()))
+                .toList();
+    }
+
+    private void selectCover(JourneyPost post, String coverImageUrl) {
+        if (!post.selectCoverImage(coverImageUrl)) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_COVER_IMAGE",
+                    "대표 사진은 게시글에 첨부된 사진 중에서 선택해야 합니다.");
+        }
+    }
+
+    private List<JourneyPost.PostPlaceData> placeData(List<PostDtos.PlaceRequest> places) {
+        if (places == null) {
+            return List.of();
+        }
+        return places.stream()
+                .map(place -> {
+                    Region placeRegion = regionService.require(
+                            place.regionCode(), place.regionName(), place.regionPlaceId());
+                    if (placeRegion.getCenter() == null) {
+                        throw new DomainException(
+                                HttpStatus.BAD_REQUEST,
+                                "PLACE_COORDINATES_REQUIRED",
+                                "장소의 지도 좌표를 확인할 수 없습니다.");
+                    }
+                    return new JourneyPost.PostPlaceData(
+                            placeRegion,
+                            richTextSanitizer.sanitizeRequired(place.content()),
+                            imageData(place.images(), null));
+                })
+                .toList();
+    }
+
+    private String aggregateContent(List<JourneyPost.PostPlaceData> places) {
+        return places.stream()
+                .map(JourneyPost.PostPlaceData::content)
+                .collect(Collectors.joining("\n"));
     }
 
     private boolean hasText(String value) {
