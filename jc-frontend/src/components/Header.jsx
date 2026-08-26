@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-
 import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";
+import bellIcon from "../assets/bell.svg";
 
 // 상단 내비게이션 바에 표시될 메뉴 항목들 (피드, 탐색, 크루)과 다국어 지원 라벨
 const navItems = [
@@ -178,6 +179,13 @@ export default function Header() {
 
           {/* 우측 유저 프로필, 설정 버튼, 모바일 햄버거 메뉴 버튼 영역 */}
           <div className="flex items-center space-x-3 md:order-3">
+
+            {/*  알람 버튼 */}
+            <button className = "cursor-pointer">
+              <img src = {bellIcon} alt ="알람" className="w-6 h-6"/>
+            </button>
+
+
             {/* 프로필 이미지 버튼 */}
             <button
                 type="button"
