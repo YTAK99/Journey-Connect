@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
-import { bookmarkPost, getExplore, getFeed, getFeedItems, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
+import { bookmarkPost, getExplore, getFeed, getFeedItems, getPost, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
 import { parseApiDate } from "../utils/dateTime";
 import TagChips from "./TagChips";
 import { translate } from "../i18n";
 import useTranslation from "../i18n/useTranslation";
+import CommentSection from "./CommentSection";
+import PostRouteMap from "./PostRouteMap";
 
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
@@ -36,9 +38,11 @@ const getRelativeDate = (createdAt, language) => {
 };
 
 function FeedItem({ post }) {
-  // 게시물 한 건의 작성자·본문·반응 정보를 카드로 표현하고 좋아요·북마크 상태를 관리합니다.
+  // 피드 카드에 목록 응답과 상세 응답을 합쳐 다중 이미지와 여행 루트까지 함께 표시합니다.
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
+  const [detailedPost, setDetailedPost] = useState(post);
+  const [isCommentOpen, setIsCommentOpen] = useState(false);
   const [liked, setLiked] = useState(Boolean(post.liked));
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
@@ -46,7 +50,31 @@ function FeedItem({ post }) {
   const [analysis, setAnalysis] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
-  const location = getLocalizedRegionName(post, currentLang);
+  useEffect(() => {
+    let active = true;
+    getPost(post.id)
+      .then((detail) => {
+        if (!active || !detail) return;
+        // 목록 응답의 반응 상태를 보존하면서 상세 장소·이미지 데이터를 보강합니다.
+        setDetailedPost((current) => ({ ...current, ...detail }));
+      })
+      .catch(() => {
+        // 상세 보강에 실패해도 목록 카드 자체는 계속 사용할 수 있게 유지합니다.
+      });
+    return () => { active = false; };
+  }, [post.id]);
+
+  const location = getLocalizedRegionName(detailedPost, currentLang);
+  const rawImages = detailedPost.images?.length
+    ? detailedPost.images
+    : detailedPost.coverImageUrl
+      ? [detailedPost.coverImageUrl]
+      : detailedPost.image
+        ? [detailedPost.image]
+        : [];
+  const images = rawImages
+    .map((image) => typeof image === "string" ? image : image?.imageUrl || image?.url)
+    .filter(Boolean);
   const summary =
     analysis?.status === "succeeded"
       ? analysis.result?.summary?.trim() || ""
@@ -114,21 +142,21 @@ function FeedItem({ post }) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-lg overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
+    <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
       <div className="px-5 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <img
-              src={post.author?.profileImageUrl || fallbackAvatar}
+              src={detailedPost.author?.profileImageUrl || fallbackAvatar}
               alt=""
               className="h-10 w-10 rounded-full object-cover"
             />
             <div>
               <h3 className="text-base font-semibold leading-5 text-gray-900 dark:text-slate-100">
-                {post.author?.nickname || t("post.traveler")}
+                {detailedPost.author?.nickname || t("post.traveler")}
               </h3>
               <p className="text-sm leading-5 text-gray-500 dark:text-slate-400">
-                {location} · {getRelativeDate(post.createdAt, currentLang)}
+                {location} · {getRelativeDate(detailedPost.createdAt, currentLang)}
               </p>
             </div>
           </div>
@@ -138,14 +166,22 @@ function FeedItem({ post }) {
         </div>
       </div>
 
-      <div className="h-64 w-full overflow-hidden px-5">
-        <img
-          src={post.coverImageUrl || post.image || fallbackImage}
-          alt={post.title}
-          className="h-full w-full cursor-pointer rounded-lg object-cover"
-          onClick={() => navigate(`/post/${post.id}`)}
-        />
-      </div>
+      {/* 최대 네 장을 같은 비율로 보여주고, 나머지는 마지막 이미지 위에 개수로 표시합니다. */}
+      {images.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 px-6 pt-5 sm:grid-cols-4">
+          {images.slice(0, 4).map((imageUrl, index) => (
+            <button key={`${imageUrl}-${index}`} type="button" className="relative h-40 overflow-hidden rounded-lg" onClick={() => navigate(`/post/${detailedPost.id}`)}>
+              <img src={imageUrl || fallbackImage} alt={t("feed.imageAlt", { index: index + 1 })} className="h-full w-full object-cover transition hover:scale-105" />
+              {index === 3 && images.length > 4 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-lg font-bold text-white">+{images.length - 4}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 상세 응답의 방문 장소를 기존 루트 지도 카드로 재사용합니다. */}
+      <div className="px-7"><PostRouteMap places={detailedPost.places || []} lang={currentLang} /></div>
 
       <div className="flex items-center justify-between px-5 pt-4">
         <div className="flex items-center gap-4">
@@ -158,7 +194,7 @@ function FeedItem({ post }) {
           >
             <Heart size={24} fill={liked ? "currentColor" : "none"} strokeWidth={1.5} />
           </button>
-          <button type="button" className="flex items-center gap-1 text-gray-700 transition-colors hover:text-blue-500 dark:text-slate-300">
+          <button type="button" onClick={() => setIsCommentOpen((open) => !open)} className="flex items-center gap-1 text-gray-700 transition-colors hover:text-blue-500 dark:text-slate-300" aria-label={t("comments.toggle")}>
             <MessageCircle size={24} strokeWidth={1.5} />
           </button>
         </div>
@@ -175,13 +211,13 @@ function FeedItem({ post }) {
 
       <div className="px-5 pt-2">
         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{t("post.likes", { count: likeCount })}</p>
-        <TagChips tags={post.tags || []} className="mt-2" />
+        <TagChips tags={detailedPost.tags || []} className="mt-2" />
       </div>
 
       <div className="p-7">
-        <h4 className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100">{post.title}</h4>
+        <h4 className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100">{detailedPost.title}</h4>
         <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600 dark:text-slate-300">
-          {richTextToPlainText(post.content) || t("post.noPreview")}
+          {richTextToPlainText(detailedPost.content) || t("post.noPreview")}
         </p>
 
         <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50 p-3 dark:border-teal-900/60 dark:bg-teal-950/30">
@@ -199,6 +235,8 @@ function FeedItem({ post }) {
           )}
         </div>
       </div>
+      {/* 댓글 UI는 연수 브랜치의 컴포넌트를 유지하고 게시글 식별자를 함께 전달합니다. */}
+      {isCommentOpen && <div className="px-5 pb-5"><CommentSection postId={detailedPost.id} /></div>}
     </article>
   );
 }

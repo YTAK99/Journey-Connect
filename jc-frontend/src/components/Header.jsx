@@ -4,13 +4,16 @@ import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "l
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";
 import { translate } from "../i18n";
+import bellIcon from "../assets/bell.svg";
 
+// 상단 내비게이션 메뉴는 번역 키만 보관하고 실제 문구는 언어 JSON에서 읽습니다.
 const navItems = [
   { to: "/feed", key: "header.nav.feed" },
   { to: "/explore", key: "header.nav.explore" },
   { to: "/crew", key: "header.nav.crew" },
 ];
 
+// 설정 메뉴에서 선택할 수 있는 지원 언어 목록입니다.
 const languageOptions = [
   { value: "ko", key: "common.languages.ko", shortLabel: "KO" },
   { value: "en", key: "common.languages.en", shortLabel: "EN" },
@@ -28,6 +31,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
   return (
     <div className="absolute right-0 top-12 z-50 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
       <div className="space-y-4">
+        {/* 언어 선택 영역 */}
         <div>
           <span className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-200">
             <Languages size={14} className="text-primary" />
@@ -55,6 +59,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
           </div>
         </div>
 
+        {/* 다크 모드 토글 영역 */}
         <div className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-slate-700">
           <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
             {isDark ? <Moon size={14} className="text-primary" /> : <Sun size={14} className="text-primary" />}
@@ -74,6 +79,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
           </button>
         </div>
 
+        {/* 로그아웃 영역 */}
         <div className="border-t border-gray-200 pt-2 dark:border-slate-700">
           <button
             type="button"
@@ -168,6 +174,12 @@ export default function Header() {
         </Link>
 
         <div className="flex items-center space-x-3 md:order-3">
+          {/* 알림함 연결 전까지 헤더 진입점을 먼저 노출합니다. */}
+          <button type="button" className="cursor-pointer" aria-label={t("header.notifications")}>
+            <img src={bellIcon} alt="" className="h-6 w-6" />
+          </button>
+
+          {/* 현재 로그인 사용자의 프로필 진입 버튼 */}
           <button
             type="button"
             onClick={() => navigate("/mypage")}

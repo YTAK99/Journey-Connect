@@ -19,6 +19,7 @@ export default function PostPlaceEditor({
 
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-950/35">
+      {/* 장소 순서, 이름, 이동 및 삭제 제어 영역 */}
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500 text-sm font-extrabold text-white">
           {index + 1}
@@ -43,6 +44,8 @@ export default function PostPlaceEditor({
       </header>
 
       <div className="space-y-7 p-5 sm:p-6">
+        {/* Google 장소 검색으로 방문 위치를 지정하거나 변경합니다. */}
+        {/* 장소별 여행 이야기는 리치 텍스트 HTML로 부모 폼에 전달합니다. */}
         <section>
           <div className="mb-2 flex items-center justify-between gap-3">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -57,6 +60,7 @@ export default function PostPlaceEditor({
           </div>
         </section>
 
+        {/* 장소별 다중 이미지와 대표사진 선택 상태를 함께 관리합니다. */}
         <section>
           <div className="mb-2">
             <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t("placeEditor.story")}</h4>

@@ -56,7 +56,8 @@
     "menu": "Menu",
     "darkMode": "Dark mode",
     "toggleDarkMode": "Toggle dark mode",
-    "logout": "Log out"
+    "logout": "Log out",
+    "notifications": "Notifications"
   },
   "post": {
     "traveler": "Traveler", "more": "More", "bookmark": "Bookmark", "likes": "{{count}} likes",
@@ -70,8 +71,10 @@
     "justNow": "Just now", "minutesAgo": "{{count}}m ago", "hoursAgo": "{{count}}h ago", "daysAgo": "{{count}}d ago",
     "monthsAgo": "{{count}}mo ago", "yearsAgo": "{{count}}y ago", "loadFailed": "Unable to load the feed.",
     "loading": "Loading the feed...", "empty": "No posts yet.", "noSearchResults": "No posts match your search.",
-    "noRegionResults": "No posts found for {{region}}.", "selectedRegion": "the selected region", "end": "You're all caught up."
+    "noRegionResults": "No posts found for {{region}}.", "selectedRegion": "the selected region", "end": "You're all caught up.",
+    "imageAlt": "Post image {{index}}"
   },
+  "comments": { "toggle": "View comments", "count": "{{count}} comments", "loading": "Loading comments...", "loadFailed": "Unable to load comments.", "loginRequired": "Log in to leave a comment.", "addFailed": "Unable to post your comment.", "placeholder": "Leave a comment...", "submit": "Post", "submitting": "Posting..." },
   "analysis": {
     "loading": "Loading AI summary...", "preparing": "AI summary is being prepared.", "unavailable": "AI summary is currently unavailable.",
     "notGenerated": "AI summary has not been generated yet.", "loadFailed": "Unable to load the AI summary.", "show": "View", "hide": "Hide"

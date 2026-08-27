@@ -11,8 +11,8 @@ import { translate } from "../i18n";
 
 const fallbackImage = "/ex_2.jpg";
 
-function PostCard({ post, setPosts, editable = false }) {
-  // 검색/내 글 목록에서 재사용하며 editable일 때만 수정·삭제 동작을 노출합니다.
+function PostCard({ post, setPosts, editable = false, titleOnly = false }) {
+  // 탐색 화면은 이미지와 제목만, 내 글 화면은 본문·태그와 편집 기능까지 표시합니다.
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const t = (key) => translate(currentLang, key);
@@ -70,10 +70,9 @@ function PostCard({ post, setPosts, editable = false }) {
       </div>
 
       <div className="p-4">
-        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100">{post.title}</h3>
-        <p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{richTextToPlainText(post.content)}</p>
-
-        <TagChips tags={post.tags || []} />
+        <h3 className={`${titleOnly ? "" : "mb-2"} line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100`}>{post.title}</h3>
+        {!titleOnly && <p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{richTextToPlainText(post.content)}</p>}
+        {!titleOnly && <TagChips tags={post.tags || []} />}
 
         {editable && (
           <div className="mt-4 flex gap-2">

@@ -3,6 +3,7 @@ import { Loader2, MapPin, X } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
 
+// 초기 지도가 표시될 기본 중심 좌표(서울 시청)입니다.
 const SEOUL = { lat: 37.5665, lng: 126.978 };
 
 export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, onClose }) {
@@ -16,6 +17,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Google 지도와 장소 자동완성을 초기화하고 언마운트 시 리스너를 정리합니다.
     let active = true;
     const autocompleteContainer = autocompleteContainerRef.current;
     let map;
@@ -35,6 +37,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           maps.importLibrary("places"),
         ]);
         if (!active) return;
+        // 전달받은 위치가 있으면 그 좌표를, 없으면 서울을 중심으로 지도를 생성합니다.
         map = new maps.Map(mapElementRef.current, {
           center: initialCenter,
           zoom: value?.latitude ? 16 : 12,
@@ -48,6 +51,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           position: value?.latitude ? initialCenter : undefined,
         });
 
+        // 장소 선택 결과를 마커와 하단 확인 영역에 동시에 반영합니다.
         const applySelection = (next) => {
           if (!active) return;
           markerRef.current.position = { lat: next.latitude, lng: next.longitude };
@@ -80,6 +84,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           }
         };
 
+        // Google Place 자동완성 컴포넌트를 현재 언어로 설정합니다.
         autocompleteElement = new PlaceAutocompleteElement();
         autocompleteElement.placeholder = translate(lang, "placePicker.searchPlaceholder");
         autocompleteElement.style.width = "100%";
@@ -113,6 +118,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         autocompleteElement.addEventListener("gmp-select", autocompleteSelectHandler);
         autocompleteContainer.replaceChildren(autocompleteElement);
 
+        // 지도 빈 지점을 클릭하면 역지오코딩으로 주소와 좌표를 구성합니다.
         const geocoder = new maps.Geocoder();
         clickListener = map.addListener("click", (event) => {
           if (event.placeId) {
@@ -148,6 +154,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
     };
 
     initialize();
+    // 컴포넌트가 닫힐 때 지도 이벤트와 자동완성 이벤트를 모두 해제합니다.
     return () => {
       active = false;
       if (clickListener) clickListener.remove();

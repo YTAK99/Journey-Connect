@@ -3,15 +3,18 @@ import { Loader2, MapPinned } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
 
+// 위도·경도가 Google 지도에서 사용할 수 있는 범위인지 검증합니다.
 const validCoordinate = (place) => Number.isFinite(place?.latitude)
   && Number.isFinite(place?.longitude)
   && place.latitude >= -90 && place.latitude <= 90
   && place.longitude >= -180 && place.longitude <= 180;
 
+// 이름이 없는 장소에는 현재 언어의 순번 기반 이름을 사용합니다.
 const getPlaceName = (place, index, lang) => place.placeName
   || place.region?.displayName
   || translate(lang, "routeMap.stop", { count: index + 1 });
 
+// 장소 카드에서 Google 지도 검색 화면으로 이동할 URL을 만듭니다.
 const getGoogleMapsUrl = (place, index, lang) => {
   const params = new URLSearchParams({ api: "1" });
   const placeName = getPlaceName(place, index, lang);
@@ -28,6 +31,7 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
   const mapElementRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // 저장된 방문 순서대로 장소를 정렬하고 좌표가 있는 항목만 지도 경로에 포함합니다.
   const orderedPlaces = useMemo(() => [...places]
     .sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0)), [places]);
   const route = useMemo(() => orderedPlaces
