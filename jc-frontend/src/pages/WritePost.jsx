@@ -13,6 +13,7 @@ import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
 import { normalizeEditorContent, richTextToPlainText } from "../utils/richText";
 import { toRegionPreference } from "../utils/region";
+import { getMessages } from "../i18n";
 
 const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
 const imageKey = (image) => image.localId || image.imageUrl;
@@ -31,38 +32,12 @@ const emptyPlace = () => ({
   content: "", images: [],
 });
 
-const copy = {
-  ko: {
-    loginRequired: "로그인이 필요합니다.", loadFailed: "게시글을 불러오지 못했습니다.",
-    titleRequired: "여행 제목을 입력해 주세요.", regionRequired: "여행 대표 지역을 선택해 주세요.",
-    placeRequired: "모든 방문 장소를 Google 장소 검색으로 지정해 주세요.", contentRequired: "모든 장소에 여행 이야기를 작성해 주세요.",
-    coverRequired: "첨부한 사진 중 대표사진을 선택해 주세요.", invalidDates: "종료 날짜는 시작 날짜보다 빠를 수 없습니다.",
-    updated: "게시글을 수정했습니다.", created: "여행 기록을 등록했습니다.", saveFailed: "게시글 저장에 실패했습니다.", loading: "게시글을 불러오는 중입니다.",
-    back: "돌아가기", editTitle: "여행 루트 수정하기", createTitle: "새 여행 루트 만들기",
-    intro: "대표 지역을 정하고, 방문한 장소마다 위치·사진·이야기를 남겨 여행 루트를 완성하세요.", tripInfo: "여행 기본 정보",
-    title: "여행 제목", titlePlaceholder: "예: 비 오는 날의 교토 골목 여행", region: "여행 대표 지역", chooseRegion: "지역 선택",
-    startDate: "시작 날짜", endDate: "종료 날짜", route: "방문 장소와 이야기", routeHelp: "카페·식당·관광지명을 Google에서 검색하고 방문 순서대로 배치하세요.",
-    addPlace: "다음 장소 추가", tags: "검색 태그", cancel: "취소", saving: "저장 중...", editSubmit: "수정 완료", createSubmit: "여행 루트 발행하기",
-  },
-  en: {
-    loginRequired: "Please log in to continue.", loadFailed: "Could not load the post.", titleRequired: "Please enter a trip title.",
-    regionRequired: "Choose a representative travel region.", placeRequired: "Find every stop using Google place search.",
-    contentRequired: "Write a story for every stop.", coverRequired: "Choose a cover from the attached photos.",
-    invalidDates: "The end date cannot be earlier than the start date.", updated: "Your post has been updated.", created: "Your travel route has been published.",
-    saveFailed: "Failed to save the post.", loading: "Loading your post...", back: "Back", editTitle: "Edit your travel route", createTitle: "Create a travel route",
-    intro: "Choose a region, then add a Google place, photos, and story for every stop.", tripInfo: "Trip details", title: "Trip title",
-    titlePlaceholder: "e.g. A rainy-day walk through Kyoto", region: "Representative region", chooseRegion: "Choose region", startDate: "Start date", endDate: "End date",
-    route: "Stops and stories", routeHelp: "Search cafés, restaurants, and attractions, then arrange them in visit order.", addPlace: "Add next stop",
-    tags: "Search tags", cancel: "Cancel", saving: "Saving...", editSubmit: "Save changes", createSubmit: "Publish travel route",
-  },
-};
-
 function WritePost() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const { selectedRegion, setSelectedRegion } = useRegionStore();
-  const t = copy[currentLang] || copy.ko;
+  const t = getMessages(currentLang, "writePost");
   const [title, setTitle] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -77,7 +52,7 @@ function WritePost() {
 
   useEffect(() => {
     if (!isLogin()) {
-      alert((copy[useLangStore.getState().currentLang] || copy.ko).loginRequired);
+      alert(getMessages(useLangStore.getState().currentLang, "writePost").loginRequired);
       navigate("/login", { replace: true });
       return;
     }
@@ -103,7 +78,7 @@ function WritePost() {
         images: (place.images || []).map((image) => ({ imageUrl: image.imageUrl, altText: image.altText || post.title })),
       })));
     }).catch((error) => {
-      alert(getApiErrorMessage(error, (copy[useLangStore.getState().currentLang] || copy.ko).loadFailed));
+      alert(getApiErrorMessage(error, getMessages(useLangStore.getState().currentLang, "writePost").loadFailed));
       navigate("/my-posts");
     }).finally(() => setLoading(false));
   }, [id, navigate]);

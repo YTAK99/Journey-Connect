@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
+import { translate } from "../i18n";
 
 const SEOUL = { lat: 37.5665, lng: 126.978 };
 
 export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, onClose }) {
-  const isKorean = lang === "ko";
+  const t = (key) => translate(lang, key);
   const mapElementRef = useRef(null);
   const autocompleteContainerRef = useRef(null);
   const markerRef = useRef(null);
@@ -63,7 +64,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
             await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "location"] });
             setResolving(false);
             if (!place.location) {
-              setError(isKorean ? "장소 정보를 불러오지 못했습니다." : "Could not load this place.");
+              setError(translate(lang, "placePicker.placeLoadFailed"));
               return;
             }
             applySelection({
@@ -75,14 +76,12 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
             });
           } catch {
             setResolving(false);
-            setError(isKorean ? "장소 정보를 불러오지 못했습니다." : "Could not load this place.");
+            setError(translate(lang, "placePicker.placeLoadFailed"));
           }
         };
 
         autocompleteElement = new PlaceAutocompleteElement();
-        autocompleteElement.placeholder = isKorean
-          ? "카페, 식당, 숙소, 관광지 검색"
-          : "Search cafes, restaurants, hotels, attractions";
+        autocompleteElement.placeholder = translate(lang, "placePicker.searchPlaceholder");
         autocompleteElement.style.width = "100%";
         autocompleteElement.style.minHeight = "3rem";
         autocompleteElement.style.colorScheme = "light";
@@ -106,7 +105,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
               longitude: place.location.lng(),
             });
           } catch {
-            setError(isKorean ? "장소 정보를 불러오지 못했습니다." : "Could not load this place.");
+            setError(translate(lang, "placePicker.placeLoadFailed"));
           } finally {
             setResolving(false);
           }
@@ -127,7 +126,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
             setResolving(false);
             const result = results?.[0];
             if (status !== "OK" || !result) {
-              setError(isKorean ? "선택 지점의 주소를 찾지 못했습니다." : "No address was found for this point.");
+              setError(translate(lang, "placePicker.addressNotFound"));
               return;
             }
             applySelection({
@@ -140,10 +139,10 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           });
         });
         setLoading(false);
-      } catch (loadError) {
+      } catch {
         if (active) {
           setLoading(false);
-          setError(isKorean ? "Google 지도를 불러오지 못했습니다. 키와 API 설정을 확인해 주세요." : loadError.message);
+          setError(translate(lang, "placePicker.mapLoadFailed"));
         }
       }
     };
@@ -158,13 +157,13 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
       if (autocompleteContainer) autocompleteContainer.replaceChildren();
       if (markerRef.current) markerRef.current.map = null;
     };
-  }, [isKorean, value]);
+  }, [lang, value]);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6" onClick={onClose}>
       <section className="flex h-[min(90vh,780px)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900" onClick={(event) => event.stopPropagation()}>
         <header className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-          <div className="min-w-0 flex-1"><h2 className="font-extrabold text-slate-900 dark:text-white">{isKorean ? "지도에서 방문 장소 선택" : "Choose a place on the map"}</h2><p className="mt-1 text-xs text-slate-500">{isKorean ? "장소를 검색하거나 지도 위 장소·지점을 클릭하세요." : "Search or click a place or point on the map."}</p></div>
+          <div className="min-w-0 flex-1"><h2 className="font-extrabold text-slate-900 dark:text-white">{t("placePicker.title")}</h2><p className="mt-1 text-xs text-slate-500">{t("placePicker.help")}</p></div>
           <button type="button" onClick={onClose} className="rounded-full p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={19} /></button>
         </header>
         <div className="border-b border-slate-200 p-3 dark:border-slate-700">
@@ -172,8 +171,8 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         </div>
         <div className="relative min-h-0 flex-1 bg-slate-100"><div ref={mapElementRef} className="h-full w-full" />{(loading || resolving) && <div className="absolute inset-0 flex items-center justify-center bg-white/65 backdrop-blur-[1px]"><Loader2 className="animate-spin text-teal-600" size={30} /></div>}{error && <div className="absolute left-4 right-4 top-4 rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">{error}</div>}</div>
         <footer className="flex flex-col gap-3 border-t border-slate-200 p-4 dark:border-slate-700 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">{selection ? <><p className="flex items-center gap-2 truncate font-bold text-slate-900 dark:text-white"><MapPin size={17} className="shrink-0 text-teal-500" />{selection.displayName}</p><p className="mt-1 truncate text-xs text-slate-500">{selection.address}</p></> : <p className="text-sm text-slate-500">{isKorean ? "지도에서 방문 장소를 선택해 주세요." : "Select a place on the map."}</p>}</div>
-          <div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-bold text-slate-600 dark:border-slate-700 dark:text-slate-200">{isKorean ? "취소" : "Cancel"}</button><button type="button" disabled={!selection || resolving} onClick={() => onConfirm(selection)} className="rounded-xl bg-teal-500 px-6 py-2.5 text-sm font-extrabold text-white disabled:opacity-40">{isKorean ? "이 장소로 지정" : "Use this place"}</button></div>
+          <div className="min-w-0 flex-1">{selection ? <><p className="flex items-center gap-2 truncate font-bold text-slate-900 dark:text-white"><MapPin size={17} className="shrink-0 text-teal-500" />{selection.displayName}</p><p className="mt-1 truncate text-xs text-slate-500">{selection.address}</p></> : <p className="text-sm text-slate-500">{t("placePicker.selectPrompt")}</p>}</div>
+          <div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-bold text-slate-600 dark:border-slate-700 dark:text-slate-200">{t("common.cancel")}</button><button type="button" disabled={!selection || resolving} onClick={() => onConfirm(selection)} className="rounded-xl bg-teal-500 px-6 py-2.5 text-sm font-extrabold text-white disabled:opacity-40">{t("placePicker.confirm")}</button></div>
         </footer>
       </section>
     </div>

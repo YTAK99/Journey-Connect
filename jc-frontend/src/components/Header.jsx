@@ -3,16 +3,17 @@ import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-
 import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";
+import { translate } from "../i18n";
 
 const navItems = [
-  { to: "/feed", label: { ko: "피드", en: "Feed" } },
-  { to: "/explore", label: { ko: "탐색", en: "Explore" } },
-  { to: "/crew", label: { ko: "크루", en: "Crew" } },
+  { to: "/feed", key: "header.nav.feed" },
+  { to: "/explore", key: "header.nav.explore" },
+  { to: "/crew", key: "header.nav.crew" },
 ];
 
 const languageOptions = [
-  { value: "ko", label: "한국어", shortLabel: "KO" },
-  { value: "en", label: "English", shortLabel: "EN" },
+  { value: "ko", key: "common.languages.ko", shortLabel: "KO" },
+  { value: "en", key: "common.languages.en", shortLabel: "EN" },
 ];
 
 const getInitialDarkMode = () => {
@@ -23,13 +24,14 @@ const getInitialDarkMode = () => {
 };
 
 function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
+  const t = (key) => translate(lang, key);
   return (
     <div className="absolute right-0 top-12 z-50 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900">
       <div className="space-y-4">
         <div>
           <span className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-200">
             <Languages size={14} className="text-primary" />
-            {lang === "ko" ? "언어" : "Language"}
+            {t("common.language")}
           </span>
           <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1 dark:bg-slate-800">
             {languageOptions.map((option) => {
@@ -46,7 +48,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
                   }`}
                 >
                   <span className="block text-xs opacity-70">{option.shortLabel}</span>
-                  {option.label}
+                  {t(option.key)}
                 </button>
               );
             })}
@@ -56,13 +58,13 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
         <div className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-slate-700">
           <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
             {isDark ? <Moon size={14} className="text-primary" /> : <Sun size={14} className="text-primary" />}
-            {lang === "ko" ? "다크 모드" : "Dark mode"}
+            {t("header.darkMode")}
           </span>
           <button
             type="button"
             onClick={onDarkToggle}
             className={`relative h-6 w-11 rounded-full transition-colors ${isDark ? "bg-primary" : "bg-gray-300 dark:bg-slate-600"}`}
-            aria-label={lang === "ko" ? "다크 모드 전환" : "Toggle dark mode"}
+            aria-label={t("header.toggleDarkMode")}
           >
             <span
               className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
@@ -79,7 +81,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
             className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/40"
           >
             <LogOut size={14} />
-            {lang === "ko" ? "로그아웃" : "Log out"}
+            {t("header.logout")}
           </button>
         </div>
       </div>
@@ -99,6 +101,7 @@ export default function Header() {
   const settingsRef = useRef(null);
   const user = getUser();
   const { currentLang, setLang } = useLangStore();
+  const t = (key) => translate(currentLang, key);
 
   useEffect(() => {
     // Tailwind의 dark 변형이 동작하도록 루트 요소 클래스와 저장값을 함께 갱신합니다.
@@ -150,7 +153,7 @@ export default function Header() {
       <input
         value={searchText}
         onChange={(event) => setSearchText(event.target.value)}
-        placeholder={currentLang === "ko" ? "검색..." : "Search..."}
+        placeholder={t("header.search")}
         className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 pl-10 text-sm text-gray-900 focus:border-teal-500 focus:outline-none focus:ring-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
       />
     </>
@@ -169,7 +172,7 @@ export default function Header() {
             type="button"
             onClick={() => navigate("/mypage")}
             className="flex h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-800 text-sm focus:ring-4 focus:ring-gray-300 dark:bg-slate-700 dark:focus:ring-slate-600"
-            aria-label={currentLang === "ko" ? "프로필" : "Profile"}
+            aria-label={t("header.profile")}
           >
             {isLogin() ? (
               <img src={user?.profileImageUrl || "/user_1.jpg"} alt="" className="h-full w-full object-cover" />
@@ -183,7 +186,7 @@ export default function Header() {
               type="button"
               onClick={() => setSettingsOpen((open) => !open)}
               className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-              aria-label={currentLang === "ko" ? "설정" : "Settings"}
+              aria-label={t("header.settings")}
             >
               <Settings size={16} />
             </button>
@@ -202,7 +205,7 @@ export default function Header() {
             type="button"
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg p-2 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-slate-300 dark:hover:bg-slate-800 dark:focus:ring-slate-700 md:hidden"
             onClick={() => setIsMenuOpen((open) => !open)}
-            aria-label={currentLang === "ko" ? "메뉴" : "Menu"}
+            aria-label={t("header.menu")}
           >
             {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -217,7 +220,7 @@ export default function Header() {
             {navItems.map((item) => (
               <li key={item.to}>
                 <NavLink to={item.to} className={navLinkClass} onClick={() => setIsMenuOpen(false)}>
-                  {currentLang === "ko" ? item.label.ko : item.label.en}
+                  {t(item.key)}
                 </NavLink>
               </li>
             ))}

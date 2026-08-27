@@ -1,25 +1,9 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { getMessages } from "../i18n";
 
 const MAX_TAGS = 5;
 const MAX_TAG_LENGTH = 20;
-
-const copy = {
-  ko: {
-    help: "태그를 입력하고 Enter를 눌러주세요. 검색에 활용됩니다.",
-    placeholder: "예: 제주맛집",
-    duplicate: "이미 입력한 태그입니다.",
-    tooLong: "태그는 20자 이하로 입력해주세요.",
-    remove: "태그 삭제",
-  },
-  en: {
-    help: "Type a tag and press Enter. Tags help other travelers find your post.",
-    placeholder: "e.g. JejuFood",
-    duplicate: "You already added that tag.",
-    tooLong: "Tags must be 20 characters or fewer.",
-    remove: "Remove tag",
-  },
-};
 
 const cleanTag = (value) => value.trim().replace(/^#+/, "").trim().replace(/\s+/g, " ");
 // 대소문자와 공백만 다른 태그를 같은 값으로 판단하되 화면에는 사용자가 입력한 표기를 유지합니다.
@@ -27,7 +11,7 @@ const normalizeTag = (value) => value.toLocaleLowerCase().replace(/\s+/g, "");
 
 export default function TagInput({ tags, onChange, lang = "ko" }) {
   const [input, setInput] = useState("");
-  const t = copy[lang] || copy.ko;
+  const t = getMessages(lang, "tagInput");
 
   const addTag = () => {
     const tag = cleanTag(input);

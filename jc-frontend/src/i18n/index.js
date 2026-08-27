@@ -3,7 +3,7 @@ import ko from "./ko.json";
 
 const resources = { en, ko };
 
-export const DEFAULT_LANGUAGE = "ko";
+export const DEFAULT_LANGUAGE = "en";
 export const SUPPORTED_LANGUAGES = Object.freeze(["ko", "en"]);
 
 const locales = Object.freeze({
@@ -22,6 +22,13 @@ export const resolveLanguage = (value) => {
 };
 
 export const getLocale = (language) => locales[resolveLanguage(language)];
+
+export const getMessages = (language, namespace) => {
+  const resolvedLanguage = resolveLanguage(language);
+  return readMessage(resources[resolvedLanguage], namespace)
+    ?? readMessage(resources[DEFAULT_LANGUAGE], namespace)
+    ?? {};
+};
 
 export const translate = (language, key, variables = {}) => {
   const resolvedLanguage = resolveLanguage(language);

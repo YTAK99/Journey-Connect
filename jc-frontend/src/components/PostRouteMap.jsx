@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, MapPinned } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
+import { translate } from "../i18n";
 
 const validCoordinate = (place) => Number.isFinite(place?.latitude)
   && Number.isFinite(place?.longitude)
   && place.latitude >= -90 && place.latitude <= 90
   && place.longitude >= -180 && place.longitude <= 180;
 
-const getPlaceName = (place, index, isKorean) => place.placeName
+const getPlaceName = (place, index, lang) => place.placeName
   || place.region?.displayName
-  || (isKorean ? `장소 ${index + 1}` : `Stop ${index + 1}`);
+  || translate(lang, "routeMap.stop", { count: index + 1 });
 
-const getGoogleMapsUrl = (place, index, isKorean) => {
+const getGoogleMapsUrl = (place, index, lang) => {
   const params = new URLSearchParams({ api: "1" });
-  const placeName = getPlaceName(place, index, isKorean);
+  const placeName = getPlaceName(place, index, lang);
   const query = validCoordinate(place)
     ? `${place.latitude},${place.longitude}`
     : [placeName, place.address].filter(Boolean).join(" ");
@@ -23,7 +24,7 @@ const getGoogleMapsUrl = (place, index, isKorean) => {
 };
 
 export default function PostRouteMap({ places = [], lang = "ko" }) {
-  const isKorean = lang === "ko";
+  const t = (key) => translate(lang, key);
   const mapElementRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -71,12 +72,12 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
           const marker = new AdvancedMarkerElement({
             map,
             position,
-            title: getPlaceName(place, index, isKorean),
+            title: getPlaceName(place, index, lang),
             content: badge,
             gmpClickable: true,
           });
           const handleMarkerClick = () => {
-            const name = getPlaceName(place, index, isKorean);
+            const name = getPlaceName(place, index, lang);
             infoWindow.setContent(`<div style="padding:4px 2px;font-weight:700">${index + 1}. ${name.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</div>`);
             infoWindow.open({ map, anchor: marker });
           };
@@ -100,10 +101,10 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
           map.setZoom(15);
         }
         setLoading(false);
-      } catch (loadError) {
+      } catch {
         if (active) {
           setLoading(false);
-          setError(isKorean ? "여행 루트 지도를 불러오지 못했습니다." : loadError.message);
+          setError(translate(lang, "routeMap.loadFailed"));
         }
       }
     };
@@ -117,7 +118,7 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
       markers.forEach((marker) => { marker.map = null; });
       if (polyline) polyline.setMap(null);
     };
-  }, [isKorean, route]);
+  }, [lang, route]);
 
   if (!orderedPlaces.length) return null;
 
@@ -126,7 +127,7 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Journey route</p>
-          <h2 className="mt-1 text-xl font-bold text-title">{isKorean ? "내가 다녀온 루트" : "My travel route"}</h2>
+          <h2 className="mt-1 text-xl font-bold text-title">{t("routeMap.title")}</h2>
         </div>
         <span className="inline-flex items-center gap-1.5 text-sm text-slate-400"><MapPinned size={16} /> {orderedPlaces.length} stops</span>
       </div>
@@ -146,18 +147,18 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
                 <div className="flex min-w-0 flex-1 items-center justify-between gap-4 border-b border-slate-100 pb-5 last:border-0 dark:border-slate-800">
                   <div className="min-w-0">
                     <a
-                      href={getGoogleMapsUrl(place, index, isKorean)}
+                      href={getGoogleMapsUrl(place, index, lang)}
                       target="_blank"
                       rel="noreferrer"
                       className="block truncate font-bold text-title transition-colors hover:text-primary hover:underline"
-                      title={isKorean ? "Google 지도에서 보기" : "View on Google Maps"}
+                      title={t("routeMap.viewGoogleMaps")}
                     >
-                      {getPlaceName(place, index, isKorean)}
+                      {getPlaceName(place, index, lang)}
                     </a>
                     {place.address && <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{place.address}</p>}
                   </div>
                   {thumbnail?.imageUrl && (
-                    <img src={thumbnail.imageUrl} alt={thumbnail.altText || getPlaceName(place, index, isKorean)} className="h-14 w-14 shrink-0 rounded-xl object-cover shadow-sm" />
+                    <img src={thumbnail.imageUrl} alt={thumbnail.altText || getPlaceName(place, index, lang)} className="h-14 w-14 shrink-0 rounded-xl object-cover shadow-sm" />
                   )}
                 </div>
               </li>
@@ -168,7 +169,7 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
         <div className="relative min-h-[22rem] border-t border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800 lg:min-h-[32rem] lg:border-l lg:border-t-0">
           {route.length > 0 ? <div ref={mapElementRef} className="absolute inset-0" /> : (
             <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-slate-500">
-              {isKorean ? "지도에 표시할 위치 정보가 없습니다." : "No location data is available for the map."}
+              {t("routeMap.empty")}
             </div>
           )}
           {loading && route.length > 0 && <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70"><Loader2 className="animate-spin text-teal-600" size={30} /></div>}

@@ -16,7 +16,7 @@ import PostRouteMap from "../components/PostRouteMap";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
 import { deletePost, getPost, getPostAnalysis } from "../services/postApi";
-import useLangStore from "../store/useLangStore";
+import useTranslation from "../i18n/useTranslation";
 import { getLocalizedRegionName } from "../utils/region";
 import { normalizeEditorContent } from "../utils/richText";
 
@@ -37,7 +37,7 @@ const formatDate = (value, language) => {
 function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentLang } = useLangStore();
+  const { currentLang, t } = useTranslation();
   const [post, setPost] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -49,24 +49,24 @@ function PostDetail() {
     getPost(id)
       .then(setPost)
       .catch((error) => {
-        alert(getApiErrorMessage(error, isKorean ? "게시글을 불러오지 못했습니다." : "Could not load this post."));
+        alert(getApiErrorMessage(error, t("post.loadFailed")));
       })
       .finally(() => setLoading(false));
 
     getPostAnalysis(id)
       .then((value) => setAnalysis({ postId: String(id), value }))
       .catch(() => setAnalysis({ postId: String(id), value: null }));
-  }, [id, isKorean]);
+  }, [id, isKorean, t]);
 
   const handleDelete = async () => {
-    if (!window.confirm(isKorean ? "정말 삭제하시겠습니까?" : "Delete this post?")) return;
+    if (!window.confirm(t("post.deleteConfirm"))) return;
 
     try {
       await deletePost(id);
-      alert(isKorean ? "삭제되었습니다." : "Post deleted.");
+      alert(t("post.deleted"));
       navigate("/my-posts");
     } catch (error) {
-      alert(getApiErrorMessage(error, isKorean ? "게시글 삭제에 실패했습니다." : "Could not delete this post."));
+      alert(getApiErrorMessage(error, t("post.deleteFailed")));
     }
   };
 
@@ -93,10 +93,10 @@ function PostDetail() {
       <main className="flex min-h-screen items-center justify-center bg-background px-4 pt-20">
         <div className="rounded-3xl bg-white px-10 py-14 text-center shadow-sm dark:bg-slate-900">
           <p className="text-lg font-semibold text-title">
-            {isKorean ? "게시글을 찾을 수 없습니다." : "Post not found."}
+            {t("post.notFound")}
           </p>
           <button type="button" onClick={() => navigate(-1)} className="mt-5 text-sm font-semibold text-primary hover:text-primaryHover">
-            {isKorean ? "이전 페이지로" : "Go back"}
+            {t("common.back")}
           </button>
         </div>
       </main>
@@ -128,7 +128,7 @@ function PostDetail() {
           className="mb-6 inline-flex items-center gap-2 rounded-full px-1 py-2 text-sm font-semibold text-slate-600 transition-colors hover:text-primary dark:text-slate-300"
         >
           <ArrowLeft size={18} />
-          {isKorean ? "여행 이야기로 돌아가기" : "Back to travel stories"}
+          {t("post.backToStories")}
         </button>
 
         <div className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white shadow-[0_24px_70px_-32px_rgba(15,118,110,0.35)] dark:border-slate-800 dark:bg-slate-900 sm:rounded-[2.25rem]">
@@ -155,7 +155,7 @@ function PostDetail() {
 
             <header className="border-b border-slate-100 pb-8 dark:border-slate-800 sm:pb-10">
               <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-primary">
-                {isKorean ? "Journey Story" : "Travel Journal"}
+                {t("post.journalLabel")}
               </p>
               <h1 className="max-w-4xl break-keep text-3xl font-extrabold leading-tight tracking-tight text-title sm:text-5xl sm:leading-[1.15]">
                 {post.title}
@@ -170,7 +170,7 @@ function PostDetail() {
                   />
                   <div>
                     <p className="font-bold text-slate-900 dark:text-slate-100">
-                      {post.author?.nickname || (isKorean ? "여행자" : "Traveler")}
+                      {post.author?.nickname || t("post.traveler")}
                     </p>
                     <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                       {formatDate(post.createdAt, currentLang)}
@@ -194,8 +194,8 @@ function PostDetail() {
                       <CalendarDays size={17} />
                     </span>
                     <span>
-                      <span className="mr-2 text-xs font-medium text-teal-600 dark:text-teal-400">{isKorean ? "여행 기간" : "Travel dates"}</span>
-                      {post.travelStartDate || (isKorean ? "미정" : "TBD")} — {post.travelEndDate || (isKorean ? "미정" : "TBD")}
+                      <span className="mr-2 text-xs font-medium text-teal-600 dark:text-teal-400">{t("post.travelDates")}</span>
+                      {post.travelStartDate || t("post.tbd")} — {post.travelEndDate || t("post.tbd")}
                     </span>
                   </div>
                 )}
@@ -249,7 +249,7 @@ function PostDetail() {
                 <div className="mb-5 flex items-end justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Photo notes</p>
-                    <h2 className="mt-1 text-xl font-bold text-title">{isKorean ? "여행의 장면들" : "Scenes from the journey"}</h2>
+                    <h2 className="mt-1 text-xl font-bold text-title">{t("post.gallery")}</h2>
                   </div>
                   <span className="text-sm text-slate-400">{galleryImages.length} photos</span>
                 </div>
@@ -276,7 +276,7 @@ function PostDetail() {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-teal-950/30"
                 >
                   <PenLine size={16} />
-                  {isKorean ? "수정" : "Edit"}
+                  {t("post.edit")}
                 </button>
                 <button
                   type="button"
@@ -284,7 +284,7 @@ function PostDetail() {
                   className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 >
                   <Trash2 size={16} />
-                  {isKorean ? "삭제" : "Delete"}
+                  {t("post.delete")}
                 </button>
               </footer>
             )}

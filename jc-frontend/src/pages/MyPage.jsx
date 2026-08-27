@@ -17,54 +17,10 @@ import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/ap
 import { getUser, isLogin } from "../services/auth";
 import { getFeedItems } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
+import { getMessages } from "../i18n";
 
 const fallbackAvatar = "/user_1.jpg";
 const fallbackPostImage = "/ex_1.jpg";
-
-const copy = {
-  ko: {
-    back: "돌아가기",
-    editProfile: "프로필 편집",
-    posts: "게시글",
-    likes: "좋아요",
-    comments: "댓글",
-    tabs: ["내가 쓴 글", "좋아요한 곳", "저장한 곳", "크루 활동"],
-    loading: "게시물을 불러오는 중입니다.",
-    loadError: "마이페이지 게시물을 불러오지 못했습니다.",
-    emptyPosts: "아직 작성한 글이 없습니다.",
-    emptyBookmarks: "아직 저장한 곳이 없습니다.",
-    unavailableLikes: "좋아요한 장소 목록은 아직 준비 중입니다.",
-    unavailableCrew: "참여한 크루 활동은 아직 준비 중입니다.",
-    write: "첫 여행 기록 작성하기",
-    nickname: "닉네임",
-    email: "이메일",
-    cancel: "취소",
-    save: "저장",
-    close: "닫기",
-    editHint: "프로필 이미지는 이 화면에서 미리보기로 반영됩니다.",
-  },
-  en: {
-    back: "Back",
-    editProfile: "Edit profile",
-    posts: "Posts",
-    likes: "Likes",
-    comments: "Comments",
-    tabs: ["My journeys", "Liked places", "Saved", "Crew activity"],
-    loading: "Loading your posts.",
-    loadError: "Could not load your profile posts.",
-    emptyPosts: "You have not written a journey yet.",
-    emptyBookmarks: "You have not saved a place yet.",
-    unavailableLikes: "Your liked places list is coming soon.",
-    unavailableCrew: "Your crew activity is coming soon.",
-    write: "Write your first journey",
-    nickname: "Nickname",
-    email: "Email",
-    cancel: "Cancel",
-    save: "Save",
-    close: "Close",
-    editHint: "The profile image is previewed on this screen only.",
-  },
-};
 
 function PostTile({ post }) {
   const navigate = useNavigate();
@@ -187,7 +143,7 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
 export default function MyPage() {
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
-  const labels = copy[currentLang] || copy.ko;
+  const labels = getMessages(currentLang, "myPage");
   const loginUser = getUser();
   const [activeTab, setActiveTab] = useState(0);
   const [posts, setPosts] = useState([]);
@@ -196,7 +152,7 @@ export default function MyPage() {
   const [error, setError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [user, setUser] = useState({
-    name: loginUser?.nickname || loginUser?.email || (currentLang === "ko" ? "여행자" : "Traveler"),
+    name: loginUser?.nickname || loginUser?.email || labels.traveler,
     email: loginUser?.email || "",
     image: loginUser?.profileImageUrl || fallbackAvatar,
   });

@@ -8,35 +8,7 @@ import { getExplore, getExploreDiscovery, getFeedItems } from "../services/postA
 import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
 import { getRegionSearchText } from "../utils/region";
-
-const copy = {
-  ko: {
-    noResults: (query) => `‘${query}’ 검색 결과가 아직 없어요.`,
-    invitation: "첫 번째 여행기를 남겨보세요.",
-    write: "여행기 작성하기",
-    reset: "검색 초기화",
-    suggestions: "대신 이런 여행기는 어때요?",
-    nearby: (region) => `${region}의 다른 여행기`,
-    recent: "최근 올라온 여행기",
-    loading: "추천 여행기를 불러오는 중입니다.",
-    unavailable: "지금은 추천할 여행기가 없습니다.",
-    loadMore: "더 보기",
-    loadingMore: "더 불러오는 중...",
-  },
-  en: {
-    noResults: (query) => `There are no results for “${query}” yet.`,
-    invitation: "Be the first to share a travel story.",
-    write: "Write a story",
-    reset: "Clear search",
-    suggestions: "How about one of these trips?",
-    nearby: (region) => `More stories from ${region}`,
-    recent: "Recently published",
-    loading: "Loading travel suggestions...",
-    unavailable: "There are no travel stories to recommend yet.",
-    loadMore: "Load more",
-    loadingMore: "Loading more...",
-  },
-};
+import { getMessages, translate } from "../i18n";
 
 const normalizeSearchValue = (value) => String(value || "").toLowerCase().replace(/[\s,]/g, "");
 const isExploreCursorError = (error) => String(
@@ -64,7 +36,7 @@ export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
-  const t = copy[currentLang] || copy.ko;
+  const t = getMessages(currentLang, "explore");
   const { selectedRegion, setSelectedRegion } = useRegionStore();
   const [posts, setPosts] = useState([]);
   const [recommendationResult, setRecommendationResult] = useState({ key: "", items: [] });
@@ -108,7 +80,7 @@ export default function SearchPage() {
         }
       } catch (requestError) {
         if (!active || requestKeyRef.current !== requestKey) return;
-        setError(getApiErrorMessage(requestError, "탐색 데이터를 불러오지 못했습니다."));
+        setError(getApiErrorMessage(requestError, t.loadFailed));
         setPosts([]);
       } finally {
         if (active && requestKeyRef.current === requestKey) setLoading(false);
@@ -120,7 +92,7 @@ export default function SearchPage() {
     return () => {
       active = false;
     };
-  }, [keyword, regionQuery, requestKey]);
+  }, [keyword, regionQuery, requestKey, t.loadFailed]);
 
   const loadMoreDiscovery = async () => {
     if (keyword || loadingMore || !hasNext || !nextCursor) return;
@@ -163,12 +135,12 @@ export default function SearchPage() {
           setHasNext(false);
           setError(getApiErrorMessage(
             restartError,
-            "탐색을 다시 시작하지 못했습니다.",
+            t.restartFailed,
           ));
           return;
         }
       }
-      setError(getApiErrorMessage(requestError, "추가 탐색 결과를 불러오지 못했습니다."));
+      setError(getApiErrorMessage(requestError, t.loadMoreFailed));
     } finally {
       if (requestKeyRef.current === activeRequestKey) setLoadingMore(false);
     }
@@ -217,7 +189,7 @@ export default function SearchPage() {
     () => recommendations.filter((post) => !parentPostIds.has(post.id)).slice(0, 6),
     [parentPostIds, recommendations],
   );
-  const queryLabel = rawKeyword || selectedRegion?.label?.[currentLang] || selectedRegion?.label?.ko || "여행지";
+  const queryLabel = rawKeyword || selectedRegion?.label?.[currentLang] || selectedRegion?.label?.ko || t.destination;
 
   return (
     <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
@@ -229,16 +201,16 @@ export default function SearchPage() {
 
         <section className="mx-auto max-w-screen-xl px-4 py-3">
           <div className="mb-4 flex flex-col gap-1">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">탐색</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">{t.title}</h1>
             {keyword && (
               <p className="text-sm text-gray-500 dark:text-slate-400">
-                헤더 검색어: <span className="font-medium text-teal-700">{searchParams.get("q")}</span>
+                {t.headerQuery}: <span className="font-medium text-teal-700">{searchParams.get("q")}</span>
               </p>
             )}
           </div>
 
           {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
-          {loading && <p className="py-10 text-center text-gray-500 dark:text-slate-400">탐색 카드를 불러오는 중입니다.</p>}
+          {loading && <p className="py-10 text-center text-gray-500 dark:text-slate-400">{t.cardsLoading}</p>}
 
           {!loading && filteredPosts.length > 0 && (
             <>
@@ -270,7 +242,7 @@ export default function SearchPage() {
                   <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/60 dark:text-teal-200">
                     <Compass size={23} />
                   </span>
-                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t.noResults(queryLabel)}</h2>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{translate(currentLang, "explore.noResults", { query: queryLabel })}</h2>
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.invitation}</p>
                   <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
                     <button
@@ -305,7 +277,7 @@ export default function SearchPage() {
 
                 {!recommendationsLoading && parentPosts.length > 0 && (
                   <div className="mb-8">
-                    <h3 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">{t.nearby(parentRegionName)}</h3>
+                    <h3 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">{translate(currentLang, "explore.nearby", { region: parentRegionName })}</h3>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                       {parentPosts.map((post) => (
                         <PostCard

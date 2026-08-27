@@ -4,6 +4,7 @@ import { getLocalTime, REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getGoogleLocationSuggestions, getGoogleLocationSummary } from "../services/googleLocationApi";
 import useLangStore from "../store/useLangStore";
+import { getMessages } from "../i18n";
 import { toRegionPreference } from "../utils/region";
 
 const getLocalDate = (timezone, lang) => {
@@ -49,6 +50,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [suggestionError, setSuggestionError] = useState("");
   const { currentLang } = useLangStore();
+  const labels = getMessages(currentLang, "location");
   const filtered = searchMode === "place" ? [] : REGIONS.filter((region) => {
     const q = query.toLowerCase();
     return region.label.ko.includes(query) || region.label.en.toLowerCase().includes(q);
@@ -63,7 +65,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
 
     let active = true;
     const timer = setTimeout(() => {
-      getGoogleLocationSuggestions(trimmed, currentLang === "ko" ? "ko" : "en", searchMode)
+      getGoogleLocationSuggestions(trimmed, currentLang, searchMode)
         .then((items) => {
           if (active) setSuggestions(Array.isArray(items) ? items : []);
         })
@@ -72,7 +74,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
             setSuggestions([]);
             setSuggestionError(getApiErrorMessage(
               error,
-              currentLang === "ko" ? "지역 추천을 불러오지 못했습니다." : "Could not load region suggestions.",
+              labels.suggestionsFailed,
             ));
           }
         })
@@ -85,7 +87,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
       active = false;
       clearTimeout(timer);
     };
-  }, [currentLang, query, searchMode]);
+  }, [currentLang, labels.suggestionsFailed, query, searchMode]);
 
   const visibleSuggestions = query.trim().length >= 2 ? suggestions : [];
 
@@ -120,7 +122,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl dark:bg-slate-900" onClick={(event) => event.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 dark:text-slate-100">{searchMode === "place" ? (currentLang === "ko" ? "방문 장소 검색" : "Search a place") : (currentLang === "ko" ? "지역 선택" : "Select Region")}</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-slate-100">{searchMode === "place" ? labels.searchPlace : labels.selectRegion}</h3>
           <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800">
             <X size={14} />
           </button>
@@ -143,7 +145,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
                   setSuggestionLoading(true);
                 }
               }}
-              placeholder={searchMode === "place" ? (currentLang === "ko" ? "카페, 식당, 관광지명을 검색하세요" : "Search cafés, restaurants, attractions") : (currentLang === "ko" ? "도시명 검색..." : "Search city...")}
+              placeholder={searchMode === "place" ? labels.placePlaceholder : labels.cityPlaceholder}
               className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-8 pr-3 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
@@ -151,7 +153,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
             type="submit"
             className="inline-flex h-9 items-center justify-center rounded-lg bg-teal-600 px-3 text-sm font-medium text-white hover:bg-teal-700"
           >
-            {currentLang === "ko" ? "검색" : "Search"}
+            {labels.search}
           </button>
         </form>
 
@@ -172,11 +174,11 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
               </span>
             </button>
           ))}
-          {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500">{currentLang === "ko" ? "지역 추천을 찾는 중..." : "Finding suggestions..."}</p>}
+          {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500">{labels.findingSuggestions}</p>}
           {query.trim().length >= 2 && suggestionError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950/30 dark:text-rose-300">{suggestionError}</p>}
           {query.trim().length >= 2 && !suggestionLoading && !suggestionError && visibleSuggestions.length === 0 && filtered.length === 0 && (
             <p className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400">
-              {currentLang === "ko" ? "검색 결과가 없습니다. 다른 지역명을 입력해 주세요." : "No regions found. Try another name."}
+              {labels.noRegions}
             </p>
           )}
           {filtered.map((region) => {
@@ -195,7 +197,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
                 </span>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                    {currentLang === "ko" ? region.label.ko : region.label.en}
+                    {region.label[currentLang] || region.label.en}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-1">
@@ -204,7 +206,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <Plane size={11} />
-                      {currentLang === "ko" ? region.flightTime.ko : region.flightTime.en}
+                      {region.flightTime[currentLang] || region.flightTime.en}
                     </span>
                   </div>
                 </div>
@@ -220,6 +222,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
 export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionChange = () => {} }) {
   // 선택 지역이 바뀔 때 장소·날씨·현지 시각·예상 비행 정보를 백엔드에서 묶어 조회합니다.
   const { currentLang } = useLangStore();
+  const labels = getMessages(currentLang, "location");
   const [tick, setTick] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   // 같은 검색어를 다시 선택해도 id를 증가시켜 요약 정보를 새로 조회할 수 있게 합니다.
@@ -241,7 +244,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     let ignore = false;
 
     // 장소 조회가 성공한 동적 지역만 좌표·시간대가 포함된 값으로 전역 상태를 갱신합니다.
-    getGoogleLocationSummary(request.query, currentLang === "ko" ? "ko" : "en")
+    getGoogleLocationSummary(request.query, currentLang)
       .then((data) => {
         if (!ignore) {
           setSummary(data);
@@ -251,7 +254,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
       .catch((error) => {
         if (!ignore) {
           setSummary(null);
-          setErrorMessage(getApiErrorMessage(error, currentLang === "ko" ? "지역 정보를 가져오지 못했습니다." : "Could not load location data."));
+          setErrorMessage(getApiErrorMessage(error, labels.locationFailed));
         }
       })
       .finally(() => {
@@ -261,7 +264,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     return () => {
       ignore = true;
     };
-  }, [currentLang, onRegionChange, request]);
+  }, [currentLang, labels.locationFailed, onRegionChange, request]);
 
   const runSearch = (nextQuery, presetRegion = null) => {
     setLoading(true);
@@ -280,22 +283,22 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
 
   const fallbackDate = getLocalDate(selectedRegion.timezone, currentLang);
   const fallbackTime = getLocalTime(selectedRegion.timezone);
-  const fallbackFlightTime = currentLang === "ko" ? selectedRegion.flightTime.ko : selectedRegion.flightTime.en;
+  const fallbackFlightTime = selectedRegion.flightTime[currentLang] || selectedRegion.flightTime.en;
   const display = useMemo(() => {
     // 외부 응답에 일부 값이 없더라도 고정 지역의 기본 정보로 화면을 유지합니다.
     const temperature = summary?.weather?.temperatureDegrees;
 
     return {
-      title: summary?.place?.name || `${selectedRegion.country} ${currentLang === "ko" ? selectedRegion.label.ko : selectedRegion.label.en}`,
+      title: summary?.place?.name || `${selectedRegion.country} ${selectedRegion.label[currentLang] || selectedRegion.label.en}`,
       address: summary?.place?.formattedAddress || "",
       date: summary?.timeZone?.localDate || fallbackDate,
       time: summary?.timeZone?.localTime || fallbackTime,
       temperature: Number.isFinite(temperature) ? Math.round(temperature) : selectedRegion.weather.temp,
       condition: summary?.weather?.conditionText || (currentLang === "ko" ? selectedRegion.weather.conditionKo : selectedRegion.weather.conditionEn),
       flightTime: summary?.flight?.label || fallbackFlightTime,
-      flightOrigin: summary?.flight?.originName || (currentLang === "ko" ? "인천공항" : "Incheon Airport"),
+      flightOrigin: summary?.flight?.originName || labels.incheonAirport,
     };
-  }, [currentLang, fallbackDate, fallbackFlightTime, fallbackTime, selectedRegion, summary]);
+  }, [currentLang, fallbackDate, fallbackFlightTime, fallbackTime, labels.incheonAirport, selectedRegion, summary]);
 
   void tick;
 
@@ -338,7 +341,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
               <span className="inline-flex w-full items-center gap-1.5 rounded-md bg-sky-50 px-2.5 py-1 text-sky-700 dark:bg-sky-950/40 dark:text-sky-200 sm:w-auto">
                 <Plane size={15} className="shrink-0" />
                 <span className="font-medium">
-                  {currentLang === "ko" ? `${display.flightOrigin} 기준 ${display.flightTime}` : `${display.flightTime} from ${display.flightOrigin}`}
+                  {labels.flightFrom.replace("{{origin}}", display.flightOrigin).replace("{{time}}", display.flightTime)}
                 </span>
               </span>
             </div>
@@ -350,7 +353,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
             className="inline-flex items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <RefreshCw size={14} className="text-gray-500" />
-            {currentLang === "ko" ? "지역 변경" : "Change Region"}
+            {labels.changeRegion}
           </button>
         </div>
       </div>

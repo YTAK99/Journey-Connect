@@ -1,4 +1,135 @@
 {
+  "common": {
+    "language": "Language",
+    "languages": { "ko": "한국어", "en": "English" },
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "back": "Go back"
+  },
+  "home": {
+    "heading": "Share the journey",
+    "description": "Discover practical travel tips and authentic stories from travelers around the world.",
+    "getStarted": "Get started"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "nickname": "Nickname",
+    "login": {
+      "action": "Log in",
+      "submitting": "Logging in...",
+      "required": "Enter your email and password.",
+      "failed": "Unable to log in."
+    },
+    "signup": {
+      "title": "Create account",
+      "action": "Sign up",
+      "submitting": "Creating account...",
+      "required": "Complete all fields.",
+      "passwordMismatch": "The passwords do not match.",
+      "passwordLength": "Your password must be at least 8 characters.",
+      "failed": "Unable to create your account.",
+      "hasAccount": "Already have an account?"
+    },
+    "findId": {
+      "title": "Find account ID",
+      "accountPlaceholder": "Email used to sign up",
+      "required": "Enter the email used to sign up.",
+      "found": "Your account ID is \"{{id}}\".",
+      "notFound": "We couldn't find a matching account."
+    },
+    "findPassword": {
+      "title": "Find password",
+      "idPlaceholder": "Account ID",
+      "required": "Enter both your account ID and email.",
+      "found": "Your password is \"{{password}}\".",
+      "notFound": "We couldn't find a matching account."
+    },
+    "backToLogin": "Back to login"
+  },
+  "header": {
+    "nav": { "feed": "Feed", "explore": "Explore", "crew": "Crews" },
+    "search": "Search...",
+    "profile": "Profile",
+    "settings": "Settings",
+    "menu": "Menu",
+    "darkMode": "Dark mode",
+    "toggleDarkMode": "Toggle dark mode",
+    "logout": "Log out"
+  },
+  "post": {
+    "traveler": "Traveler", "more": "More", "bookmark": "Bookmark", "likes": "{{count}} likes",
+    "noPreview": "No preview available.", "edit": "Edit", "delete": "Delete", "write": "Write a post",
+    "deleteConfirm": "Delete this post?", "deleteFailed": "Unable to delete the post.",
+    "bookmarkFailed": "Unable to update the bookmark.", "likeFailed": "Unable to update the like.",
+    "loadFailed": "Unable to load this post.", "notFound": "Post not found.", "backToStories": "Back to travel stories",
+    "journalLabel": "Travel journal", "travelDates": "Travel dates", "tbd": "TBD", "gallery": "Scenes from the journey", "deleted": "Post deleted."
+  },
+  "feed": {
+    "justNow": "Just now", "minutesAgo": "{{count}}m ago", "hoursAgo": "{{count}}h ago", "daysAgo": "{{count}}d ago",
+    "monthsAgo": "{{count}}mo ago", "yearsAgo": "{{count}}y ago", "loadFailed": "Unable to load the feed.",
+    "loading": "Loading the feed...", "empty": "No posts yet.", "noSearchResults": "No posts match your search.",
+    "noRegionResults": "No posts found for {{region}}.", "selectedRegion": "the selected region", "end": "You're all caught up."
+  },
+  "analysis": {
+    "loading": "Loading AI summary...", "preparing": "AI summary is being prepared.", "unavailable": "AI summary is currently unavailable.",
+    "notGenerated": "AI summary has not been generated yet.", "loadFailed": "Unable to load the AI summary.", "show": "View", "hide": "Hide"
+  },
+  "stories": { "post": "Post", "loadFailed": "Unable to load stories.", "emptyRegion": "No stories for this region." },
+  "myPosts": {
+    "loginRequired": "Please log in.", "loadFailed": "Unable to load your posts.", "loading": "Loading your posts...",
+    "title": "My posts", "count": "{{count}} posts", "empty": "You haven't written any posts yet."
+  },
+  "search": { "homePlaceholder": "Where would you like to go today?" },
+  "complete": { "title": "Your itinerary has been published.", "description": "Your travel itinerary is now available to other travelers.", "viewSchedule": "View my itinerary" },
+  "writePost": {
+    "loginRequired": "Please log in to continue.", "loadFailed": "Unable to load the post.", "titleRequired": "Enter a trip title.",
+    "regionRequired": "Choose a representative travel region.", "placeRequired": "Find every stop using Google place search.",
+    "contentRequired": "Write a story for every stop.", "coverRequired": "Choose a cover from the attached photos.",
+    "invalidDates": "The end date cannot be earlier than the start date.", "updated": "Your post has been updated.", "created": "Your travel route has been published.",
+    "saveFailed": "Unable to save the post.", "loading": "Loading your post...", "back": "Back",
+    "editTitle": "Edit your travel route", "createTitle": "Create a travel route", "intro": "Choose a region, then add a Google place, photos, and a story for every stop.",
+    "tripInfo": "Trip details", "title": "Trip title", "titlePlaceholder": "e.g. A rainy-day walk through Kyoto", "region": "Representative region",
+    "chooseRegion": "Choose region", "startDate": "Start date", "endDate": "End date", "route": "Stops and stories",
+    "routeHelp": "Search for cafés, restaurants, and attractions, then arrange them in visit order.", "addPlace": "Add next stop", "tags": "Search tags",
+    "cancel": "Cancel", "saving": "Saving...", "editSubmit": "Save changes", "createSubmit": "Publish travel route"
+  },
+  "tagInput": { "help": "Type a tag and press Enter. Tags help travelers find your post.", "placeholder": "e.g. JejuFood", "duplicate": "You already added that tag.", "tooLong": "Tags must be 20 characters or fewer.", "remove": "Remove tag" },
+  "imageUploader": {
+    "maxAlert": "You can attach up to 10 images.", "invalidAlert": "Select JPEG, PNG, WebP, or GIF images up to 5MB each.",
+    "select": "Choose your travel photos", "limits": "JPEG · PNG · WebP · GIF / 5MB each / up to 10", "travelImage": "Travel image",
+    "cover": "Cover", "setCover": "Set as cover", "remove": "Remove image", "coverHelp": "The first photo will be used as the feed cover.",
+    "chooseCover": "Choose a cover from the attached photos."
+  },
+  "richTextEditor": {
+    "fonts": ["Default font", "Clean sans", "Editorial serif", "Soft sans", "Travel mono"], "fontSelect": "Choose font",
+    "heading2": "Heading 2", "heading3": "Heading 3", "bold": "Bold", "italic": "Italic", "strike": "Strikethrough", "bulletList": "Bullet list",
+    "orderedList": "Numbered list", "quote": "Quote", "undo": "Undo", "redo": "Redo", "characters": " characters"
+  },
+  "location": { "suggestionsFailed": "Unable to load region suggestions.", "searchPlace": "Search for a place", "selectRegion": "Select region", "placePlaceholder": "Search cafés, restaurants, and attractions", "cityPlaceholder": "Search for a city...", "search": "Search", "findingSuggestions": "Finding suggestions...", "noRegions": "No regions found. Try another name.", "locationFailed": "Unable to load location data.", "incheonAirport": "Incheon Airport", "flightFrom": "{{time}} from {{origin}}", "changeRegion": "Change region" },
+  "placePicker": { "placeLoadFailed": "Unable to load this place.", "searchPlaceholder": "Search cafés, restaurants, hotels, and attractions", "addressNotFound": "No address was found for this point.", "mapLoadFailed": "Unable to load Google Maps. Check the API configuration.", "title": "Choose a place on the map", "help": "Search for a place or select one on the map.", "selectPrompt": "Select a place on the map.", "confirm": "Use this place" },
+  "routeMap": { "stop": "Stop {{count}}", "loadFailed": "Unable to load the travel route map.", "title": "My travel route", "viewGoogleMaps": "View on Google Maps", "empty": "No location data is available for the map." },
+  "placeEditor": {
+    "choosePlace": "Choose a place", "moveUp": "Move up", "moveDown": "Move down", "remove": "Remove place", "location": "Location",
+    "change": "Change", "choose": "Choose", "locationHelp": "Find this stop using Google place search.", "story": "Story at this place",
+    "storyHelp": "Add photo context and travel notes with the formatting tools.", "photos": "Photos from this place", "photosHelp": "Photo order is preserved in the post and gallery."
+  },
+  "explore": {
+    "noResults": "There are no results for “{{query}}” yet.", "invitation": "Be the first to share a travel story.", "write": "Write a story",
+    "reset": "Clear search", "suggestions": "How about one of these trips?", "nearby": "More stories from {{region}}", "recent": "Recently published",
+    "loading": "Loading travel suggestions...", "unavailable": "There are no travel stories to recommend yet.", "loadMore": "Load more", "loadingMore": "Loading more...",
+    "loadFailed": "Unable to load Explore.", "restartFailed": "Unable to restart Explore.", "loadMoreFailed": "Unable to load more results.",
+    "destination": "destination", "title": "Explore", "headerQuery": "Search", "cardsLoading": "Loading Explore cards..."
+  },
+  "myPage": {
+    "back": "Back", "editProfile": "Edit profile", "posts": "Posts", "likes": "Likes", "comments": "Comments",
+    "tabs": ["My journeys", "Liked places", "Saved", "Crew activity"], "loading": "Loading your posts...",
+    "loadError": "Unable to load your profile posts.", "emptyPosts": "You haven't written a journey yet.", "emptyBookmarks": "You haven't saved any places yet.",
+    "unavailableLikes": "Your liked places list is coming soon.", "unavailableCrew": "Your crew activity is coming soon.",
+    "write": "Write your first journey", "nickname": "Nickname", "email": "Email", "cancel": "Cancel", "save": "Save", "close": "Close",
+    "editHint": "The profile image is previewed on this screen only.", "traveler": "Traveler"
+  },
   "crew": {
     "pageTitle": "Crews & Meetups",
     "pageDescription": "Meet travelers in the selected region.",

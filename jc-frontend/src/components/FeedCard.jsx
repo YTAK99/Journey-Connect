@@ -6,37 +6,39 @@ import { bookmarkPost, getExplore, getFeed, getFeedItems, getPostAnalysis, likeP
 import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
 import { parseApiDate } from "../utils/dateTime";
-import useLangStore from "../store/useLangStore";
 import TagChips from "./TagChips";
+import { translate } from "../i18n";
+import useTranslation from "../i18n/useTranslation";
 
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
 
-const getRelativeDate = (createdAt) => {
-  if (!createdAt) return "방금 전";
+const getRelativeDate = (createdAt, language) => {
+  const t = (key, variables) => translate(language, key, variables);
+  if (!createdAt) return t("feed.justNow");
   const date = parseApiDate(createdAt);
   if (Number.isNaN(date.getTime())) return String(createdAt).slice(0, 10);
 
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.max(1, Math.floor(diffMs / 60000));
-  if (minutes < 60) return `${minutes}분 전`;
+  if (minutes < 60) return t("feed.minutesAgo", { count: minutes });
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}시간 전`;
+  if (hours < 24) return t("feed.hoursAgo", { count: hours });
 
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}일 전`;
+  if (days < 30) return t("feed.daysAgo", { count: days });
 
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}개월 전`;
+  if (months < 12) return t("feed.monthsAgo", { count: months });
 
-  return `${Math.floor(months / 12)}년 전`;
+  return t("feed.yearsAgo", { count: Math.floor(months / 12) });
 };
 
 function FeedItem({ post }) {
   // 게시물 한 건의 작성자·본문·반응 정보를 카드로 표현하고 좋아요·북마크 상태를 관리합니다.
   const navigate = useNavigate();
-  const { currentLang } = useLangStore();
+  const { currentLang, t } = useTranslation();
   const [liked, setLiked] = useState(Boolean(post.liked));
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
@@ -50,16 +52,16 @@ function FeedItem({ post }) {
       ? analysis.result?.summary?.trim() || ""
       : "";
   const summaryMessage = analysisLoading
-    ? (currentLang === "ko" ? "AI 요약을 불러오는 중입니다." : "Loading AI summary.")
+    ? t("analysis.loading")
     : analysisError
       ? analysisError
       : summary
         ? summary
         : analysis?.status === "queued" || analysis?.status === "running"
-          ? (currentLang === "ko" ? "AI 요약을 준비 중입니다." : "AI summary is being prepared.")
+          ? t("analysis.preparing")
           : analysis?.status === "failed" || analysis?.status === "quarantined"
-            ? (currentLang === "ko" ? "AI 요약을 현재 제공할 수 없습니다." : "AI summary is currently unavailable.")
-            : (currentLang === "ko" ? "AI 요약이 아직 생성되지 않았습니다." : "AI summary has not been generated yet.");
+            ? t("analysis.unavailable")
+            : t("analysis.notGenerated");
 
   const toggleLike = async (event) => {
     event.stopPropagation();
@@ -74,7 +76,7 @@ function FeedItem({ post }) {
     } catch (error) {
       setLiked(!nextLiked);
       setLikeCount((count) => Math.max(0, count + (nextLiked ? -1 : 1)));
-      alert(getApiErrorMessage(error, "좋아요 처리에 실패했습니다."));
+      alert(getApiErrorMessage(error, t("post.likeFailed")));
     }
   };
 
@@ -88,7 +90,7 @@ function FeedItem({ post }) {
       else await unbookmarkPost(post.id);
     } catch (error) {
       setBookmarked(!nextBookmarked);
-      alert(getApiErrorMessage(error, "북마크 처리에 실패했습니다."));
+      alert(getApiErrorMessage(error, t("post.bookmarkFailed")));
     }
   };
 
@@ -104,7 +106,7 @@ function FeedItem({ post }) {
     } catch (error) {
       setAnalysisError(getApiErrorMessage(
         error,
-        currentLang === "ko" ? "AI 요약을 불러오지 못했습니다." : "Could not load AI summary.",
+        t("analysis.loadFailed"),
       ));
     } finally {
       setAnalysisLoading(false);
@@ -123,14 +125,14 @@ function FeedItem({ post }) {
             />
             <div>
               <h3 className="text-base font-semibold leading-5 text-gray-900 dark:text-slate-100">
-                {post.author?.nickname || "여행자"}
+                {post.author?.nickname || t("post.traveler")}
               </h3>
               <p className="text-sm leading-5 text-gray-500 dark:text-slate-400">
-                {location} · {getRelativeDate(post.createdAt)}
+                {location} · {getRelativeDate(post.createdAt, currentLang)}
               </p>
             </div>
           </div>
-          <button type="button" className="text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100" aria-label="더보기">
+          <button type="button" className="text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100" aria-label={t("post.more")}>
             <MoreHorizontal size={18} />
           </button>
         </div>
@@ -165,21 +167,21 @@ function FeedItem({ post }) {
           type="button"
           onClick={toggleBookmark}
           className={`text-gray-700 transition-colors hover:text-yellow-500 dark:text-slate-300 ${bookmarked ? "text-yellow-500" : ""}`}
-          aria-label="북마크"
+          aria-label={t("post.bookmark")}
         >
           <Bookmark size={24} fill={bookmarked ? "currentColor" : "none"} strokeWidth={1.5} />
         </button>
       </div>
 
       <div className="px-5 pt-2">
-        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">좋아요 {likeCount}개</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{t("post.likes", { count: likeCount })}</p>
         <TagChips tags={post.tags || []} className="mt-2" />
       </div>
 
       <div className="p-7">
         <h4 className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100">{post.title}</h4>
         <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600 dark:text-slate-300">
-          {richTextToPlainText(post.content) || "내용 미리보기가 없습니다."}
+          {richTextToPlainText(post.content) || t("post.noPreview")}
         </p>
 
         <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50 p-3 dark:border-teal-900/60 dark:bg-teal-950/30">
@@ -187,9 +189,7 @@ function FeedItem({ post }) {
             <Sparkles size={14} className="text-teal-600" />
             <span className="text-xs font-semibold text-teal-700">AI Summary</span>
             <span className="ml-auto text-xs text-gray-500 dark:text-slate-400">
-              {showSummary
-                ? (currentLang === "ko" ? "접기" : "Hide")
-                : (currentLang === "ko" ? "보기" : "View")}
+              {showSummary ? t("analysis.hide") : t("analysis.show")}
             </span>
           </button>
           {showSummary && (
@@ -206,7 +206,7 @@ function FeedItem({ post }) {
 export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }) {
   // 커서 피드를 가져온 뒤 현재 지역과 헤더 검색어에 맞는 카드만 보여줍니다.
   const navigate = useNavigate();
-  const { currentLang } = useLangStore();
+  const { currentLang, t } = useTranslation();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -218,10 +218,10 @@ export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }
     request
       .then((feed) => setPosts(getFeedItems(feed)))
       .catch((requestError) => {
-        setError(getApiErrorMessage(requestError, "피드를 불러오지 못했습니다."));
+        setError(getApiErrorMessage(requestError, t("feed.loadFailed")));
       })
       .finally(() => setLoading(false));
-  }, [keyword]);
+  }, [keyword, t]);
 
   const regionName = selectedRegion?.label?.[currentLang] || selectedRegion?.label?.en || selectedRegion?.label?.ko;
   const normalizedKeyword = keyword.trim().toLowerCase();
@@ -241,21 +241,21 @@ export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }
     }
   }, [displayPosts.length, error, loading, onEmptyResult]);
 
-  if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">피드를 불러오는 중입니다.</div>;
+  if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">{t("feed.loading")}</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
   if (displayPosts.length === 0) return null;
 
   if (posts.length === 0) {
     return (
       <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
-        <p className="mb-4 text-gray-500 dark:text-slate-400">아직 등록된 글이 없습니다.</p>
+        <p className="mb-4 text-gray-500 dark:text-slate-400">{t("feed.empty")}</p>
         <button
           type="button"
           onClick={() => navigate("/write")}
           className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-white hover:bg-primaryHover"
         >
           <Plus size={18} />
-          글쓰기
+          {t("post.write")}
         </button>
       </div>
     );
@@ -265,7 +265,9 @@ export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }
     return (
       <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
         <p className="text-gray-500 dark:text-slate-400">
-          {normalizedKeyword ? "검색어가 포함된 게시물이 없습니다." : `${regionName || "선택한 지역"}의 게시물이 없습니다.`}
+          {normalizedKeyword
+            ? t("feed.noSearchResults")
+            : t("feed.noRegionResults", { region: regionName || t("feed.selectedRegion") })}
         </p>
       </div>
     );
@@ -276,7 +278,7 @@ export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }
       {displayPosts.map((post) => (
         <FeedItem key={post.id} post={post} />
       ))}
-      <div className="py-8 text-center text-sm text-gray-500 dark:text-slate-400">모든 게시물을 불러왔습니다.</div>
+      <div className="py-8 text-center text-sm text-gray-500 dark:text-slate-400">{t("feed.end")}</div>
     </div>
   );
 }

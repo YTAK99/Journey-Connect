@@ -15,39 +15,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { normalizeEditorContent } from "../utils/richText";
-
-const copy = {
-  ko: {
-    fonts: ["기본 글꼴", "깔끔한 고딕", "감성적인 명조", "부드러운 고딕", "기록형 모노"],
-    fontSelect: "글꼴 선택",
-    heading2: "제목 2",
-    heading3: "제목 3",
-    bold: "굵게",
-    italic: "기울임",
-    strike: "취소선",
-    bulletList: "글머리 목록",
-    orderedList: "번호 목록",
-    quote: "인용문",
-    undo: "실행 취소",
-    redo: "다시 실행",
-    characters: "자",
-  },
-  en: {
-    fonts: ["Default font", "Clean sans", "Editorial serif", "Soft sans", "Travel mono"],
-    fontSelect: "Choose font",
-    heading2: "Heading 2",
-    heading3: "Heading 3",
-    bold: "Bold",
-    italic: "Italic",
-    strike: "Strikethrough",
-    bulletList: "Bullet list",
-    orderedList: "Numbered list",
-    quote: "Quote",
-    undo: "Undo",
-    redo: "Redo",
-    characters: " characters",
-  },
-};
+import { getMessages } from "../i18n";
 
 const fontValues = ["", "Arial", "Georgia", "Trebuchet MS", "Courier New"];
 
@@ -73,7 +41,7 @@ function ToolbarButton({ active = false, disabled = false, label, onClick, child
 }
 
 export default function RichTextEditor({ value, onChange, lang = "ko" }) {
-  const t = copy[lang] || copy.ko;
+  const t = getMessages(lang, "richTextEditor");
   // 에디터 내부 변경은 HTML로 부모 폼에 전달하며, 저장 전 최종 정제는 백엔드가 담당합니다.
   const editor = useEditor({
     extensions: [StarterKit, TextStyle, FontFamily],
