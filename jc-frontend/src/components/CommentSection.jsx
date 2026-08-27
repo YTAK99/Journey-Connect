@@ -3,8 +3,8 @@ import { useState } from 'react';
 export default function CommentSection() {
     // 1. 임시 댓글 목록 상태
     const [comments, setComments] = useState([
-        { id: 1, author: "여행러버", text: "성수동 코스 너무 좋아보이네요! 저도 가봐야겠어요.", time: "10분 전" },
-        { id: 2, author: "지원", text: "사진 감성 대박... ☕️", time: "방금 전" }
+        { id: 1, author: "여행러버", text: "임시 데이터 입니다.", time: "10분 전" },
+        { id: 2, author: "지원", text: "하드코딩 되어있어요", time: "방금 전" }
     ]);
 
     // 2. 사용자가 입력하고 있는 새 댓글 상태
