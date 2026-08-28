@@ -15,21 +15,25 @@ export default function PostPlaceEditor({
   selectedCoverKey,
   onSelectCover,
 }) {
+  // 언어가 한국어('ko')인지 확인하여 UI 텍스트 분기 처리에 사용
   const t = (key) => translate(lang, key);
 
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/60 dark:border-slate-700 dark:bg-slate-950/35">
-      {/* 장소 순서, 이름, 이동 및 삭제 제어 영역 */}
+      {/* 상단 헤더: 순서 번호, 장소 이름, 순서 이동 및 삭제 버튼 영역 */}
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+        {/* 장소 순서 번호 표시 배지 (0부터 시작하므로 +1) */}
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500 text-sm font-extrabold text-white">
           {index + 1}
         </span>
+        {/* 장소 타이틀 영역 */}
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-600">Stop {index + 1}</p>
           <h3 className="truncate font-bold text-slate-900 dark:text-white">
             {place.displayName || t("placeEditor.choosePlace")}
           </h3>
         </div>
+        {/* 장소 제어 버튼 그룹 (위로 이동, 아래로 이동, 삭제) */}
         <div className="flex items-center gap-1">
           <button type="button" disabled={index === 0} onClick={() => onMove(index, -1)} aria-label={t("placeEditor.moveUp")} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-30 dark:hover:bg-slate-800">
             <ChevronUp size={17} />
@@ -43,9 +47,9 @@ export default function PostPlaceEditor({
         </div>
       </header>
 
+      {/* 메인 컨텐츠 영역 (위치, 이야기, 사진) */}
       <div className="space-y-7 p-5 sm:p-6">
-        {/* Google 장소 검색으로 방문 위치를 지정하거나 변경합니다. */}
-        {/* 장소별 여행 이야기는 리치 텍스트 HTML로 부모 폼에 전달합니다. */}
+        {/* 1. 위치(Location) 섹션 */}
         <section>
           <div className="mb-2 flex items-center justify-between gap-3">
             <label className="text-sm font-semibold text-slate-700 dark:text-slate-200">

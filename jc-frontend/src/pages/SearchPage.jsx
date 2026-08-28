@@ -192,7 +192,7 @@ export default function SearchPage() {
 
   return (
     <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
-      {/* 연수 브랜치의 탐색 UI 기준으로 상단 지역·날씨 바는 피드에만 남깁니다. */}
+      {/* 축소된 헤더 아래에도 기존과 같은 시각적 분리 여백을 확보합니다. */}
       <div className="pb-4 pt-20">
         <section className="mx-auto max-w-screen-xl px-4 py-3">
           <div className="mb-4 flex flex-col gap-1">

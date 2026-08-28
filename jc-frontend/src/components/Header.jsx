@@ -6,21 +6,21 @@ import useLangStore from "../store/useLangStore";
 import { translate } from "../i18n";
 import bellIcon from "../assets/bell.svg";
 
-// 상단 내비게이션 메뉴는 번역 키만 보관하고 실제 문구는 언어 JSON에서 읽습니다.
+// 상단 내비게이션 바에 표시될 메뉴 항목들 (피드, 탐색, 크루)과 다국어 지원 라벨
 const navItems = [
   { to: "/feed", key: "header.nav.feed" },
   { to: "/explore", key: "header.nav.explore" },
   { to: "/crew", key: "header.nav.crew" },
 ];
 
-// 설정 메뉴에서 선택할 수 있는 지원 언어 목록입니다.
+// 설정 메뉴에서 선택할 수 있는 언어 옵션
 const languageOptions = [
   { value: "ko", key: "common.languages.ko", shortLabel: "KO" },
   { value: "en", key: "common.languages.en", shortLabel: "EN" },
 ];
 
 const getInitialDarkMode = () => {
-  // 저장된 사용자 선택을 우선하고, 없으면 운영체제의 다크 모드 설정을 따릅니다.
+// 초기 다크 모드 설정 상태를 불러오는 함수 (로컬스토리지 저장 값 또는 OS 기본 설정 반영)
   const saved = localStorage.getItem("theme");
   if (saved) return saved === "dark";
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
@@ -59,7 +59,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
           </div>
         </div>
 
-        {/* 다크 모드 토글 영역 */}
+      {/* 다크 모드 토글 스위치 영역 */}
         <div className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 dark:border-slate-700">
           <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
             {isDark ? <Moon size={14} className="text-primary" /> : <Sun size={14} className="text-primary" />}
@@ -79,7 +79,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
           </button>
         </div>
 
-        {/* 로그아웃 영역 */}
+      {/* 로그아웃 버튼 영역 */}
         <div className="border-t border-gray-200 pt-2 dark:border-slate-700">
           <button
             type="button"
@@ -96,7 +96,7 @@ function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
 }
 
 export default function Header() {
-  // 전역 내비게이션과 검색, 언어·테마·로그인 메뉴를 묶어 모든 주요 화면에서 공유합니다.
+// [메인 Header 컴포넌트]
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -110,7 +110,7 @@ export default function Header() {
   const t = (key) => translate(currentLang, key);
 
   useEffect(() => {
-    // Tailwind의 dark 변형이 동작하도록 루트 요소 클래스와 저장값을 함께 갱신합니다.
+  // 다크 모드 상태가 바뀔 때마다 HTML 루트 클래스 및 로컬스토리지 업데이트
     document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", isDark ? "dark" : "light");
   }, [isDark]);
@@ -118,7 +118,7 @@ export default function Header() {
   useEffect(() => {
     if (!settingsOpen) return undefined;
 
-    // 설정 버튼과 패널 밖을 누르면 열린 메뉴를 즉시 닫아 화면을 가리지 않게 합니다.
+  // 설정 패널 외부를 클릭했을 때 패널이 닫히도록 이벤트 리스너 등록
     const closeSettingsOnOutsideClick = (event) => {
       if (!settingsRef.current?.contains(event.target)) {
         setSettingsOpen(false);

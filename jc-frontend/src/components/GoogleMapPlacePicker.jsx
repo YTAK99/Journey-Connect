@@ -3,21 +3,25 @@ import { Loader2, MapPin, X } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
 
-// 초기 지도가 표시될 기본 중심 좌표(서울 시청)입니다.
+// 초기 지도가 표시될 기본 중심 좌표 (기본값: 서울 시청)
 const SEOUL = { lat: 37.5665, lng: 126.978 };
 
 export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, onClose }) {
+  // 언어 설정이 한국어('ko')인지 여부 확인
   const t = (key) => translate(lang, key);
+  // DOM 및 구글 맵 객체 레퍼런스 관리
   const mapElementRef = useRef(null);
   const autocompleteContainerRef = useRef(null);
   const markerRef = useRef(null);
+  // 현재 선택된 장소 상태 관리 (기존 전달된 값이 있다면 초기값으로 설정)
   const [selection, setSelection] = useState(value?.regionPlaceId ? value : null);
+  // 로딩 및 API 요청 처리 상태 관리
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState("");
 
+  // 구글 맵 초기화 및 이벤트 리스너 설정 훅
   useEffect(() => {
-    // Google 지도와 장소 자동완성을 초기화하고 언마운트 시 리스너를 정리합니다.
     let active = true;
     const autocompleteContainer = autocompleteContainerRef.current;
     let map;
@@ -27,17 +31,20 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
 
     const initialize = async () => {
       try {
+        // 1. 구글 맵 API 로드
         const maps = await loadGoogleMaps();
         if (!active) return;
+        // 초기 지도 중심 좌표 결정 (전달받은 위치가 있으면 해당 좌표, 없으면 서울)
         const initialCenter = Number.isFinite(value?.latitude) && Number.isFinite(value?.longitude)
           ? { lat: value.latitude, lng: value.longitude }
           : SEOUL;
+        // 2. 구글 맵 라이브러리(마커, 장소) 로드
         const [{ AdvancedMarkerElement }, { Place, PlaceAutocompleteElement }] = await Promise.all([
           maps.importLibrary("marker"),
           maps.importLibrary("places"),
         ]);
         if (!active) return;
-        // 전달받은 위치가 있으면 그 좌표를, 없으면 서울을 중심으로 지도를 생성합니다.
+        // 3. 맵 인스턴스 생성
         map = new maps.Map(mapElementRef.current, {
           center: initialCenter,
           zoom: value?.latitude ? 16 : 12,
@@ -46,12 +53,13 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           streetViewControl: false,
           fullscreenControl: false,
         });
+        // 지도 위에 표시될 마커 생성
         markerRef.current = new AdvancedMarkerElement({
           map,
           position: value?.latitude ? initialCenter : undefined,
         });
 
-        // 장소 선택 결과를 마커와 하단 확인 영역에 동시에 반영합니다.
+        // 4. 장소 선택 시 마커 위치 이동 및 상태 업데이트 함수
         const applySelection = (next) => {
           if (!active) return;
           markerRef.current.position = { lat: next.latitude, lng: next.longitude };
@@ -61,6 +69,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           setError("");
         };
 
+        // 5. 구글 Place ID를 기반으로 상세 장소 정보(위치, 주소 등)를 가져오는 함수
         const selectPlaceId = async (placeId) => {
           setResolving(true);
           try {
@@ -84,7 +93,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           }
         };
 
-        // Google Place 자동완성 컴포넌트를 현재 언어로 설정합니다.
+        // 6. 구글 자동완성 검색 컴포넌트(PlaceAutocompleteElement) 설정
         autocompleteElement = new PlaceAutocompleteElement();
         autocompleteElement.placeholder = translate(lang, "placePicker.searchPlaceholder");
         autocompleteElement.style.width = "100%";
@@ -95,6 +104,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         autocompleteElement.style.border = "1px solid #cbd5e1";
         autocompleteElement.style.borderRadius = "0.75rem";
         autocompleteElement.style.fontSize = "0.875rem";
+        // 자동완성 목록에서 특정 장소를 선택했을 때의 이벤트 핸들러
         autocompleteSelectHandler = async ({ placePrediction }) => {
           if (!placePrediction) return;
           setResolving(true);
@@ -118,9 +128,10 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         autocompleteElement.addEventListener("gmp-select", autocompleteSelectHandler);
         autocompleteContainer.replaceChildren(autocompleteElement);
 
-        // 지도 빈 지점을 클릭하면 역지오코딩으로 주소와 좌표를 구성합니다.
+        // 7. 지도 직접 클릭 시 Geocoder를 이용해 주소 및 좌표를 따오는 이벤트 설정
         const geocoder = new maps.Geocoder();
         clickListener = map.addListener("click", (event) => {
+          // 사용자가 지도 위의 특정 POI(랜드마크 등)를 클릭한 경우
           if (event.placeId) {
             event.stop?.();
             selectPlaceId(event.placeId);
@@ -128,6 +139,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           }
           if (!event.latLng) return;
           setResolving(true);
+          // 좌표를 주소로 변환 (Reverse Geocoding)
           geocoder.geocode({ location: event.latLng }, (results, status) => {
             setResolving(false);
             const result = results?.[0];
@@ -154,7 +166,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
     };
 
     initialize();
-    // 컴포넌트가 닫힐 때 지도 이벤트와 자동완성 이벤트를 모두 해제합니다.
+    // 클린업 함수: 컴포넌트 언마운트 시 이벤트 리스너 제거 및 지도 정리
     return () => {
       active = false;
       if (clickListener) clickListener.remove();

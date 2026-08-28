@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
-import { useNavigate } from "react-router";
+import { Bookmark, Globe2, Heart, MapPin, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
+import { Link, useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, getExplore, getFeed, getFeedItems, getPost, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
@@ -15,6 +15,7 @@ import PostRouteMap from "./PostRouteMap";
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
 
+// 작성 시간을 "3분 전", "2일 전" 같은 형태로 바꿔주는 함수
 const getRelativeDate = (createdAt, language) => {
   const t = (key, variables) => translate(language, key, variables);
   if (!createdAt) return t("feed.justNow");
@@ -37,15 +38,19 @@ const getRelativeDate = (createdAt, language) => {
   return t("feed.yearsAgo", { count: Math.floor(months / 12) });
 };
 
+// 피드에 게시물 하나를 보여주는 컴포넌트
 function FeedItem({ post }) {
-  // 피드 카드에 목록 응답과 상세 응답을 합쳐 다중 이미지와 여행 루트까지 함께 표시합니다.
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
+  // 기존 post 데이터를 유지하면서 상세 데이터를 덮어쓰도록 설정
   const [detailedPost, setDetailedPost] = useState(post);
+  // 댓글 영역 열기/닫기 상태
   const [isCommentOpen, setIsCommentOpen] = useState(false);
+  // 좋아요 / 북마크 상태
   const [liked, setLiked] = useState(Boolean(post.liked));
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0);
+  // AI 요약 관련 상태
   const [showSummary, setShowSummary] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -64,6 +69,7 @@ function FeedItem({ post }) {
     return () => { active = false; };
   }, [post.id]);
 
+  // 현재 언어에 맞는 게시물 지역명
   const location = getLocalizedRegionName(detailedPost, currentLang);
   const rawImages = detailedPost.images?.length
     ? detailedPost.images
@@ -75,10 +81,12 @@ function FeedItem({ post }) {
   const images = rawImages
     .map((image) => typeof image === "string" ? image : image?.imageUrl || image?.url)
     .filter(Boolean);
+  // AI 분석이 완료된 경우 요약 내용 꺼내기
   const summary =
     analysis?.status === "succeeded"
       ? analysis.result?.summary?.trim() || ""
       : "";
+  // AI 분석 상태에 따라 사용자에게 보여줄 문구 결정
   const summaryMessage = analysisLoading
     ? t("analysis.loading")
     : analysisError
@@ -91,6 +99,7 @@ function FeedItem({ post }) {
             ? t("analysis.unavailable")
             : t("analysis.notGenerated");
 
+  // 좋아요 버튼
   const toggleLike = async (event) => {
     event.stopPropagation();
     // 반응을 먼저 화면에 반영하고 API가 실패하면 이전 상태로 되돌리는 낙관적 업데이트입니다.
@@ -108,6 +117,7 @@ function FeedItem({ post }) {
     }
   };
 
+  // 북마크 버튼
   const toggleBookmark = async (event) => {
     event.stopPropagation();
     const nextBookmarked = !bookmarked;
@@ -122,6 +132,7 @@ function FeedItem({ post }) {
     }
   };
 
+  // AI 요약 열기/닫기
   const toggleSummary = async () => {
     const nextOpen = !showSummary;
     setShowSummary(nextOpen);
@@ -143,6 +154,7 @@ function FeedItem({ post }) {
 
   return (
     <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
+      {/* 작성자 / 지역 / 작성 시간 */}
       <div className="px-5 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -166,12 +178,13 @@ function FeedItem({ post }) {
         </div>
       </div>
 
-      {/* 최대 네 장을 같은 비율로 보여주고, 나머지는 마지막 이미지 위에 개수로 표시합니다. */}
+      {/* 게시물 이미지 안전 추출 및 표시 영역 */}
       {images.length > 0 && (
         <div className="grid grid-cols-2 gap-2 px-6 pt-5 sm:grid-cols-4">
           {images.slice(0, 4).map((imageUrl, index) => (
             <button key={`${imageUrl}-${index}`} type="button" className="relative h-40 overflow-hidden rounded-lg" onClick={() => navigate(`/post/${detailedPost.id}`)}>
               <img src={imageUrl || fallbackImage} alt={t("feed.imageAlt", { index: index + 1 })} className="h-full w-full object-cover transition hover:scale-105" />
+              {/* 사진이 4장보다 많으면 남은 개수 표시 */}
               {index === 3 && images.length > 4 && (
                 <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-lg font-bold text-white">+{images.length - 4}</span>
               )}
@@ -180,9 +193,10 @@ function FeedItem({ post }) {
         </div>
       )}
 
-      {/* 상세 응답의 방문 장소를 기존 루트 지도 카드로 재사용합니다. */}
+      {/* 여행 루트 이미지 (좌우 여백 px-5 적용) */}
       <div className="px-7"><PostRouteMap places={detailedPost.places || []} lang={currentLang} /></div>
 
+      {/* 좋아요 / 댓글 / 북마크 버튼 */}
       <div className="flex items-center justify-between px-5 pt-4">
         <div className="flex items-center gap-4">
           <button
@@ -209,16 +223,25 @@ function FeedItem({ post }) {
         </button>
       </div>
 
+      {/* 좋아요 개수 / 태그 */}
       <div className="px-5 pt-2">
         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{t("post.likes", { count: likeCount })}</p>
         <TagChips tags={detailedPost.tags || []} className="mt-2" />
       </div>
 
+      {/* 제목 / 본문 미리보기 / AI 요약 */}
       <div className="p-7">
-        <h4 className="text-lg font-bold leading-6 text-gray-900 dark:text-slate-100">{detailedPost.title}</h4>
-        <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600 dark:text-slate-300">
-          {richTextToPlainText(detailedPost.content) || t("post.noPreview")}
-        </p>
+        <Link
+          to={`/post/${detailedPost.id}`}
+          className="group block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4 dark:focus-visible:ring-offset-slate-900"
+        >
+          <h4 className="text-lg font-bold leading-6 text-gray-900 transition-colors group-hover:text-primary dark:text-slate-100">
+            {detailedPost.title}
+          </h4>
+          <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600 dark:text-slate-300">
+            {richTextToPlainText(detailedPost.content) || t("post.noPreview")}
+          </p>
+        </Link>
 
         <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50 p-3 dark:border-teal-900/60 dark:bg-teal-950/30">
           <button type="button" onClick={toggleSummary} className="flex w-full items-center gap-2 text-left">
@@ -235,14 +258,14 @@ function FeedItem({ post }) {
           )}
         </div>
       </div>
-      {/* 댓글 UI는 연수 브랜치의 컴포넌트를 유지하고 게시글 식별자를 함께 전달합니다. */}
+      {/* 댓글 영역 */}
       {isCommentOpen && <div className="px-5 pb-5"><CommentSection postId={detailedPost.id} /></div>}
     </article>
   );
 }
 
-export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }) {
-  // 커서 피드를 가져온 뒤 현재 지역과 헤더 검색어에 맞는 카드만 보여줍니다.
+// 피드 전체를 불러오는 상위 컴포넌트
+export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion }) {
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
   const [posts, setPosts] = useState([]);
@@ -272,41 +295,29 @@ export default function FeedCard({ selectedRegion, keyword = "", onEmptyResult }
   });
   const displayPosts = visiblePosts;
 
-  useEffect(() => {
-    // 정상 조회가 끝난 빈 피드만 탐색 화면으로 넘기고, 로딩·오류 상태에서는 이동하지 않습니다.
-    if (!loading && !error && displayPosts.length === 0) {
-      onEmptyResult?.();
-    }
-  }, [displayPosts.length, error, loading, onEmptyResult]);
-
   if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">{t("feed.loading")}</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
-  if (displayPosts.length === 0) return null;
-
-  if (posts.length === 0) {
-    return (
-      <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
-        <p className="mb-4 text-gray-500 dark:text-slate-400">{t("feed.empty")}</p>
-        <button
-          type="button"
-          onClick={() => navigate("/write")}
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-white hover:bg-primaryHover"
-        >
-          <Plus size={18} />
-          {t("post.write")}
-        </button>
-      </div>
-    );
-  }
 
   if (displayPosts.length === 0) {
     return (
-      <div className="mx-auto max-w-lg rounded-lg border border-gray-100 bg-white py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-gray-500 dark:text-slate-400">
+      <div className="mx-auto max-w-2xl rounded-2xl border border-gray-100 bg-white px-6 py-12 text-center shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
           {normalizedKeyword
-            ? t("feed.noSearchResults")
+            ? t("feed.noSearchResults", { keyword })
             : t("feed.noRegionResults", { region: regionName || t("feed.selectedRegion") })}
-        </p>
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">{t("feed.emptyHelp")}</p>
+        <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
+          <button type="button" onClick={onChangeRegion} className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-teal-950/30">
+            <MapPin size={17} /> {t("feed.changeRegion")}
+          </button>
+          <button type="button" onClick={() => navigate("/explore")} className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-teal-950/30">
+            <Globe2 size={17} /> {t("feed.exploreWorld")}
+          </button>
+          <button type="button" onClick={() => navigate("/write")} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white hover:bg-primaryHover">
+            <Plus size={17} /> {t("feed.writeFirst")}
+          </button>
+        </div>
       </div>
     );
   }

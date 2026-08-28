@@ -219,12 +219,11 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
   );
 }
 
-export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionChange = () => {} }) {
+export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionChange = () => {}, pickerOpen = false, onPickerOpenChange = () => {} }) {
   // 선택 지역이 바뀔 때 장소·날씨·현지 시각·예상 비행 정보를 백엔드에서 묶어 조회합니다.
   const { currentLang } = useLangStore();
   const labels = getMessages(currentLang, "location");
   const [tick, setTick] = useState(0);
-  const [pickerOpen, setPickerOpen] = useState(false);
   // 같은 검색어를 다시 선택해도 id를 증가시켜 요약 정보를 새로 조회할 수 있게 합니다.
   const [request, setRequest] = useState(() => ({
     id: 0,
@@ -349,7 +348,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
 
           <button
             type="button"
-            onClick={() => setPickerOpen(true)}
+            onClick={() => onPickerOpenChange(true)}
             className="inline-flex items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             <RefreshCw size={14} className="text-gray-500" />
@@ -363,7 +362,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
           currentRegion={selectedRegion}
           onSelect={onRegionChange}
           onSearch={runSearch}
-          onClose={() => setPickerOpen(false)}
+          onClose={() => onPickerOpenChange(false)}
         />
       )}
     </>
