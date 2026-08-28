@@ -4,7 +4,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:journey_db}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:여기에비밀번호입력}
+    password: ${DB_PASSWORD:여기에_DB_비밀번호_입력}
     driver-class-name: org.postgresql.Driver
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
@@ -28,7 +28,7 @@ spring:
       chat: ${SPRING_AI_CHAT_MODEL:google-genai}
     google:
       genai:
-        api-key: ${GOOGLE_AI_API_KEY:여기에구글GEMINI-API키입력}
+        api-key: ${GOOGLE_AI_API_KEY:여기에_구글_GEMINI-API키_입력}
         chat:
           options:
             model: ${JC_AI_CONTENT_MODEL:gemini-3.6-flash}
@@ -40,8 +40,8 @@ server:
 app:
   intelligence:
     content-analysis:
-      enabled: ${JC_AI_CONTENT_ANALYSIS_ENABLED:true}
-      worker-enabled: ${JC_AI_CONTENT_ANALYSIS_WORKER_ENABLED:false}
+      enabled: ${JC_AI_CONTENT_ANALYSIS_ENABLED:false} # 실제 yml에서는 true
+      worker-enabled: ${JC_AI_CONTENT_ANALYSIS_WORKER_ENABLED:false} # 실제 yml에서는 true
       model-version: ${JC_AI_CONTENT_MODEL:gemini-3.6-flash}
   security:
     jwt-secret: ${JWT_SECRET:journey-connect-local-dev-secret-32bytes}
@@ -54,8 +54,8 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   google:
-    api-key: ${GOOGLE_API_KEY:여기에구글API키입력}
-    oauth-client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
+    api-key: ${GOOGLE_API_KEY:여기에_구글API키_입력}
+    oauth-client-id: ${GOOGLE_OAUTH_CLIENT_ID:발급받은-client-id.apps.googleusercontent.com}
   upload:
     directory: ${UPLOAD_DIR:./uploads/images}
   recommendation:
