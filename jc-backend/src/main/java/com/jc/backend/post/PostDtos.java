@@ -18,10 +18,17 @@ public final class PostDtos {
             @NotBlank @Size(max = 500) String imageUrl,
             @Size(max = 200) String altText) {}
 
+    public record PlaceRequest(
+            @Size(max = 50) String regionCode,
+            @Size(max = 100) String regionName,
+            @Size(max = 255) String regionPlaceId,
+            @NotBlank String content,
+            @Size(max = 10) List<@Valid ImageRequest> images) {}
+
     // List 내부의 @Valid가 각 이미지 URL과 대체 텍스트 제약까지 연쇄 검증합니다.
     public record CreateRequest(
             @NotBlank @Size(max = 120) String title,
-            @NotBlank String content,
+            String content,
             @Size(max = 50) String regionCode,
             @Size(max = 100) String regionName,
             @Size(max = 500) String coverImageUrl,
@@ -29,7 +36,16 @@ public final class PostDtos {
             LocalDate travelStartDate,
             LocalDate travelEndDate,
             @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags,
-            @Size(max = 255) String regionPlaceId) {}
+            @Size(max = 255) String regionPlaceId,
+            @Size(min = 1, max = 20) List<@Valid PlaceRequest> places) {
+        public CreateRequest(
+                String title, String content, String regionCode, String regionName,
+                String coverImageUrl, List<ImageRequest> images, LocalDate travelStartDate,
+                LocalDate travelEndDate, List<String> tags, String regionPlaceId) {
+            this(title, content, regionCode, regionName, coverImageUrl, images,
+                    travelStartDate, travelEndDate, tags, regionPlaceId, null);
+        }
+    }
 
     public record UpdateRequest(
             @Size(max = 120) String title,
@@ -42,7 +58,17 @@ public final class PostDtos {
             LocalDate travelEndDate,
             @Size(max = 5) List<@NotBlank @Size(max = 20) String> tags,
             Boolean published,
-            @Size(max = 255) String regionPlaceId) {}
+            @Size(max = 255) String regionPlaceId,
+            @Size(min = 1, max = 20) List<@Valid PlaceRequest> places) {
+        public UpdateRequest(
+                String title, String content, String regionCode, String regionName,
+                String coverImageUrl, List<ImageRequest> images, LocalDate travelStartDate,
+                LocalDate travelEndDate, List<String> tags, Boolean published,
+                String regionPlaceId) {
+            this(title, content, regionCode, regionName, coverImageUrl, images,
+                    travelStartDate, travelEndDate, tags, published, regionPlaceId, null);
+        }
+    }
 
     public record CommentRequest(
             @NotBlank @Size(max = 1000) String content,
@@ -56,6 +82,16 @@ public final class PostDtos {
     public record Author(Long id, String nickname, String profileImageUrl) {}
 
     public record ImageView(Long id, String imageUrl, int sortOrder, String altText) {}
+
+    public record PlaceView(
+            Long id,
+            RegionDtos.View region,
+            String placeName,
+            Double latitude,
+            Double longitude,
+            String content,
+            int sortOrder,
+            List<ImageView> images) {}
 
     public record Summary(
             Long id,
@@ -120,7 +156,8 @@ public final class PostDtos {
             boolean bookmarked,
             Author author,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt) {}
+            LocalDateTime updatedAt,
+            List<PlaceView> places) {}
 
     public record CommentView(
             Long id,

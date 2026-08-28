@@ -3,10 +3,10 @@ import { Bookmark, MapPin } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, deletePost, unbookmarkPost } from "../services/postApi";
-import { richTextToPlainText } from "../utils/richText";
+// import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName } from "../utils/region";
 import useLangStore from "../store/useLangStore";
-import TagChips from "./TagChips";
+// import TagChips from "./TagChips";
 
 const fallbackImage = "/ex_2.jpg";
 
@@ -68,10 +68,10 @@ function PostCard({ post, setPosts, editable = false }) {
       </div>
 
       <div className="p-4">
-        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100">{post.title}</h3>
-        <p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{richTextToPlainText(post.content)}</p>
+        <h3 className="line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100">{post.title}</h3>
+        {/*<p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{richTextToPlainText(post.content)}</p>*/}
 
-        <TagChips tags={post.tags || []} />
+        {/*<TagChips tags={post.tags || []} />*/}
 
         {editable && (
           <div className="mt-4 flex gap-2">

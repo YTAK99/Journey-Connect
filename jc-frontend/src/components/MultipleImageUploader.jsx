@@ -30,7 +30,13 @@ const copy = {
   },
 };
 
-export default function MultipleImageUploader({ images, onChange, lang = "ko" }) {
+export default function MultipleImageUploader({
+  images,
+  onChange,
+  lang = "ko",
+  selectedCoverKey,
+  onSelectCover,
+}) {
   const t = copy[lang] || copy.ko;
   const inputRef = useRef(null);
   const previewUrlsRef = useRef(new Set());
@@ -80,6 +86,10 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
   };
 
   const makeCover = (index) => {
+    if (onSelectCover) {
+      onSelectCover(images[index]);
+      return;
+    }
     // 배열의 첫 항목을 대표 이미지로 사용하는 작성 요청 규칙에 맞춰 선택 이미지를 맨 앞으로 옮깁니다.
     if (index === 0) return;
     const next = [...images];
@@ -114,7 +124,10 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
 
       {images.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {images.map((image, index) => (
+          {images.map((image, index) => {
+            const imageKey = image.localId || image.imageUrl;
+            const isCover = onSelectCover ? selectedCoverKey === imageKey : index === 0;
+            return (
             <div key={image.localId || `${image.imageUrl}-${index}`} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <img src={image.previewUrl || image.imageUrl} alt={image.altText || `${t.travelImage} ${index + 1}`} className="h-28 w-full object-cover" />
               <button
@@ -126,7 +139,7 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
                 <X size={15} />
               </button>
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-8">
-                {index === 0 ? (
+                {isCover ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-teal-500 px-2 py-1 text-[11px] font-semibold text-white">
                     <Check size={11} /> {t.cover}
                   </span>
@@ -137,12 +150,13 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <Camera size={13} /> {t.coverHelp} ({images.length}/{MAX_IMAGES})
+        <Camera size={13} /> {onSelectCover ? (lang === "ko" ? "첨부 사진 중 대표사진을 선택하세요." : "Choose a cover from the attached photos.") : t.coverHelp} ({images.length}/{MAX_IMAGES})
       </div>
     </div>
   );

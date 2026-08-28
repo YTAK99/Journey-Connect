@@ -9,9 +9,9 @@ export const getGoogleLocationSummary = async (query, languageCode = "ko") => {
   return unwrapApiResponse(response);
 };
 
-export const getGoogleLocationSuggestions = async (query, languageCode = "ko") => {
+export const getGoogleLocationSuggestions = async (query, languageCode = "ko", scope = "region") => {
   const response = await apiClient.get("/google/location-suggestions", {
-    params: { query, languageCode },
+    params: { query, languageCode, scope },
   });
 
   return unwrapApiResponse(response);
