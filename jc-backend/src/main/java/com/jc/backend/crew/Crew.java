@@ -55,6 +55,9 @@ public class Crew extends BaseTimeEntity {
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
 
+    @Column(name = "open_chat_url", length = 500)
+    private String openChatUrl;
+
     private LocalDate travelDate;
 
     @Column(nullable = false)
@@ -109,6 +112,36 @@ public class Crew extends BaseTimeEntity {
         replaceTags(tags);
     }
 
+    public void updateDetails(
+            Region region,
+            String title,
+            String description,
+            LocalDate travelDate,
+            int capacity,
+            String coverImageUrl,
+            List<Tag> tags) {
+        this.region = region;
+        this.regionName = region.getDisplayName();
+        this.title = title;
+        this.description = description;
+        this.travelDate = travelDate;
+        this.capacity = capacity;
+        this.coverImageUrl = coverImageUrl;
+        replaceTags(tags);
+    }
+
+    public void updateOpenChatUrl(String openChatUrl) {
+        this.openChatUrl = openChatUrl;
+    }
+
+    public void closeRecruitment() {
+        recruiting = false;
+    }
+
+    public void reopenRecruitment() {
+        recruiting = true;
+    }
+
     public void replaceTags(List<Tag> tags) {
         this.tags.clear();
         if (tags != null) this.tags.addAll(tags);
@@ -140,6 +173,10 @@ public class Crew extends BaseTimeEntity {
 
     public String getCoverImageUrl() {
         return coverImageUrl;
+    }
+
+    public String getOpenChatUrl() {
+        return openChatUrl;
     }
 
     public List<Tag> getTags() {

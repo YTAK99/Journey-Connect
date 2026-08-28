@@ -2,15 +2,21 @@ package com.jc.backend.crew;
 
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.notification.NotificationService;
+import com.jc.backend.post.Tag;
 import com.jc.backend.post.TagService;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionService;
 import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
+import java.net.URI;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
@@ -33,57 +39,138 @@ public class CrewService {
             List.of(CrewMemberStatus.OWNER, CrewMemberStatus.APPROVED);
     private static final Collection<CrewMemberStatus> EXISTING_APPLICATION_STATUSES =
             List.of(CrewMemberStatus.OWNER, CrewMemberStatus.PENDING, CrewMemberStatus.APPROVED);
+    private static final Collection<CrewMemberStatus> MY_CREW_STATUSES =
+            List.of(CrewMemberStatus.OWNER, CrewMemberStatus.APPROVED, CrewMemberStatus.PENDING);
+    private static final int MAX_RECRUITING_OWNED_CREWS = 3;
 
     private final CrewRepository crews;
     private final CrewMemberRepository members;
     private final UserRepository users;
     private final RegionService regionService;
     private final TagService tagService;
+    private final NotificationService notificationService;
+    private final CrewRecommendationFeedbackService recommendationFeedback;
 
     public CrewService(
             CrewRepository crews,
             CrewMemberRepository members,
             UserRepository users,
             RegionService regionService,
-            TagService tagService) {
+            TagService tagService,
+            NotificationService notificationService,
+            CrewRecommendationFeedbackService recommendationFeedback) {
         this.crews = crews;
         this.members = members;
         this.users = users;
         this.regionService = regionService;
         this.tagService = tagService;
+        this.notificationService = notificationService;
+        this.recommendationFeedback = recommendationFeedback;
     }
 
     public PageResponse<CrewDtos.View> list(Pageable pageable) {
-        Page<Crew> page = crews.findByRecruitingTrueOrderByCreatedAtDescIdDesc(pageable);
+        return list(null, null, null, pageable);
+    }
+
+    public PageResponse<CrewDtos.View> list(Long viewerId, Pageable pageable) {
+        return list(viewerId, null, null, pageable);
+    }
+
+    public PageResponse<CrewDtos.View> list(
+            Long viewerId,
+            String keyword,
+            String region,
+            Pageable pageable) {
+        Page<Crew> page = crews.searchRecruiting(
+                normalizeSearch(keyword),
+                normalizeSearch(region),
+                pageable);
         List<Long> crewIds = page.getContent().stream().map(Crew::getId).toList();
         Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
         Map<Long, Long> pendingCounts = countMap(crewIds, List.of(CrewMemberStatus.PENDING));
         Map<Long, List<String>> tagsByCrewId = tagMap(crewIds);
+        Map<Long, CrewMemberStatus> viewerStatuses = viewerStatusMap(crewIds, viewerId);
 
-        return PageResponse.from(page.map(crew -> view(
-                crew,
-                activeCounts.getOrDefault(crew.getId(), 0L),
-                pendingCounts.getOrDefault(crew.getId(), 0L),
-                tagsByCrewId.getOrDefault(crew.getId(), List.of()))));
+        return PageResponse.from(page.map(crew -> {
+            long memberCount = activeCounts.getOrDefault(crew.getId(), 0L);
+            return view(
+                    crew,
+                    memberCount,
+                    pendingCounts.getOrDefault(crew.getId(), 0L),
+                    tagsByCrewId.getOrDefault(crew.getId(), List.of()),
+                    viewer(crew, viewerId, viewerStatuses.get(crew.getId()), memberCount));
+        }));
     }
 
     public CrewDtos.View detail(Long crewId) {
+        return detail(null, crewId);
+    }
+
+    public CrewDtos.View detail(Long viewerId, Long crewId) {
         Crew crew = findCrew(crewId);
         Map<Long, List<String>> tagsByCrewId = tagMap(List.of(crewId));
+        long memberCount = members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES);
+        CrewMemberStatus viewerStatus = viewerId == null
+                ? null
+                : members.findByCrewIdAndUserId(crewId, viewerId)
+                        .map(CrewMember::getStatus)
+                        .orElse(null);
         return view(
                 crew,
-                members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES),
+                memberCount,
                 members.countByCrewIdAndStatusIn(crewId, List.of(CrewMemberStatus.PENDING)),
-                tagsByCrewId.getOrDefault(crewId, List.of()));
+                tagsByCrewId.getOrDefault(crewId, List.of()),
+                viewer(crew, viewerId, viewerStatus, memberCount));
+    }
+
+    public PageResponse<CrewDtos.MemberView> members(Long crewId, Pageable pageable) {
+        findCrew(crewId);
+        return PageResponse.from(members
+                .findByCrewIdAndStatusInOrderByCreatedAtAscIdAsc(
+                        crewId,
+                        ACTIVE_STATUSES,
+                        pageable)
+                .map(this::memberView));
+    }
+
+    public PageResponse<CrewDtos.MyCrewItem> myCrews(Long userId, Pageable pageable) {
+        user(userId);
+        Page<CrewMember> page = members.findByUserIdAndStatusInOrderByUpdatedAtDescIdDesc(
+                userId,
+                MY_CREW_STATUSES,
+                pageable);
+        List<Long> crewIds = page.getContent().stream()
+                .map(member -> member.getCrew().getId())
+                .toList();
+        Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
+        Map<Long, Long> pendingCounts = countMap(crewIds, List.of(CrewMemberStatus.PENDING));
+        Map<Long, List<String>> tagsByCrewId = tagMap(crewIds);
+
+        return PageResponse.from(page.map(member -> {
+            Crew crew = member.getCrew();
+            long memberCount = activeCounts.getOrDefault(crew.getId(), 0L);
+            CrewDtos.View crewView = view(
+                    crew,
+                    memberCount,
+                    pendingCounts.getOrDefault(crew.getId(), 0L),
+                    tagsByCrewId.getOrDefault(crew.getId(), List.of()),
+                    viewer(crew, userId, member.getStatus(), memberCount));
+            return new CrewDtos.MyCrewItem(
+                    crewView,
+                    member.getStatus(),
+                    joinedOrAppliedAt(member));
+        }));
     }
 
     @Transactional
     public CrewDtos.View create(Long userId, CrewDtos.CreateRequest request) {
-        UserAccount owner = user(userId);
+        UserAccount owner = lockedUser(userId);
+        ensureOwnedRecruitingLimit(userId);
         Region region = regionService.require(request.regionCode(), request.regionName());
         boolean approvalRequired = request.approvalRequired() == null
                 || request.approvalRequired();
-        Crew crew = crews.save(new Crew(
+        ensureTravelDateNotPassed(request.travelDate());
+        Crew crew = new Crew(
                 owner,
                 region,
                 request.title().trim(),
@@ -92,9 +179,108 @@ public class CrewService {
                 request.capacity(),
                 approvalRequired,
                 request.coverImageUrl(),
-                tagService.resolve(request.tags())));
+                tagService.resolve(request.tags()));
+        crew.updateOpenChatUrl(normalizeOpenChatUrl(request.openChatUrl()));
+        crew = crews.save(crew);
         members.save(new CrewMember(crew, owner, CrewMemberStatus.OWNER));
-        return view(crew, 1L, 0L, crew.getTags().stream().map(tag -> tag.getName()).toList());
+        return view(
+                crew,
+                1L,
+                0L,
+                crew.getTags().stream().map(tag -> tag.getName()).toList(),
+                viewer(crew, userId, CrewMemberStatus.OWNER, 1L));
+    }
+
+
+    @Transactional
+    public CrewDtos.View update(
+            Long ownerId,
+            Long crewId,
+            CrewDtos.UpdateRequest request) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+
+        long memberCount = approvedMemberCount(crewId);
+        int nextCapacity = request.capacity() == null ? crew.getCapacity() : request.capacity();
+        if (nextCapacity < memberCount) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_CAPACITY_BELOW_ACTIVE_MEMBERS",
+                    "현재 참가 인원보다 정원을 작게 설정할 수 없습니다.");
+        }
+
+        Region nextRegion = crew.getRegion();
+        if (request.regionCode() != null || request.regionName() != null) {
+            nextRegion = regionService.require(request.regionCode(), request.regionName());
+        }
+
+        String nextTitle = patchedRequired(
+                request.title(),
+                crew.getTitle(),
+                "CREW_TITLE_REQUIRED",
+                "크루 제목은 비워둘 수 없습니다.");
+        String nextDescription = patchedRequired(
+                request.description(),
+                crew.getDescription(),
+                "CREW_DESCRIPTION_REQUIRED",
+                "크루 설명은 비워둘 수 없습니다.");
+        LocalDate nextTravelDate = request.travelDate() == null
+                ? crew.getTravelDate()
+                : request.travelDate();
+        if (crew.isRecruiting()) {
+            ensureTravelDateNotPassed(nextTravelDate);
+        }
+
+        String nextCoverImageUrl = request.coverImageUrl() == null
+                ? crew.getCoverImageUrl()
+                : normalizeOptional(request.coverImageUrl());
+        String nextOpenChatUrl = request.openChatUrl() == null
+                ? crew.getOpenChatUrl()
+                : normalizeOpenChatUrl(request.openChatUrl());
+        List<Tag> nextTags = request.tags() == null
+                ? crew.getTags()
+                : tagService.resolve(request.tags());
+
+        crew.updateDetails(
+                nextRegion,
+                nextTitle,
+                nextDescription,
+                nextTravelDate,
+                nextCapacity,
+                nextCoverImageUrl,
+                nextTags);
+        crew.updateOpenChatUrl(nextOpenChatUrl);
+        return managementView(crew, ownerId, memberCount);
+    }
+
+    @Transactional
+    public CrewDtos.View closeRecruitment(Long ownerId, Long crewId) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+        crew.closeRecruitment();
+        return managementView(crew, ownerId, approvedMemberCount(crewId));
+    }
+
+    @Transactional
+    public CrewDtos.View reopenRecruitment(Long ownerId, Long crewId) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+        ensureTravelDateNotPassed(crew.getTravelDate());
+
+        long memberCount = approvedMemberCount(crewId);
+        if (memberCount >= crew.getCapacity()) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_FULL",
+                    "정원이 가득 찬 크루는 모집을 재개할 수 없습니다.");
+        }
+        if (!crew.isRecruiting()) {
+            lockedUser(ownerId);
+            ensureOwnedRecruitingLimit(ownerId);
+        }
+
+        crew.reopenRecruitment();
+        return managementView(crew, ownerId, memberCount);
     }
 
     /**
@@ -106,6 +292,7 @@ public class CrewService {
         // 크루 행 잠금 뒤 정원을 다시 세어 동시 신청이 capacity를 넘지 않게 합니다.
         Crew crew = lockedCrew(crewId);
         ensureRecruiting(crew);
+        ensureTravelDateNotPassed(crew.getTravelDate());
         UserAccount applicant = user(userId);
 
         CrewMember existing = members.findByCrewIdAndUserId(crewId, userId).orElse(null);
@@ -129,6 +316,16 @@ public class CrewService {
         } else {
             existing.reapply(nextStatus);
             application = existing;
+        }
+        if (nextStatus == CrewMemberStatus.PENDING) {
+            notificationService.crewApplication(
+                    userId,
+                    crew.getOwner().getId(),
+                    crewId,
+                    application.getId(),
+                    LocalDateTime.now());
+        } else {
+            recommendationFeedback.recordApprovedJoin(userId, crewId);
         }
         return applicationView(application);
     }
@@ -204,10 +401,87 @@ public class CrewService {
                         "크루 정원이 가득 찼습니다.");
             }
             application.approve(owner);
+            recommendationFeedback.recordApprovedJoin(application.getUser().getId(), crewId);
+            notificationService.crewApproved(
+                    ownerId,
+                    application.getUser().getId(),
+                    crewId,
+                    application.getId(),
+                    application.getReviewedAt());
         } else {
             application.reject(owner);
+            notificationService.crewRejected(
+                    ownerId,
+                    application.getUser().getId(),
+                    crewId,
+                    application.getId(),
+                    application.getReviewedAt());
         }
         return applicationView(application);
+    }
+
+
+    private CrewDtos.View managementView(Crew crew, Long ownerId, long memberCount) {
+        return view(
+                crew,
+                memberCount,
+                members.countByCrewIdAndStatusIn(crew.getId(), List.of(CrewMemberStatus.PENDING)),
+                crew.getTags().stream().map(Tag::getName).toList(),
+                viewer(crew, ownerId, CrewMemberStatus.OWNER, memberCount));
+    }
+
+    private String patchedRequired(
+            String requested,
+            String current,
+            String code,
+            String message) {
+        if (requested == null) {
+            return current;
+        }
+        String value = requested.trim();
+        if (value.isBlank()) {
+            throw new DomainException(HttpStatus.BAD_REQUEST, code, message);
+        }
+        return value;
+    }
+
+    private String normalizeOptional(String value) {
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private String normalizeOpenChatUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        try {
+            URI uri = URI.create(normalized);
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || uri.getHost() == null
+                    || uri.getUserInfo() != null) {
+                throw new IllegalArgumentException("invalid open chat URL");
+            }
+            return normalized;
+        } catch (IllegalArgumentException exception) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CREW_OPEN_CHAT_URL",
+                    "오픈채팅 주소는 유효한 HTTPS URL이어야 합니다.");
+        }
+    }
+
+    private boolean travelDatePassed(LocalDate travelDate) {
+        return travelDate != null && travelDate.isBefore(LocalDate.now());
+    }
+
+    private void ensureTravelDateNotPassed(LocalDate travelDate) {
+        if (travelDatePassed(travelDate)) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_TRAVEL_DATE_PASSED",
+                    "이미 지난 여행일의 크루는 모집할 수 없습니다.");
+        }
     }
 
     private Map<Long, List<String>> tagMap(List<Long> crewIds) {
@@ -219,6 +493,16 @@ public class CrewService {
                         CrewTagProjection::getCrewId,
                         LinkedHashMap::new,
                         Collectors.mapping(CrewTagProjection::getTagName, Collectors.toList())));
+    }
+
+    private Map<Long, CrewMemberStatus> viewerStatusMap(List<Long> crewIds, Long viewerId) {
+        if (viewerId == null || crewIds.isEmpty()) {
+            return Map.of();
+        }
+        return members.findViewerMemberships(crewIds, viewerId).stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        CrewViewerMembershipProjection::getCrewId,
+                        CrewViewerMembershipProjection::getStatus));
     }
 
     private Map<Long, Long> countMap(
@@ -237,6 +521,22 @@ public class CrewService {
 
     private long approvedMemberCount(Long crewId) {
         return members.countByCrewIdAndStatusIn(crewId, ACTIVE_STATUSES);
+    }
+
+    private void ensureOwnedRecruitingLimit(Long ownerId) {
+        if (crews.countRecruitingByOwnerId(ownerId) >= MAX_RECRUITING_OWNED_CREWS) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_OWNER_ACTIVE_LIMIT_EXCEEDED",
+                    "한 사용자는 모집 중인 크루를 최대 3개까지 개설할 수 있습니다.");
+        }
+    }
+
+    private String normalizeSearch(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     private Crew findCrew(Long crewId) {
@@ -274,6 +574,14 @@ public class CrewService {
                 "크루를 찾을 수 없습니다.");
     }
 
+    private UserAccount lockedUser(Long userId) {
+        return users.findByIdForUpdate(userId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "사용자를 찾을 수 없습니다."));
+    }
+
     private UserAccount user(Long userId) {
         return users.findById(userId)
                 .orElseThrow(() -> new DomainException(
@@ -282,11 +590,55 @@ public class CrewService {
                         "사용자를 찾을 수 없습니다."));
     }
 
+    private CrewDtos.Viewer viewer(
+            Crew crew,
+            Long viewerId,
+            CrewMemberStatus membershipStatus,
+            long memberCount) {
+        if (viewerId == null) {
+            return null;
+        }
+
+        boolean owner = crew.getOwner().getId().equals(viewerId);
+        CrewMemberStatus effectiveStatus = owner ? CrewMemberStatus.OWNER : membershipStatus;
+        boolean canJoin = !owner
+                && (effectiveStatus == null
+                        || effectiveStatus == CrewMemberStatus.REJECTED
+                        || effectiveStatus == CrewMemberStatus.CANCELLED)
+                && crew.isRecruiting()
+                && !travelDatePassed(crew.getTravelDate())
+                && memberCount < crew.getCapacity();
+        boolean canCancel = effectiveStatus == CrewMemberStatus.PENDING
+                || effectiveStatus == CrewMemberStatus.APPROVED;
+        boolean canAccessOpenChat = crew.getOpenChatUrl() != null
+                && (owner || effectiveStatus == CrewMemberStatus.APPROVED);
+
+        return new CrewDtos.Viewer(
+                effectiveStatus,
+                owner,
+                canJoin,
+                canCancel,
+                owner,
+                canAccessOpenChat);
+    }
+
+    private LocalDateTime joinedOrAppliedAt(CrewMember member) {
+        if (member.getStatus() == CrewMemberStatus.PENDING) {
+            return member.getUpdatedAt();
+        }
+        if (member.getStatus() == CrewMemberStatus.APPROVED
+                && member.getReviewedAt() != null) {
+            return member.getReviewedAt();
+        }
+        return member.getCreatedAt();
+    }
+
     private CrewDtos.View view(
             Crew crew,
             long memberCount,
             long pendingCount,
-            List<String> tags) {
+            List<String> tags,
+            CrewDtos.Viewer viewer) {
         return new CrewDtos.View(
                 crew.getId(),
                 crew.getTitle(),
@@ -294,6 +646,9 @@ public class CrewService {
                 crew.getRegionName(),
                 crew.getDescription(),
                 crew.getCoverImageUrl(),
+                viewer != null && viewer.canAccessOpenChat()
+                        ? crew.getOpenChatUrl()
+                        : null,
                 tags,
                 crew.getTravelDate(),
                 crew.getCapacity(),
@@ -303,7 +658,19 @@ public class CrewService {
                 crew.isApprovalRequired(),
                 crew.getOwner().getId(),
                 crew.getOwner().getNickname(),
-                crew.getCreatedAt());
+                crew.getCreatedAt(),
+                viewer);
+    }
+
+    private CrewDtos.MemberView memberView(CrewMember member) {
+        return new CrewDtos.MemberView(
+                member.getUser().getId(),
+                member.getUser().getNickname(),
+                member.getUser().getProfileImageUrl(),
+                member.getStatus() == CrewMemberStatus.OWNER
+                        ? CrewDtos.MemberRole.OWNER
+                        : CrewDtos.MemberRole.MEMBER,
+                joinedOrAppliedAt(member));
     }
 
     private CrewDtos.ApplicationView applicationView(CrewMember application) {

@@ -51,13 +51,25 @@ public class RecommendationP1ProfileSource {
                 with events as (
                   select b.event_id, b.event_type, b.occurred_at,
                          lower(r.code) region_slug,
-                         coalesce(string_agg(t.normalized_name, ',' order by pt.sort_order, t.normalized_name), '') tag_slugs
+                         coalesce(
+                           string_agg(
+                             coalesce(post_tag.normalized_name, crew_tag.normalized_name),
+                             ',' order by
+                               coalesce(pt.sort_order, ct.sort_order),
+                               coalesce(post_tag.normalized_name, crew_tag.normalized_name)
+                           ) filter (where coalesce(post_tag.normalized_name, crew_tag.normalized_name) is not null),
+                           ''
+                         ) tag_slugs
                   from public.recommendation_behavior_event b
                   left join public.journey_post p
                     on p.id = b.source_entity_id and b.entity_type = 'post'
-                  left join public.region r on r.id = p.region_id
+                  left join public.crew c
+                    on c.id = b.source_entity_id and b.entity_type = 'crew'
+                  left join public.region r on r.id = coalesce(p.region_id, c.region_id)
                   left join public.post_tag pt on pt.post_id = p.id
-                  left join public.tag t on t.id = pt.tag_id
+                  left join public.tag post_tag on post_tag.id = pt.tag_id
+                  left join public.crew_tag ct on ct.crew_id = c.id
+                  left join public.tag crew_tag on crew_tag.id = ct.tag_id
                   where b.user_id = ?
                     and b.occurred_at >= ?
                     and b.occurred_at <= ?

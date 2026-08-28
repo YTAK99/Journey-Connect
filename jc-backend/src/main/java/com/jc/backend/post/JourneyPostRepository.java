@@ -20,6 +20,9 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
     Page<JourneyPost> findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
             Long authorId, String moderationStatus, Pageable pageable);
 
+    long countByAuthorIdAndPublishedTrueAndModerationStatus(
+            Long authorId, String moderationStatus);
+
     @EntityGraph(attributePaths = {"author", "region"})
     Page<JourneyPost> findByAuthorIdOrderByCreatedAtDescIdDesc(Long authorId, Pageable pageable);
 
