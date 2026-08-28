@@ -265,13 +265,33 @@ public class PostService {
 
     @Transactional
     public PostDtos.CommentView addComment(Long userId, Long postId, String content) {
+        return addComment(userId, postId, content, null);
+    }
+
+    @Transactional
+    public PostDtos.CommentView addComment(
+            Long userId,
+            Long postId,
+            String content,
+            Long parentCommentId) {
         JourneyPost post = publishedPost(postId);
-        Comment comment = comments.save(new Comment(post, user(userId), content.trim()));
-        notifications.postCommented(
-                userId,
-                post.getAuthor().getId(),
-                postId,
-                comment.getId());
+        UserAccount author = user(userId);
+        Comment parent = parentComment(parentCommentId, postId);
+        Comment comment = comments.save(new Comment(post, author, content.trim(), parent));
+
+        if (parent == null) {
+            notifications.postCommented(
+                    userId,
+                    post.getAuthor().getId(),
+                    postId,
+                    comment.getId());
+        } else {
+            notifications.commentReplied(
+                    userId,
+                    parent.getAuthor().getId(),
+                    postId,
+                    comment.getId());
+        }
         return commentView(comment);
     }
 
@@ -298,6 +318,10 @@ public class PostService {
                 posts.findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
                         userId, "visible", pageable),
                 viewerId);
+    }
+
+    public long publicPostCount(Long userId) {
+        return posts.countByAuthorIdAndPublishedTrueAndModerationStatus(userId, "visible");
     }
 
     public PageResponse<PostDtos.Summary> myPosts(Long userId, Pageable pageable) {
@@ -385,6 +409,27 @@ public class PostService {
                 .orElseThrow(() -> notFound("USER_NOT_FOUND", "사용자"));
     }
 
+    private Comment parentComment(Long parentCommentId, Long postId) {
+        if (parentCommentId == null) {
+            return null;
+        }
+        Comment parent = comments.findById(parentCommentId)
+                .orElseThrow(() -> notFound("COMMENT_PARENT_NOT_FOUND", "원댓글"));
+        if (!parent.getPost().getId().equals(postId)) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "COMMENT_PARENT_POST_MISMATCH",
+                    "같은 게시물의 댓글에만 답글을 작성할 수 있습니다.");
+        }
+        if (parent.getParent() != null) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "COMMENT_REPLY_DEPTH_EXCEEDED",
+                    "대댓글에는 다시 답글을 작성할 수 없습니다.");
+        }
+        return parent;
+    }
+
     private DomainException notFound(String code, String target) {
         return new DomainException(
                 HttpStatus.NOT_FOUND,
@@ -460,6 +505,7 @@ public class PostService {
         return new PostDtos.CommentView(
                 comment.getId(),
                 comment.getContent(),
+                comment.getParent() == null ? null : comment.getParent().getId(),
                 author(comment.getAuthor()),
                 comment.getCreatedAt());
     }

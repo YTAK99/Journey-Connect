@@ -183,7 +183,11 @@ public class PostController {
             @AuthenticationPrincipal Jwt token,
             @PathVariable Long postId,
             @Valid @RequestBody PostDtos.CommentRequest request) {
-        return ApiResponse.created(postService.addComment(userId(token), postId, request.content()));
+        return ApiResponse.created(postService.addComment(
+                userId(token),
+                postId,
+                request.content(),
+                request.parentCommentId()));
     }
 
     @DeleteMapping("/comments/{commentId}")

@@ -34,6 +34,19 @@ public class AuthController {
         return ApiResponse.ok(authService.login(request));
     }
 
+    @PostMapping("/google")
+    ApiResponse<AuthDtos.TokenResponse> googleLogin(
+            @Valid @RequestBody AuthDtos.GoogleLoginRequest request) {
+        return ApiResponse.ok(authService.googleLogin(request));
+    }
+
+    @PostMapping("/google/link")
+    ApiResponse<AuthDtos.UserSummary> linkGoogle(
+            @AuthenticationPrincipal Jwt token,
+            @Valid @RequestBody AuthDtos.GoogleLoginRequest request) {
+        return ApiResponse.ok(authService.linkGoogle(userId(token), request));
+    }
+
     @PostMapping("/refresh")
     ApiResponse<AuthDtos.TokenResponse> refresh(@Valid @RequestBody AuthDtos.RefreshRequest request) {
         return ApiResponse.ok(authService.refresh(request));
