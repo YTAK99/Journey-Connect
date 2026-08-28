@@ -26,6 +26,7 @@ const getInitialDarkMode = () => {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 };
 
+// 설정 버튼에서 여는 언어·다크 모드·로그아웃 메뉴입니다.
 function SettingsPanel({ lang, isDark, onLangChange, onDarkToggle, onLogout }) {
   const t = (key) => translate(lang, key);
   return (
@@ -100,6 +101,7 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  // 모바일 메뉴, 설정 패널, 검색어와 다크 모드 상태를 헤더에서 함께 관리합니다.
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchText, setSearchText] = useState(searchParams.get("q") || "");
@@ -129,6 +131,7 @@ export default function Header() {
     return () => document.removeEventListener("pointerdown", closeSettingsOnOutsideClick);
   }, [settingsOpen]);
 
+  // 로그아웃이 끝나면 열린 헤더 UI를 닫고 로그인 화면으로 이동합니다.
   const handleLogout = async () => {
     await logout();
     setSettingsOpen(false);
@@ -136,6 +139,7 @@ export default function Header() {
     navigate("/login", { replace: true });
   };
 
+  // 피드·탐색에서는 현재 화면을 유지하고, 다른 화면에서는 탐색으로 이동해 검색합니다.
   const submitSearch = (event) => {
     event.preventDefault();
     const query = searchText.trim();
@@ -145,6 +149,7 @@ export default function Header() {
     navigate(query ? `${targetPath}?q=${encodeURIComponent(query)}` : targetPath);
   };
 
+  // 현재 경로의 메뉴만 활성 색상으로 표시합니다.
   const navLinkClass = ({ isActive }) =>
     [
       "block rounded px-3 py-2 text-sm font-medium transition-colors md:p-0 md:hover:bg-transparent",
@@ -153,6 +158,7 @@ export default function Header() {
         : "text-gray-900 hover:bg-gray-100 md:hover:text-teal-600 dark:text-slate-200 dark:hover:bg-slate-800 dark:md:hover:text-teal-300",
     ].join(" ");
 
+  // 모바일과 데스크톱 검색창이 동일한 상태와 문구를 사용하도록 JSX를 공유합니다.
   const searchInput = (
     <>
       <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400" />
@@ -169,6 +175,7 @@ export default function Header() {
     <nav className="fixed start-0 top-0 z-40 w-full border-b border-gray-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
       {/* 고정 헤더의 세로 패딩만 줄여 모든 기능을 유지하면서 화면 점유 높이를 낮춥니다. */}
       <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between px-4 py-3">
+        {/* 로고는 피드의 기본 진입점입니다. */}
         <Link to="/feed" className="self-center whitespace-nowrap text-xl font-semibold text-gray-900 dark:text-slate-50">
           JC
         </Link>
@@ -223,6 +230,7 @@ export default function Header() {
           </button>
         </div>
 
+        {/* 모바일 검색창과 공통 내비게이션 메뉴입니다. */}
         <div className={`${isMenuOpen ? "block" : "hidden"} w-full md:order-1 md:flex md:w-auto`}>
           <form onSubmit={submitSearch} className="relative mb-4 mt-3 md:hidden">
             {searchInput}
@@ -239,6 +247,7 @@ export default function Header() {
           </ul>
         </div>
 
+        {/* 데스크톱 전용 검색창입니다. */}
         <form onSubmit={submitSearch} className="relative hidden md:order-2 md:block md:w-1/3">
           {searchInput}
         </form>

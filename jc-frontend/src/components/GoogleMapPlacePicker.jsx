@@ -179,16 +179,21 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
   }, [lang, value]);
 
   return (
+    // 배경을 클릭하면 닫히고, 모달 내부 클릭은 section에서 전파를 막습니다.
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6" onClick={onClose}>
       <section className="flex h-[min(90vh,780px)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-slate-900" onClick={(event) => event.stopPropagation()}>
+        {/* 선택 방법과 닫기 버튼을 제공하는 모달 헤더입니다. */}
         <header className="flex items-center gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <div className="min-w-0 flex-1"><h2 className="font-extrabold text-slate-900 dark:text-white">{t("placePicker.title")}</h2><p className="mt-1 text-xs text-slate-500">{t("placePicker.help")}</p></div>
           <button type="button" onClick={onClose} className="rounded-full p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X size={19} /></button>
         </header>
+        {/* Google Places 자동완성 입력 요소가 이 컨테이너에 삽입됩니다. */}
         <div className="border-b border-slate-200 p-3 dark:border-slate-700">
           <div ref={autocompleteContainerRef} className="min-h-12 w-full" />
         </div>
+        {/* 지도 위에 로딩 상태와 장소 조회 오류를 겹쳐 표시합니다. */}
         <div className="relative min-h-0 flex-1 bg-slate-100"><div ref={mapElementRef} className="h-full w-full" />{(loading || resolving) && <div className="absolute inset-0 flex items-center justify-center bg-white/65 backdrop-blur-[1px]"><Loader2 className="animate-spin text-teal-600" size={30} /></div>}{error && <div className="absolute left-4 right-4 top-4 rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">{error}</div>}</div>
+        {/* 선택한 장소를 확인하거나 취소하는 모달 푸터입니다. */}
         <footer className="flex flex-col gap-3 border-t border-slate-200 p-4 dark:border-slate-700 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">{selection ? <><p className="flex items-center gap-2 truncate font-bold text-slate-900 dark:text-white"><MapPin size={17} className="shrink-0 text-teal-500" />{selection.displayName}</p><p className="mt-1 truncate text-xs text-slate-500">{selection.address}</p></> : <p className="text-sm text-slate-500">{t("placePicker.selectPrompt")}</p>}</div>
           <div className="flex gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-bold text-slate-600 dark:border-slate-700 dark:text-slate-200">{t("common.cancel")}</button><button type="button" disabled={!selection || resolving} onClick={() => onConfirm(selection)} className="rounded-xl bg-teal-500 px-6 py-2.5 text-sm font-extrabold text-white disabled:opacity-40">{t("placePicker.confirm")}</button></div>
