@@ -1,34 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Camera, Check, ImagePlus, Star, X } from "lucide-react";
+import { getMessages, translate } from "../i18n";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-
-const copy = {
-  ko: {
-    maxAlert: `이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있습니다.`,
-    invalidAlert: "JPEG, PNG, WebP, GIF 형식의 5MB 이하 이미지만 첨부해주세요.",
-    select: "여행 사진을 선택하세요",
-    limits: "JPEG · PNG · WebP · GIF / 장당 5MB / 최대 10장",
-    travelImage: "여행 이미지",
-    cover: "대표",
-    setCover: "대표 지정",
-    remove: "번째 이미지 선택 취소",
-    coverHelp: "첫 번째 사진이 피드의 대표 이미지로 표시됩니다.",
-  },
-  en: {
-    maxAlert: `You can attach up to ${MAX_IMAGES} images.`,
-    invalidAlert: "Please select JPEG, PNG, WebP, or GIF images up to 5MB each.",
-    select: "Choose your travel photos",
-    limits: "JPEG · PNG · WebP · GIF / 5MB each / up to 10",
-    travelImage: "Travel image",
-    cover: "Cover",
-    setCover: "Set as cover",
-    remove: "Remove image",
-    coverHelp: "The first photo will be used as the cover image in the feed.",
-  },
-};
 
 export default function MultipleImageUploader({
   images,
@@ -37,7 +13,7 @@ export default function MultipleImageUploader({
   selectedCoverKey,
   onSelectCover,
 }) {
-  const t = copy[lang] || copy.ko;
+  const t = getMessages(lang, "imageUploader");
   const inputRef = useRef(null);
   const previewUrlsRef = useRef(new Set());
 
@@ -156,7 +132,7 @@ export default function MultipleImageUploader({
       )}
 
       <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <Camera size={13} /> {onSelectCover ? (lang === "ko" ? "첨부 사진 중 대표사진을 선택하세요." : "Choose a cover from the attached photos.") : t.coverHelp} ({images.length}/{MAX_IMAGES})
+        <Camera size={13} /> {onSelectCover ? translate(lang, "imageUploader.chooseCover") : t.coverHelp} ({images.length}/{MAX_IMAGES})
       </div>
     </div>
   );

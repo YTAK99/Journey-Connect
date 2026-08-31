@@ -49,6 +49,16 @@ export const getPostAnalysis = async (postId) => {
   return unwrap(response);
 };
 
+export const getPostComments = async (postId, { page = 0, size = 50 } = {}) => {
+  const response = await apiClient.get(`/posts/${postId}/comments`, { params: { page, size } });
+  return unwrap(response);
+};
+
+export const addPostComment = async (postId, content) => {
+  const response = await apiClient.post(`/posts/${postId}/comments`, { content });
+  return unwrap(response);
+};
+
 export const createPost = async (post) => {
   const response = await apiClient.post("/posts", post);
   return unwrap(response);

@@ -3,13 +3,13 @@ import { Plus } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getFeed, getFeedItems } from "../services/postApi";
-import useLangStore from "../store/useLangStore";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
+import useTranslation from "../i18n/useTranslation";
 
 const fallbackImage = "/ex_1.jpg";
 
 export default function StoryList({ selectedRegion }) {
-  const { currentLang } = useLangStore();
+  const { currentLang, t } = useTranslation();
   const navigate = useNavigate();
   const [stories, setStories] = useState([]);
   const [error, setError] = useState("");
@@ -23,13 +23,13 @@ export default function StoryList({ selectedRegion }) {
         if (active) setStories(getFeedItems(feed));
       })
       .catch((requestError) => {
-        if (active) setError(getApiErrorMessage(requestError, "스토리를 불러오지 못했습니다."));
+        if (active) setError(getApiErrorMessage(requestError, t("stories.loadFailed")));
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   const visibleStories = stories.filter((story) => matchesSelectedRegion(story, selectedRegion));
 
@@ -45,7 +45,7 @@ export default function StoryList({ selectedRegion }) {
           <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-teal-400 bg-teal-50 transition group-hover:bg-teal-100">
             <Plus size={22} className="text-teal-500" />
           </span>
-          <span className="mt-1.5 text-xs text-gray-600">{currentLang === "ko" ? "올리기" : "Post"}</span>
+          <span className="mt-1.5 text-xs text-gray-600">{t("stories.post")}</span>
         </button>
 
         {visibleStories.map((story) => {
@@ -70,7 +70,7 @@ export default function StoryList({ selectedRegion }) {
         })}
 
         {!error && stories.length > 0 && visibleStories.length === 0 && (
-          <p className="shrink-0 text-xs text-gray-500">해당 지역의 스토리가 없습니다.</p>
+          <p className="shrink-0 text-xs text-gray-500">{t("stories.emptyRegion")}</p>
         )}
         {error && <p className="shrink-0 text-xs text-red-500">{error}</p>}
       </div>
