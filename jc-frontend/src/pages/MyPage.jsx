@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+
 import {
   ArrowLeft,
   Bookmark,
@@ -12,10 +13,17 @@ import {
   Users,
   X,
 } from "lucide-react";
+
 import { useNavigate } from "react-router";
-import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/apiClient";
+
+import apiClient, {
+  getApiErrorMessage,
+  unwrapApiResponse,
+} from "../services/apiClient";
+
 import { getUser, isLogin } from "../services/auth";
-import { getFeed, getFeedItems } from "../services/postApi";import useLangStore from "../store/useLangStore";
+import { getFeed, getFeedItems } from "../services/postApi";
+import useLangStore from "../store/useLangStore";
 
 const fallbackAvatar = "/user_1.jpg";
 const fallbackPostImage = "/ex_1.jpg";
@@ -42,6 +50,7 @@ const copy = {
     close: "닫기",
     editHint: "프로필 이미지는 이 화면에서 미리보기로 반영됩니다.",
   },
+
   en: {
     back: "Back",
     editProfile: "Edit profile",
@@ -67,7 +76,9 @@ const copy = {
 
 function PostTile({ post }) {
   const navigate = useNavigate();
-  const image = post.coverImageUrl || post.image || fallbackPostImage;
+
+  const image =
+    post.coverImageUrl || post.image || fallbackPostImage;
 
   return (
     <button
@@ -85,14 +96,21 @@ function PostTile({ post }) {
           }}
         />
       </div>
+
       <div className="p-3 sm:p-4">
-        <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-foreground">{post.title}</h3>
+        <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-foreground">
+          {post.title}
+        </h3>
+
         <div className="mt-2 flex items-center gap-3 text-xs text-muted">
           <span className="flex items-center gap-1">
-            <Heart size={13} /> {post.likeCount ?? 0}
+            <Heart size={13} />
+            {post.likeCount ?? 0}
           </span>
+
           <span className="flex items-center gap-1">
-            <MessageCircle size={13} /> {post.commentCount ?? 0}
+            <MessageCircle size={13} />
+            {post.commentCount ?? 0}
           </span>
         </div>
       </div>
@@ -100,37 +118,70 @@ function PostTile({ post }) {
   );
 }
 
-function EmptyState({ icon: Icon, message, actionLabel, onAction }) {
+function EmptyState({
+  icon: Icon,
+  message,
+  actionLabel,
+  onAction,
+}) {
   return (
     <div className="col-span-full flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/70 px-6 text-center">
       <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-primary">
         <Icon size={22} />
       </span>
+
       <p className="text-sm text-muted">{message}</p>
+
       {onAction && (
         <button
           type="button"
           onClick={onAction}
           className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primaryHover"
         >
-          <Plus size={15} /> {actionLabel}
+          <Plus size={15} />
+          {actionLabel}
         </button>
       )}
     </div>
   );
 }
 
-function ProfileEditor({ user, labels, onClose, onSave }) {
+function ProfileEditor({
+  user,
+  labels,
+  onClose,
+  onSave,
+}) {
   const [name, setName] = useState(user.name);
   const [image, setImage] = useState(user.image);
 
+  // 프로필 이미지 선택
   const handleImage = (event) => {
     const file = event.target.files?.[0];
-    if (file) setImage(URL.createObjectURL(file));
+
+    if (!file) return;
+
+    // 이미지 파일인지 확인
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 선택할 수 있습니다.");
+      return;
+    }
+
+    // 파일을 Base64로 변환해서 저장
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setImage(reader.result);
+    };
+
+    reader.readAsDataURL(file);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm" onMouseDown={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm"
+      onMouseDown={onClose}
+    >
       <section
         role="dialog"
         aria-modal="true"
@@ -139,40 +190,105 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-6 flex items-center justify-between">
-          <h2 id="profile-editor-title" className="text-xl font-bold text-foreground">{labels.editProfile}</h2>
-          <button type="button" onClick={onClose} className="rounded-full p-2 text-muted hover:bg-secondary" aria-label={labels.close}>
+          <h2
+            id="profile-editor-title"
+            className="text-xl font-bold text-foreground"
+          >
+            {labels.editProfile}
+          </h2>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-muted hover:bg-secondary"
+            aria-label={labels.close}
+          >
             <X size={18} />
           </button>
         </div>
 
+        {/* 프로필 이미지 */}
         <div className="mb-6 flex flex-col items-center">
-          <label htmlFor="profile-image" className="group relative h-28 w-28 cursor-pointer overflow-hidden rounded-full border-4 border-secondary bg-secondary">
-            {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <User className="m-7 h-14 w-14 text-primary" />}
+          <label
+            htmlFor="profile-image"
+            className="group relative h-28 w-28 cursor-pointer overflow-hidden rounded-full border-4 border-secondary bg-secondary"
+          >
+            {image ? (
+              <img
+                src={image}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <User className="m-7 h-14 w-14 text-primary" />
+            )}
+
             <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/40 group-hover:opacity-100">
               <Camera size={25} />
             </span>
           </label>
-          <input id="profile-image" type="file" accept="image/*" className="hidden" onChange={handleImage} />
-          <p className="mt-3 text-center text-xs text-muted">{labels.editHint}</p>
+
+          <input
+            id="profile-image"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImage}
+          />
+
+          <p className="mt-3 text-center text-xs text-muted">
+            {labels.editHint}
+          </p>
         </div>
 
-        <label htmlFor="profile-name" className="text-sm font-semibold text-foreground">{labels.nickname}</label>
+        {/* 닉네임 */}
+        <label
+          htmlFor="profile-name"
+          className="text-sm font-semibold text-foreground"
+        >
+          {labels.nickname}
+        </label>
+
         <input
           id="profile-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
           className="mb-4 mt-2 w-full rounded-xl border border-border bg-inputBg px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
         />
-        <label htmlFor="profile-email" className="text-sm font-semibold text-foreground">{labels.email}</label>
-        <input id="profile-email" value={user.email} readOnly className="mt-2 w-full cursor-not-allowed rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-muted" />
 
+        {/* 이메일 */}
+        <label
+          htmlFor="profile-email"
+          className="text-sm font-semibold text-foreground"
+        >
+          {labels.email}
+        </label>
+
+        <input
+          id="profile-email"
+          value={user.email}
+          readOnly
+          className="mt-2 w-full cursor-not-allowed rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-muted"
+        />
+
+        {/* 버튼 */}
         <div className="mt-7 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-muted hover:bg-secondary">
-            {labels.cancel}
-          </button>
           <button
             type="button"
-            onClick={() => onSave({ name: name.trim() || user.name, image })}
+            onClick={onClose}
+            className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-muted hover:bg-secondary"
+          >
+            {labels.cancel}
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              onSave({
+                name: name.trim() || user.name,
+                image,
+              })
+            }
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primaryHover"
           >
             {labels.save}
@@ -185,78 +301,202 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
 
 export default function MyPage() {
   const navigate = useNavigate();
+
   const { currentLang } = useLangStore();
+
   const labels = copy[currentLang] || copy.ko;
+
   const loginUser = getUser();
+
   const [activeTab, setActiveTab] = useState(0);
+
   const [posts, setPosts] = useState([]);
   const [likedPosts, setLikedPosts] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [editOpen, setEditOpen] = useState(false);
-  const [user, setUser] = useState({
-    name: loginUser?.nickname || loginUser?.email || (currentLang === "ko" ? "여행자" : "Traveler"),
-    email: loginUser?.email || "",
-    image: loginUser?.profileImageUrl || fallbackAvatar,
-  });
 
+  const [editOpen, setEditOpen] = useState(false);
+
+  /*
+   * 수정된 프로필이 localStorage에 있으면 먼저 사용
+   * 없으면 기존 로그인 사용자 정보 사용
+   */
+  const savedProfile = JSON.parse(
+    localStorage.getItem("myProfile") || "null"
+  );
+
+  const [user, setUser] = useState(
+    savedProfile || {
+      name:
+        loginUser?.nickname ||
+        loginUser?.email ||
+        (currentLang === "ko" ? "여행자" : "Traveler"),
+
+      email: loginUser?.email || "",
+
+      image:
+        loginUser?.profileImageUrl ||
+        fallbackAvatar,
+    }
+  );
+
+  /*
+   * 로그인 여부 확인 + 게시글 / 북마크 / 좋아요 가져오기
+   */
   useEffect(() => {
     if (!isLogin()) {
       navigate("/login", { replace: true });
       return undefined;
     }
-
+  
     let active = true;
-    Promise.all([
-      apiClient.get("/users/me/posts", { params: { size: 100 } }),
-      apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
-      getFeed({ size: 100 }),
-    ])
-      .then(([postResponse, bookmarkResponse, feedResponse]) => {
+  
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError("");
+  
+        const [
+          postResponse,
+          bookmarkResponse,
+          feedResponse,
+        ] = await Promise.all([
+          apiClient.get("/users/me/posts", {
+            params: { size: 100 },
+          }),
+  
+          apiClient.get("/users/me/bookmarks", {
+            params: { size: 100 },
+          }),
+  
+          getFeed({ size: 100 }),
+        ]);
+  
         if (!active) return;
-    
-        const myPosts = getFeedItems(unwrapApiResponse(postResponse));
-        const myBookmarks = getFeedItems(unwrapApiResponse(bookmarkResponse));
+  
+        const myPosts = getFeedItems(
+          unwrapApiResponse(postResponse)
+        );
+  
+        const myBookmarks = getFeedItems(
+          unwrapApiResponse(bookmarkResponse)
+        );
+  
         const feedPosts = getFeedItems(feedResponse);
-
-        console.log("피드 게시글:", feedPosts);
-
+  
         setPosts(myPosts);
         setBookmarks(myBookmarks);
-    
-        // 내가 좋아요한 게시글만 골라냄
-        setLikedPosts(feedPosts.filter((post) => post.liked === true));
-      })
-      .catch((requestError) => {
-        if (active) setError(getApiErrorMessage(requestError, labels.loadError));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
+  
+        // 내가 좋아요한 게시글
+        setLikedPosts(
+          feedPosts.filter(
+            (post) => post.liked === true
+          )
+        );
+      } catch (requestError) {
+        if (active) {
+          setError(
+            getApiErrorMessage(
+              requestError,
+              labels.loadError
+            )
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+  
+    loadData();
+  
+    // 좋아요 변경 감지
+    const handleLikeChanged = () => {
+      loadData();
+    };
+  
+    window.addEventListener(
+      "likeChanged",
+      handleLikeChanged
+    );
+  
     return () => {
       active = false;
+  
+      window.removeEventListener(
+        "likeChanged",
+        handleLikeChanged
+      );
     };
   }, [labels.loadError, navigate]);
 
+  /*
+   * 내가 작성한 게시글의 통계
+   */
   const stats = useMemo(
     () => ({
       posts: posts.length,
-      likes: posts.reduce((total, post) => total + (post.likeCount ?? 0), 0),
-      comments: posts.reduce((total, post) => total + (post.commentCount ?? 0), 0),
+
+      likes: posts.reduce(
+        (total, post) =>
+          total + (post.likeCount ?? 0),
+        0
+      ),
+
+      comments: posts.reduce(
+        (total, post) =>
+          total + (post.commentCount ?? 0),
+        0
+      ),
     }),
-    [posts],
+    [posts, likedPosts]
   );
 
+  /*
+   * 게시글 영역
+   */
   const renderContent = () => {
-    if (loading) return <div className="col-span-full py-24 text-center text-sm text-muted">{labels.loading}</div>;
-    if (error) return <div className="col-span-full rounded-2xl border border-rose-200 bg-rose-50 px-5 py-10 text-center text-sm text-rose-600 dark:border-rose-900/50 dark:bg-rose-950/30">{error}</div>;
-
-    if (activeTab === 0) {
-      if (!posts.length) return <EmptyState icon={FileText} message={labels.emptyPosts} actionLabel={labels.write} onAction={() => navigate("/write")} />;
-      return posts.map((post) => <PostTile key={post.id} post={post} />);
+    if (loading) {
+      return (
+        <div className="col-span-full py-24 text-center text-sm text-muted">
+          {labels.loading}
+        </div>
+      );
     }
+
+    if (error) {
+      return (
+        <div className="col-span-full rounded-2xl border border-rose-200 bg-rose-50 px-5 py-10 text-center text-sm text-rose-600 dark:border-rose-900/50 dark:bg-rose-950/30">
+          {error}
+        </div>
+      );
+    }
+
+    // 내가 쓴 글
+    if (activeTab === 0) {
+      if (!posts.length) {
+        return (
+          <EmptyState
+            icon={FileText}
+            message={labels.emptyPosts}
+            actionLabel={labels.write}
+            onAction={() => navigate("/write")}
+          />
+        );
+      }
+
+      return posts.map((post) => (
+        <PostTile
+          key={post.id}
+          post={post}
+        />
+      ));
+    }
+
+    // 좋아요한 글
     if (activeTab === 1) {
       if (!likedPosts.length) {
         return (
@@ -266,36 +506,75 @@ export default function MyPage() {
           />
         );
       }
-    
+
       return likedPosts.map((post) => (
-        <PostTile key={post.id} post={post} />
+        <PostTile
+          key={post.id}
+          post={post}
+        />
       ));
-    }    if (activeTab === 2) {
-      if (!bookmarks.length) return <EmptyState icon={Bookmark} message={labels.emptyBookmarks} />;
-      return bookmarks.map((post) => <PostTile key={post.id} post={post} />);
     }
-    return <EmptyState icon={Users} message={labels.unavailableCrew} />;
+
+    // 저장한 글
+    if (activeTab === 2) {
+      if (!bookmarks.length) {
+        return (
+          <EmptyState
+            icon={Bookmark}
+            message={labels.emptyBookmarks}
+          />
+        );
+      }
+
+      return bookmarks.map((post) => (
+        <PostTile
+          key={post.id}
+          post={post}
+        />
+      ));
+    }
+
+    // 크루 활동
+    return (
+      <EmptyState
+        icon={Users}
+        message={labels.unavailableCrew}
+      />
+    );
   };
 
   return (
     <main className="min-h-screen bg-background px-4 pb-14 pt-24 text-foreground sm:px-6 sm:pt-28">
       <div className="mx-auto max-w-3xl">
-        <button type="button" onClick={() => navigate(-1)} className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-primary">
-          <ArrowLeft size={16} /> {labels.back}
+
+        {/* 뒤로가기 */}
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-muted transition hover:text-primary"
+        >
+          <ArrowLeft size={16} />
+          {labels.back}
         </button>
 
+        {/* 프로필 */}
         <section className="mb-6 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+
             <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5">
+
+              {/* 프로필 이미지 */}
               <div className="relative shrink-0">
                 <img
                   src={user.image || fallbackAvatar}
                   alt=""
                   className="h-20 w-20 rounded-full border-4 border-secondary object-cover sm:h-24 sm:w-24"
                   onError={(event) => {
-                    event.currentTarget.src = fallbackAvatar;
+                    event.currentTarget.src =
+                      fallbackAvatar;
                   }}
                 />
+
                 <button
                   type="button"
                   onClick={() => setEditOpen(true)}
@@ -306,24 +585,41 @@ export default function MyPage() {
                 </button>
               </div>
 
+              {/* 사용자 정보 */}
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-lg font-bold sm:text-xl">{user.name}</h1>
-                <p className="truncate text-sm text-muted">{user.email}</p>
+                <h1 className="truncate text-lg font-bold sm:text-xl">
+                  {user.name}
+                </h1>
+
+                <p className="truncate text-sm text-muted">
+                  {user.email}
+                </p>
+
+                {/* 통계 */}
                 <dl className="mt-4 flex gap-5 sm:gap-7">
                   {[
                     [stats.posts, labels.posts],
                     [stats.likes, labels.likes],
                     [stats.comments, labels.comments],
                   ].map(([value, label]) => (
-                    <div key={label} className="text-center">
-                      <dt className="text-xs text-muted">{label}</dt>
-                      <dd className="text-sm font-bold text-foreground sm:text-base">{value}</dd>
+                    <div
+                      key={label}
+                      className="text-center"
+                    >
+                      <dt className="text-xs text-muted">
+                        {label}
+                      </dt>
+
+                      <dd className="text-sm font-bold text-foreground sm:text-base">
+                        {value}
+                      </dd>
                     </div>
                   ))}
                 </dl>
               </div>
             </div>
 
+            {/* 프로필 편집 버튼 */}
             <button
               type="button"
               onClick={() => setEditOpen(true)}
@@ -334,7 +630,12 @@ export default function MyPage() {
           </div>
         </section>
 
-        <div className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1 sm:grid-cols-4" role="tablist" aria-label="Profile content">
+        {/* 탭 */}
+        <div
+          className="mb-5 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1 sm:grid-cols-4"
+          role="tablist"
+          aria-label="Profile content"
+        >
           {labels.tabs.map((tab, index) => (
             <button
               key={tab}
@@ -343,7 +644,9 @@ export default function MyPage() {
               aria-selected={activeTab === index}
               onClick={() => setActiveTab(index)}
               className={`rounded-xl px-2 py-2.5 text-xs font-semibold transition ${
-                activeTab === index ? "bg-card text-primary shadow-sm" : "text-muted hover:text-foreground"
+                activeTab === index
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted hover:text-foreground"
               }`}
             >
               {tab}
@@ -351,16 +654,43 @@ export default function MyPage() {
           ))}
         </div>
 
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{renderContent()}</section>
+        {/* 게시글 */}
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          {renderContent()}
+        </section>
       </div>
 
+      {/* 프로필 수정 모달 */}
       {editOpen && (
         <ProfileEditor
           user={user}
           labels={labels}
           onClose={() => setEditOpen(false)}
           onSave={(nextUser) => {
-            setUser((current) => ({ ...current, ...nextUser }));
+            /*
+             * 수정된 사용자 정보
+             */
+            const updatedUser = {
+              ...user,
+              ...nextUser,
+            };
+
+            /*
+             * 화면 즉시 반영
+             */
+            setUser(updatedUser);
+
+            /*
+             * 새로고침해도 유지되도록 저장
+             */
+            localStorage.setItem(
+              "myProfile",
+              JSON.stringify(updatedUser)
+            );
+
+            /*
+             * 모달 닫기
+             */
             setEditOpen(false);
           }}
         />
