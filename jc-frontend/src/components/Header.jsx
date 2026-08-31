@@ -176,8 +176,8 @@ export default function Header() {
       {/* 고정 헤더의 세로 패딩만 줄여 모든 기능을 유지하면서 화면 점유 높이를 낮춥니다. */}
       <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between px-4 py-3">
         {/* 로고는 피드의 기본 진입점입니다. */}
-        <Link to="/feed" className="self-center whitespace-nowrap text-xl font-semibold text-gray-900 dark:text-slate-50">
-          JC
+        <Link to="/feed" className="flex self-center" aria-label="Journey Connect 피드로 이동">
+          <img src="/JC_logo.svg" alt="Journey Connect" className="h-7 w-auto" />
         </Link>
 
         <div className="flex items-center space-x-3 md:order-3">
