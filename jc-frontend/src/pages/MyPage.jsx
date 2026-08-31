@@ -270,7 +270,21 @@ function ProfileEditor({
           readOnly
           className="mt-2 w-full cursor-not-allowed rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-muted"
         />
+{/* 비밀번호 */}
+<label
+  htmlFor="profile-password"
+  className="text-sm font-semibold text-foreground"
+>
+  비밀번호
+</label>
 
+<input
+  id="profile-password"
+  type="password"
+  value="********"
+  readOnly
+  className="mt-2 w-full cursor-not-allowed rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-muted"
+/>
         {/* 버튼 */}
         <div className="mt-7 flex justify-end gap-3">
           <button
