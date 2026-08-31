@@ -8,7 +8,9 @@ const getItems = (response) => response?.items || response?.content || response?
 
 export default function CommentSection({ postId }) {
   const { t } = useTranslation();
+  // 1. 서버에서 조회한 현재 게시글의 댓글 목록과 요청 상태를 관리합니다.
   const [comments, setComments] = useState([]);
+  // 2. 사용자가 입력 중인 댓글과 중복 제출 방지 상태를 관리합니다.
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -24,7 +26,7 @@ export default function CommentSection({ postId }) {
     return () => { active = false; };
   }, [postId, t]);
 
-  // 빈 댓글은 전송하지 않고, 성공한 댓글은 목록 끝에 즉시 추가합니다.
+  // 3. 빈 댓글은 전송하지 않고, 성공한 댓글은 목록 끝에 즉시 추가합니다.
   const handleAddComment = async (event) => {
     event.preventDefault();
     const content = inputText.trim();
@@ -37,6 +39,7 @@ export default function CommentSection({ postId }) {
     setError("");
     try {
       const created = await addPostComment(postId, content);
+      // 서버가 생성한 댓글을 기존 목록에 추가하고 입력창을 초기화합니다.
       setComments((current) => [...current, created]);
       setInputText("");
     } catch (requestError) {

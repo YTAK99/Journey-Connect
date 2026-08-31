@@ -61,10 +61,21 @@ function FeedItem({ post }) {
       .then((detail) => {
         if (!active || !detail) return;
         // 목록 응답의 반응 상태를 보존하면서 상세 장소·이미지 데이터를 보강합니다.
-        setDetailedPost((current) => ({ ...current, ...detail }));
+        setDetailedPost((current) => ({
+          ...current,
+          ...detail,
+          images: detail.images?.length
+            ? detail.images
+            : current.images?.length
+              ? current.images
+              : detail.imageUrls?.length
+                ? detail.imageUrls
+                : current.imageUrls,
+        }));
       })
-      .catch(() => {
+      .catch((error) => {
         // 상세 보강에 실패해도 목록 카드 자체는 계속 사용할 수 있게 유지합니다.
+        if (import.meta.env.DEV) console.error("Failed to load feed item details:", error);
       });
     return () => { active = false; };
   }, [post.id]);
@@ -73,11 +84,13 @@ function FeedItem({ post }) {
   const location = getLocalizedRegionName(detailedPost, currentLang);
   const rawImages = detailedPost.images?.length
     ? detailedPost.images
-    : detailedPost.coverImageUrl
-      ? [detailedPost.coverImageUrl]
-      : detailedPost.image
-        ? [detailedPost.image]
-        : [];
+    : detailedPost.imageUrls?.length
+      ? detailedPost.imageUrls
+      : detailedPost.coverImageUrl
+        ? [detailedPost.coverImageUrl]
+        : detailedPost.image
+          ? [detailedPost.image]
+          : [];
   const images = rawImages
     .map((image) => typeof image === "string" ? image : image?.imageUrl || image?.url)
     .filter(Boolean);
@@ -268,24 +281,49 @@ function FeedItem({ post }) {
 export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion }) {
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const trimmedKeyword = keyword.trim();
+  const [feedResult, setFeedResult] = useState({
+    resultKey: null,
+    posts: [],
+    error: "",
+  });
 
   useEffect(() => {
-    const request = keyword.trim()
-      ? getExplore({ keyword: keyword.trim(), size: 100 })
+    let active = true;
+    const request = trimmedKeyword
+      ? getExplore({ keyword: trimmedKeyword, size: 100 })
       : getFeed({ size: 100 });
+
     request
-      .then((feed) => setPosts(getFeedItems(feed)))
-      .catch((requestError) => {
-        setError(getApiErrorMessage(requestError, t("feed.loadFailed")));
+      .then((feed) => {
+        if (!active) return;
+        setFeedResult({
+          resultKey: trimmedKeyword,
+          posts: getFeedItems(feed),
+          error: "",
+        });
       })
-      .finally(() => setLoading(false));
-  }, [keyword, t]);
+      .catch((requestError) => {
+        if (!active) return;
+        setFeedResult({
+          resultKey: trimmedKeyword,
+          posts: [],
+          error: getApiErrorMessage(requestError, t("feed.loadFailed")),
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [trimmedKeyword, t]);
+
+  // 요청 키가 현재 검색어와 다르면 새 결과를 기다리는 중입니다.
+  const loading = feedResult.resultKey !== trimmedKeyword;
+  const posts = loading ? [] : feedResult.posts;
+  const error = loading ? "" : feedResult.error;
 
   const regionName = selectedRegion?.label?.[currentLang] || selectedRegion?.label?.en || selectedRegion?.label?.ko;
-  const normalizedKeyword = keyword.trim().toLowerCase();
+  const normalizedKeyword = trimmedKeyword.toLowerCase();
   const visiblePosts = posts.filter((post) => {
     const name = post.regionName || post.region?.name || "";
     if (!matchesSelectedRegion(post, selectedRegion)) return false;
