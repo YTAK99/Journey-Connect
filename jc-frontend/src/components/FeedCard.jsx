@@ -13,7 +13,7 @@ import useLangStore from "../store/useLangStore";
 import TagChips from "./TagChips";
 
 import CommentSection from "./CommentSection.jsx";
-import PostRouteMap from "./PostRouteMap.jsx";
+// import PostRouteMap from "./PostRouteMap.jsx";
 
 
 // 게시물/프로필 이미지가 없을 때 보여줄 기본 이미지
@@ -295,7 +295,7 @@ function FeedItem({ post }) {
 
 
     return (
-        <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <article className="mx-auto w-full max-w-3xl overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
 
             {/* 작성자 / 지역 / 작성 시간 */}
             <div className="px-6 pb-3 pt-7">
@@ -398,13 +398,13 @@ function FeedItem({ post }) {
                 })()}
             </div>
 
-            {/* 여행 루트 이미지 (좌우 여백 px-5 적용) */}
-            <div className="mt-0 px-7">
-                <PostRouteMap
-                    places={detailedPost.places}
-                    lang="ko"
-                />
-            </div>
+            {/*/!* 여행 루트 이미지 (좌우 여백 px-5 적용) *!/*/}
+            {/*<div className="mt-0 px-7">*/}
+            {/*    <PostRouteMap*/}
+            {/*        places={detailedPost.places}*/}
+            {/*        lang="ko"*/}
+            {/*    />*/}
+            {/*</div>*/}
 
 
             {/* 좋아요 / 댓글 / 북마크 버튼 */}

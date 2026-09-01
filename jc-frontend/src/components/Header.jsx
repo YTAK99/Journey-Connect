@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router";
-import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
+import { Bell, Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";
-import bellIcon from "../assets/bell.svg";
+import NotificationSidebar from "../components/NotificationSidebar";
+
 
 // 상단 내비게이션 바에 표시될 메뉴 항목들 (피드, 탐색, 크루)과 다국어 지원 라벨
 const navItems = [
@@ -103,6 +104,7 @@ export default function Header() {
   // 상태 관리 (모바일 메뉴 열림 여부, 설정 패널 열림 여부, 검색어, 다크모드 여부)
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchText, setSearchText] = useState(searchParams.get("q") || "");
   const [isDark, setIsDark] = useState(getInitialDarkMode);
 
@@ -181,10 +183,13 @@ export default function Header() {
           <div className="flex items-center space-x-3 md:order-3">
 
             {/*  알람 버튼 */}
-            <button className = "cursor-pointer">
-              <img src = {bellIcon} alt ="알람" className="w-6 h-6"/>
+            <button
+              type="button"
+              onClick={() =>setIsNotificationsOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 bark:hover:bg-slate-800 dark:hover:text-white cursor-pointer"
+              aria-label={currentLang === "ko" ? "알람" : "Notifications"}>
+              <Bell size={18} />
             </button>
-
 
             {/* 프로필 이미지 버튼 */}
             <button
@@ -256,6 +261,10 @@ export default function Header() {
             {searchInput}
           </form>
         </div>
+
+        <NotificationSidebar
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)} />
       </nav>
   );
 }
