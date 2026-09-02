@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, Plus, Users } from "lucide-react";
 import { useSearchParams } from "react-router";
-import LocationWeather from "../components/LocationWeather";
+// import LocationWeather from "../components/LocationWeather";
 import { getLocale, translate } from "../i18n";
 import useLangStore from "../store/useLangStore";
-import useRegionStore from "../store/useRegionStore";
+// import useRegionStore from "../store/useRegionStore";
 
 const sampleCrews = [
   {
@@ -66,7 +66,7 @@ export default function CrewPage() {
   // Figma 시안 확인용 샘플 크루 3개를 고정으로 표시합니다.
   const [searchParams] = useSearchParams();
   const { currentLang } = useLangStore();
-  const { selectedRegion, setSelectedRegion } = useRegionStore();
+  // const { selectedRegion, setSelectedRegion } = useRegionStore();
   const [joined, setJoined] = useState([]);
   const keyword = (searchParams.get("q") || "").trim().toLowerCase();
   const t = (key, variables) => translate(currentLang, key, variables);
@@ -87,9 +87,9 @@ export default function CrewPage() {
   return (
     <main className="min-h-screen bg-sky-50">
       <div className="pt-24 pb-6">
-        <section className="mx-auto max-w-screen-xl space-y-4 bg-white px-6 py-5">
-          <LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />
-        </section>
+        {/*<section className="mx-auto max-w-screen-xl space-y-4 bg-white px-6 py-5">*/}
+        {/*  /!*<LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />*!/*/}
+        {/*</section>*/}
 
         <section className="mx-auto max-w-5xl px-6 py-8">
           <div className="mb-6 flex items-end justify-between">

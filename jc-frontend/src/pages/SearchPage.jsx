@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Compass, PenLine, RotateCcw } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
-import LocationWeather from "../components/LocationWeather";
+// import LocationWeather from "../components/LocationWeather";
 import PostCard from "../components/PostCard";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getExplore, getExploreDiscovery, getFeedItems } from "../services/postApi";
@@ -65,7 +65,7 @@ export default function SearchPage() {
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const t = copy[currentLang] || copy.ko;
-  const { selectedRegion, setSelectedRegion } = useRegionStore();
+  const { selectedRegion } = useRegionStore();
   const [posts, setPosts] = useState([]);
   const [recommendationResult, setRecommendationResult] = useState({ key: "", items: [] });
   const [loading, setLoading] = useState(true);
@@ -223,13 +223,13 @@ export default function SearchPage() {
     <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
       {/* 축소된 헤더 아래에도 기존과 같은 시각적 분리 여백을 확보합니다. */}
       <div className="pb-4 pt-20">
-        <section className="mx-auto max-w-screen-xl space-y-2 bg-white px-6 py-3 dark:bg-slate-900">
-          <LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />
-        </section>
+        {/*<section className="mx-auto max-w-screen-xl space-y-2 bg-white px-6 py-3 dark:bg-slate-900">*/}
+        {/*  /!*<LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />*!/*/}
+        {/*</section>*/}
 
         <section className="mx-auto max-w-screen-xl px-4 py-3">
           <div className="mb-4 flex flex-col gap-1">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">탐색</h1>
+            {/*<h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">탐색</h1>*/}
             {keyword && (
               <p className="text-sm text-gray-500 dark:text-slate-400">
                 헤더 검색어: <span className="font-medium text-teal-700">{searchParams.get("q")}</span>

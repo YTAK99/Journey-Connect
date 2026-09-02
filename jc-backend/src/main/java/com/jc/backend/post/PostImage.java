@@ -24,6 +24,10 @@ public class PostImage {
     @JoinColumn(name = "post_id", nullable = false)
     private JourneyPost post;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "place_id")
+    private PostPlace place;
+
     @Column(name = "image_url", nullable = false, length = 500)
     private String imageUrl;
 
@@ -36,7 +40,12 @@ public class PostImage {
     protected PostImage() {}
 
     public PostImage(JourneyPost post, String imageUrl, int sortOrder, String altText) {
+        this(post, null, imageUrl, sortOrder, altText);
+    }
+
+    public PostImage(JourneyPost post, PostPlace place, String imageUrl, int sortOrder, String altText) {
         this.post = post;
+        this.place = place;
         this.imageUrl = imageUrl;
         this.sortOrder = sortOrder;
         this.altText = altText;
@@ -57,4 +66,6 @@ public class PostImage {
     public String getAltText() {
         return altText;
     }
+
+    public PostPlace getPlace() { return place; }
 }
