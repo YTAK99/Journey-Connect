@@ -1,0 +1,5 @@
+Team V19 generate: python tools/synthetic-db-corpus/generate.py
+Team V19 output: build/synthetic-db-corpus/seed.sql, purge.sql, manifest.json
+Local pre-V19 generate (Windows): .\tools\synthetic-db-corpus\generate-local.ps1
+Local pre-V19 output: build/synthetic-db-local/seed.sql, purge.sql, manifest.json
+Development PostgreSQL only. Do not run against production.
