@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, Plus, Users } from "lucide-react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { getLocale, translate } from "../i18n";
 import useLangStore from "../store/useLangStore";
-// import useRegionStore from "../store/useRegionStore";
 
 // [데이터] 화면에 표시할 샘플 크루(여행 동행 모임) 목록입니다.
 const sampleCrews = [
@@ -66,14 +65,11 @@ const formatTravelDate = (value, language) => {
 };
 
 export default function CrewPage() {
-  // Figma 시안 확인용 샘플 크루 3개를 고정으로 표시합니다.
-
   // URL의 쿼리 스트링(예: ?q=검색어)을 읽어오기 위한 훅
   const [searchParams] = useSearchParams();
 
   // 전역 상태 스토어에서 현재 언어 상태를 가져옴
   const { currentLang } = useLangStore();
-  // const { selectedRegion, setSelectedRegion } = useRegionStore();
 
   // 사용자가 '참여하기'를 누른 크루의 ID들을 관리하는 상태 (토글 방식)
   const [joined, setJoined] = useState([]);
@@ -94,9 +90,15 @@ export default function CrewPage() {
     });
   }, [keyword]);
 
-  // '참여하기' 버튼 클릭 시 호출되는 함수 (참여 상태 추가/취소 처리)
+  // '참여하기' 버튼 클릭 시 상태를 '참여중'으로 바꾸고 채팅방으로 이동
   const handleJoin = (crew) => {
-    setJoined((current) => (current.includes(crew.id) ? current.filter((id) => id !== crew.id) : [...current, crew.id]));
+    // 1. 아직 joined 목록에 없다면 해당 크루 ID 추가
+    setJoined((current) =>
+        current.includes(crew.id) ? current : [...current, crew.id]
+    );
+
+    // 2. 브라우저 기본 이동을 사용해 에러 없이 안전하게 오픈 채팅방으로 이동
+    window.location.href = `/crew/${crew.id}/chat`;
   };
 
   return (

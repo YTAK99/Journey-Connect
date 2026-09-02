@@ -50,13 +50,13 @@ export default function App() {
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/explore" element={<SearchPage />} />
           <Route path="/crew" element={<CrewPage />} />
-          <Route path="/crew/:id/chat" element={<CrewChatPage />}  />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/my-posts" element={<MyPosts />} />
           <Route path="/write" element={<WritePost />} />
           <Route path="/write/:id" element={<WritePost />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<AdminRouteGuard><AdminLayout /></AdminRouteGuard>}>
             <Route index element={<AdminDashboardPage />} />
@@ -72,6 +72,9 @@ export default function App() {
           <Route path="/feedpage" element={<Navigate to="/feed" replace />} />
           <Route path="/searchpage" element={<Navigate to="/explore" replace />} />
           <Route path="/myposts" element={<Navigate to="/my-posts" replace />} />
+
+          <Route path="/crew/:id/chat" element={<CrewChatPage />}  />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
