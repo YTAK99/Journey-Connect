@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from "react-router";
 import { getLocale, translate } from "../i18n";
 import useLangStore from "../store/useLangStore";
 
-// [데이터] 화면에 표시할 샘플 크루(여행 동행 모임) 목록입니다.
 const sampleCrews = [
   {
     id: "sample-1",
@@ -70,14 +69,11 @@ export default function CrewPage() {
 
   // 전역 상태 스토어에서 현재 언어 상태를 가져옴
   const { currentLang } = useLangStore();
-
-  // 사용자가 '참여하기'를 누른 크루의 ID들을 관리하는 상태 (토글 방식)
+  // const { selectedRegion, setSelectedRegion } = useRegionStore();
   const [joined, setJoined] = useState([]);
 
   // URL에서 검색어(q)를 추출하고, 소문자 및 공백 제거 처리
   const keyword = (searchParams.get("q") || "").trim().toLowerCase();
-
-  // 다국어 번역 함수 숏컷 (예: t("crew.pageTitle"))
   const t = (key, variables) => translate(currentLang, key, variables);
 
   // [메모이제이션] 검색어(keyword)가 바뀔 때만 화면에 보여줄 크루 목록을 필터링합니다.
@@ -90,15 +86,8 @@ export default function CrewPage() {
     });
   }, [keyword]);
 
-  // '참여하기' 버튼 클릭 시 상태를 '참여중'으로 바꾸고 채팅방으로 이동
   const handleJoin = (crew) => {
-    // 1. 아직 joined 목록에 없다면 해당 크루 ID 추가
-    setJoined((current) =>
-        current.includes(crew.id) ? current : [...current, crew.id]
-    );
-
-    // 2. 브라우저 기본 이동을 사용해 에러 없이 안전하게 오픈 채팅방으로 이동
-    window.location.href = `/crew/${crew.id}/chat`;
+    setJoined((current) => (current.includes(crew.id) ? current.filter((id) => id !== crew.id) : [...current, crew.id]));
   };
 
   return (
@@ -165,41 +154,38 @@ export default function CrewPage() {
                           <Users size={10} />
                           {t("crew.memberCount", { current: memberCount, capacity })}
                         </span>
-                            <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1">
                           <CalendarDays size={10} />
-                              {formatTravelDate(crew.travelDate, currentLang)}
+                          {formatTravelDate(crew.travelDate, currentLang)}
                         </span>
-                          </div>
-                          {/* 인원 참여율 프로그레스 바 */}
-                          <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                            <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-                          </div>
-                        </div>
-
-                        {/* 참여하기 / 참여 취소 버튼 */}
-                        <button
-                            type="button"
-                            onClick={() => handleJoin(crew)}
-                            className={`w-full rounded-xl py-2 text-sm font-medium transition-all ${
-                                isJoined
-                                    ? "border border-primary/20 bg-secondary text-primary"
-                                    : "bg-primary text-white hover:bg-primaryHover"
-                            }`}
-                        >
-                          {isJoined ? t("crew.joined") : t("crew.join")}
-                        </button>
                       </div>
-                    </article>
-                );
-              })}
-            </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+                      </div>
+                    </div>
 
-            {/* 검색 결과나 크루가 없을 때 보여주는 빈 상태(Empty state) 안내 */}
-            {visibleCrews.length === 0 && (
-                <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">{t("crew.empty")}</p>
-            )}
-          </section>
-        </div>
-      </main>
+                    <button
+                      type="button"
+                      onClick={() => handleJoin(crew)}
+                      className={`w-full rounded-xl py-2 text-sm font-medium transition-all ${
+                        isJoined
+                          ? "border border-primary/20 bg-secondary text-primary"
+                          : "bg-primary text-white hover:bg-primaryHover"
+                      }`}
+                    >
+                      {isJoined ? t("crew.joined") : t("crew.join")}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
+          {visibleCrews.length === 0 && (
+            <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">{t("crew.empty")}</p>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

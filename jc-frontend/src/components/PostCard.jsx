@@ -1,22 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bookmark, MapPin } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { bookmarkPost, deletePost, unbookmarkPost } from "../services/postApi";
-// import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName } from "../utils/region";
 import useLangStore from "../store/useLangStore";
-// import TagChips from "./TagChips";
 
 const fallbackImage = "/ex_2.jpg";
+const fallbackAvatar = "/user_1.jpg";
 
 function PostCard({ post, setPosts, editable = false }) {
-  // 검색/내 글 목록에서 재사용하며 editable일 때만 수정·삭제 동작을 노출합니다.
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const [bookmarked, setBookmarked] = useState(Boolean(post.bookmarked));
+
+  // 1. 현재 로그인 유저 정보 로드
+  const [currentUser, setCurrentUser] = useState(() => {
+    return JSON.parse(localStorage.getItem("user") || "{}");
+  });
+
+  // 2. 프로필 변경 이벤트 감지 (실시간 동기화)
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      setCurrentUser(JSON.parse(localStorage.getItem("user") || "{}"));
+    };
+    window.addEventListener("userProfileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("userProfileUpdated", handleProfileUpdate);
+  }, []);
+
   const image = post.coverImageUrl || post.image || fallbackImage;
   const location = getLocalizedRegionName(post, currentLang);
+
+  // 3. 내 글 판별 (editable, ID, 이메일 비교)
+  const isMyPost =
+    editable ||
+    (post.userId && post.userId === currentUser?.id) ||
+    (post.authorEmail && post.authorEmail === currentUser?.email);
+
+  // 4. 표시할 닉네임과 프로필 이미지 (내 글이면 최신 변경값, 남의 글이면 원본값)
+  const displayNickname = isMyPost
+    ? currentUser?.nickname || currentUser?.name || post.authorName
+    : post.authorName || post.nickname || "여행자";
+
+  const displayAvatar = isMyPost
+    ? currentUser?.profileImageUrl || currentUser?.image || post.authorImage
+    : post.authorImage || post.profileImageUrl || fallbackAvatar;
 
   const toggleBookmark = async (event) => {
     event.stopPropagation();
@@ -68,10 +96,24 @@ function PostCard({ post, setPosts, editable = false }) {
       </div>
 
       <div className="p-4">
-        <h3 className="line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100">{post.title}</h3>
-        {/*<p className="mb-3 line-clamp-2 text-sm leading-6 text-gray-600 dark:text-slate-300">{richTextToPlainText(post.content)}</p>*/}
+        {/* 작성자 프로필 표시 영역 */}
+        <div className="mb-3 flex items-center gap-2">
+          <img
+            src={displayAvatar}
+            alt={displayNickname}
+            className="h-7 w-7 rounded-full object-cover border border-gray-100 dark:border-slate-700"
+            onError={(e) => {
+              e.currentTarget.src = fallbackAvatar;
+            }}
+          />
+          <span className="text-xs font-medium text-gray-700 dark:text-slate-300">
+            {displayNickname}
+          </span>
+        </div>
 
-        {/*<TagChips tags={post.tags || []} />*/}
+        <h3 className="line-clamp-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
+          {post.title}
+        </h3>
 
         {editable && (
           <div className="mt-4 flex gap-2">
@@ -85,7 +127,11 @@ function PostCard({ post, setPosts, editable = false }) {
             >
               수정
             </button>
-            <button type="button" onClick={handleDelete} className="flex-1 rounded-lg bg-red-500 px-3 py-2 text-sm text-white hover:bg-red-600">
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="flex-1 rounded-lg bg-red-500 px-3 py-2 text-sm text-white hover:bg-red-600"
+            >
               삭제
             </button>
           </div>

@@ -3,6 +3,7 @@ import { Bookmark, Heart, MessageCircle, MoreHorizontal, Plus, Sparkles } from "
 import { useNavigate } from "react-router";
 
 import { getApiErrorMessage } from "../services/apiClient";
+import { getUser } from "../services/auth";
 import { bookmarkPost, getExplore, getFeed, getFeedItems, getPost, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 
 import { richTextToPlainText } from "../utils/richText";
@@ -19,7 +20,40 @@ import CommentSection from "./CommentSection.jsx";
 // 게시물/프로필 이미지가 없을 때 보여줄 기본 이미지
 // const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
+const getAuthorWithCurrentUser = (author) => {
+    const currentUser = getUser();
 
+    if (!author || !currentUser) {
+        return author;
+    }
+
+    const isMyPost =
+        (author.id != null &&
+            currentUser.id != null &&
+            String(author.id) === String(currentUser.id)) ||
+        (author.userId != null &&
+            currentUser.id != null &&
+            String(author.userId) === String(currentUser.id)) ||
+        (author.email &&
+            currentUser.email &&
+            author.email === currentUser.email);
+
+    if (!isMyPost) {
+        return author;
+    }
+
+    return {
+        ...author,
+        nickname:
+            currentUser.nickname ||
+            currentUser.name ||
+            author.nickname,
+        profileImageUrl:
+            currentUser.profileImageUrl ||
+            currentUser.image ||
+            author.profileImageUrl,
+    };
+};
 
 // 작성 시간을 "3분 전", "2일 전" 같은 형태로 바꿔주는 함수
 const getRelativeDate = (createdAt) => {
@@ -73,7 +107,30 @@ function FeedItem({ post }) {
     const { currentLang } = useLangStore();
 
     // 기존 post 데이터를 유지하면서 상세 데이터를 덮어쓰도록 설정
-    const [detailedPost, setDetailedPost] = useState(post);
+    const [detailedPost, setDetailedPost] = useState(() => ({
+        ...post,
+        author: getAuthorWithCurrentUser(post.author),
+    }));        // 프로필 변경 시 내가 작성한 게시글의 작성자 정보도 즉시 변경
+    useEffect(() => {
+        const handleProfileUpdate = () => {
+            setDetailedPost((prev) => ({
+                ...prev,
+                author: getAuthorWithCurrentUser(prev.author),
+            }));
+        };
+    
+        window.addEventListener(
+            "userProfileUpdated",
+            handleProfileUpdate
+        );
+    
+        return () => {
+            window.removeEventListener(
+                "userProfileUpdated",
+                handleProfileUpdate
+            );
+        };
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -81,15 +138,19 @@ function FeedItem({ post }) {
         getPost(post.id)
             .then((detailData) => {
                 if (active && detailData) {
-                    setDetailedPost((prev) => ({
-                        ...prev,
-                        ...detailData,
-                        images: detailData.images?.length
-                            ? detailData.images
-                            : (prev.images || detailData.imageUrls),
-                    }));
-                }
-            })
+                    setDetailedPost((prev) => {
+                        const savedUser = getUser();
+                    
+                        return {
+                            ...prev,
+                            ...detailData,
+                            author: getAuthorWithCurrentUser(detailData.author),
+                            images: detailData.images?.length
+                                ? detailData.images
+                                : (prev.images || detailData.imageUrls),
+                        };
+                    });
+            }})
             .catch((err) => {
                 console.error("피드 아이템 상세 장소 로드 실패:", err);
             });
