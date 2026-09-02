@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, Plus, Users } from "lucide-react";
-import { useSearchParams } from "react-router";
+import { useSearchParams,useNavigate } from "react-router";
 // import LocationWeather from "../components/LocationWeather";
 import { getLocale, translate } from "../i18n";
 import useLangStore from "../store/useLangStore";
@@ -64,10 +64,16 @@ const formatTravelDate = (value, language) => {
 
 export default function CrewPage() {
   // Figma 시안 확인용 샘플 크루 3개를 고정으로 표시합니다.
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentLang } = useLangStore();
   // const { selectedRegion, setSelectedRegion } = useRegionStore();
   const [joined, setJoined] = useState([]);
+const [crewMembers, setCrewMembers] = useState(
+  Object.fromEntries(
+    sampleCrews.map((crew) => [crew.id, crew.memberCount])
+  )
+);
   const keyword = (searchParams.get("q") || "").trim().toLowerCase();
   const t = (key, variables) => translate(currentLang, key, variables);
 
@@ -98,12 +104,13 @@ export default function CrewPage() {
               <p className="mt-0.5 text-sm text-muted">{t("crew.pageDescription")}</p>
             </div>
             <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primaryHover"
-            >
-              <Plus size={14} />
-              {t("crew.create")}
-            </button>
+  type="button"
+  onClick={() => navigate("create")}
+  className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primaryHover"
+>
+  <Plus size={14} />
+  {t("crew.create")}
+</button>
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
