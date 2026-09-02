@@ -4,8 +4,8 @@ import BackendTestPage from "./pages/BackendTestPage";
 import Complete from "./pages/Complete";
 import CrewPage from "./pages/CrewPage";
 import FeedPage from "./pages/FeedPage";
-import FindId from "./pages/FindId";
 import FindPassword from "./pages/FindPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import MyPage from "./pages/MyPage";
@@ -30,7 +30,7 @@ import CrewChatPage from "./pages/CrewChatPage";
 
 function Layout({ children }) {
   const location = useLocation();
-  const hideHeaderPaths = ["/", "/login", "/signup", "/find-id", "/find-password", "/test"];
+  const hideHeaderPaths = ["/", "/login", "/signup",  "/find-password", "/test"];
   const isHeaderHidden = hideHeaderPaths.includes(location.pathname) || location.pathname.startsWith("/admin");
   return <>{!isHeaderHidden && <Header />}{children}</>;
 }
@@ -45,7 +45,6 @@ export default function App() {
           <Route path="/test" element={<BackendTestPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/find-id" element={<FindId />} />
           <Route path="/find-password" element={<FindPassword />} />
           <Route path="/complete" element={<Complete />} />
           <Route path="/feed" element={<FeedPage />} />
@@ -57,7 +56,7 @@ export default function App() {
           <Route path="/write" element={<WritePost />} />
           <Route path="/write/:id" element={<WritePost />} />
           <Route path="/post/:id" element={<PostDetail />} />
-
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<AdminRouteGuard><AdminLayout /></AdminRouteGuard>}>
             <Route index element={<AdminDashboardPage />} />

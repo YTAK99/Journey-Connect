@@ -84,7 +84,9 @@ function FeedItem({ post }) {
                     setDetailedPost((prev) => ({
                         ...prev,
                         ...detailData,
-                        images: detailData.images?.length ? detailData.images : (prev.images || detailData.imageUrls),
+                        images: detailData.images?.length
+                            ? detailData.images
+                            : (prev.images || detailData.imageUrls),
                     }));
                 }
             })
