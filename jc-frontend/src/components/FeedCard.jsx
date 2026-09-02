@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Bookmark, Globe2, Heart, MapPin, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
+import { getUser } from "../services/auth";
 import { bookmarkPost, getExplore, getFeed, getFeedItems, getPost, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
@@ -14,6 +15,23 @@ import PostRouteMap from "./PostRouteMap";
 
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
+
+const syncCurrentUserAuthor = (author) => {
+  const currentUser = getUser();
+  if (!author || !currentUser) return author;
+
+  const isMyPost =
+    (author.id != null && currentUser.id != null && String(author.id) === String(currentUser.id)) ||
+    (author.userId != null && currentUser.id != null && String(author.userId) === String(currentUser.id)) ||
+    (author.email && currentUser.email && author.email === currentUser.email);
+
+  if (!isMyPost) return author;
+  return {
+    ...author,
+    nickname: currentUser.nickname || currentUser.name || author.nickname,
+    profileImageUrl: currentUser.profileImageUrl || currentUser.image || author.profileImageUrl,
+  };
+};
 
 // 작성 시간을 "3분 전", "2일 전" 같은 형태로 바꿔주는 함수
 const getRelativeDate = (createdAt, language) => {
@@ -43,7 +61,10 @@ function FeedItem({ post }) {
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
   // 기존 post 데이터를 유지하면서 상세 데이터를 덮어쓰도록 설정
-  const [detailedPost, setDetailedPost] = useState(post);
+  const [detailedPost, setDetailedPost] = useState(() => ({
+    ...post,
+    author: syncCurrentUserAuthor(post.author),
+  }));
   // 댓글 영역 열기/닫기 상태
   const [isCommentOpen, setIsCommentOpen] = useState(false);
   // 좋아요 / 북마크 상태
@@ -56,6 +77,17 @@ function FeedItem({ post }) {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
   useEffect(() => {
+    const handleProfileUpdate = () => {
+      setDetailedPost((current) => ({
+        ...current,
+        author: syncCurrentUserAuthor(current.author),
+      }));
+    };
+    window.addEventListener("userProfileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("userProfileUpdated", handleProfileUpdate);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     getPost(post.id)
       .then((detail) => {
@@ -64,6 +96,7 @@ function FeedItem({ post }) {
         setDetailedPost((current) => ({
           ...current,
           ...detail,
+          author: syncCurrentUserAuthor(detail.author || current.author),
           images: detail.images?.length
             ? detail.images
             : current.images?.length
@@ -123,6 +156,7 @@ function FeedItem({ post }) {
     try {
       if (nextLiked) await likePost(post.id);
       else await unlikePost(post.id);
+      window.dispatchEvent(new Event("likeChanged"));
     } catch (error) {
       setLiked(!nextLiked);
       setLikeCount((count) => Math.max(0, count + (nextLiked ? -1 : 1)));

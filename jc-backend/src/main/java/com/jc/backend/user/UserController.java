@@ -39,6 +39,13 @@ public class UserController {
         return ApiResponse.ok(userService.updateProfile(userId(token), request));
     }
 
+    @PatchMapping("/me/password")
+    void changePassword(
+            @AuthenticationPrincipal Jwt token,
+            @Valid @RequestBody UserDtos.ChangePasswordRequest request) {
+        userService.changePassword(userId(token), request);
+    }
+
     @GetMapping("/{userId}")
     ApiResponse<UserDtos.PublicProfile> publicProfile(
             @PathVariable long userId,

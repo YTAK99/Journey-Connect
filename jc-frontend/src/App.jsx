@@ -3,9 +3,11 @@ import Header from "./components/Header";
 import BackendTestPage from "./pages/BackendTestPage";
 import Complete from "./pages/Complete";
 import CrewPage from "./pages/CrewPage";
+import CrewCreate from "./pages/CrewCreate";
 import FeedPage from "./pages/FeedPage";
 import FindId from "./pages/FindId";
 import FindPassword from "./pages/FindPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import MyPage from "./pages/MyPage";
@@ -45,10 +47,12 @@ export default function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/find-id" element={<FindId />} />
           <Route path="/find-password" element={<FindPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/complete" element={<Complete />} />
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/explore" element={<SearchPage />} />
           <Route path="/crew" element={<CrewPage />} />
+          <Route path="/crew/create" element={<CrewCreate />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/my-posts" element={<MyPosts />} />
           <Route path="/write" element={<WritePost />} />

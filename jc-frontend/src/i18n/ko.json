@@ -20,7 +20,10 @@
       "action": "로그인",
       "submitting": "로그인 중...",
       "required": "이메일과 비밀번호를 입력해 주세요.",
-      "failed": "로그인에 실패했습니다."
+      "failed": "로그인에 실패했습니다.",
+      "google": "Google 계정으로 로그인",
+      "googleFailed": "Google 로그인에 실패했습니다.",
+      "googleUnavailable": "Google 로그인 서비스를 불러오지 못했습니다."
     },
     "signup": {
       "title": "회원가입",
@@ -41,10 +44,23 @@
     },
     "findPassword": {
       "title": "비밀번호 찾기",
-      "idPlaceholder": "아이디",
-      "required": "아이디와 이메일을 모두 입력해 주세요.",
-      "found": "회원님의 비밀번호는 \"{{password}}\"입니다.",
-      "notFound": "일치하는 회원 정보가 없습니다."
+      "emailPlaceholder": "가입한 이메일",
+      "required": "가입한 이메일을 입력해 주세요.",
+      "action": "비밀번호 재설정",
+      "submitting": "요청 중...",
+      "requested": "비밀번호 재설정 안내를 확인해 주세요.",
+      "failed": "비밀번호 재설정 요청에 실패했습니다."
+    },
+    "resetPassword": {
+      "title": "비밀번호 재설정",
+      "tokenPlaceholder": "재설정 토큰",
+      "newPassword": "새 비밀번호",
+      "confirmPassword": "새 비밀번호 확인",
+      "required": "재설정 토큰과 새 비밀번호를 입력해 주세요.",
+      "action": "비밀번호 변경",
+      "submitting": "변경 중...",
+      "succeeded": "비밀번호가 변경되었습니다.",
+      "failed": "비밀번호를 변경하지 못했습니다."
     },
     "backToLogin": "로그인으로 돌아가기"
   },
@@ -58,6 +74,16 @@
     "toggleDarkMode": "다크 모드 전환",
     "logout": "로그아웃",
     "notifications": "알림"
+  },
+  "notifications": {
+    "title": "알림",
+    "joinRequest": "크루 가입 요청이 들어왔습니다.",
+    "postLiked": "내 게시글에 좋아요가 눌렸습니다.",
+    "minutesAgo": "{{count}}분 전",
+    "empty": "새로운 알림이 없습니다.",
+    "markAllRead": "모두 읽음으로 표시",
+    "count": "{{count}}개의 알림",
+    "close": "알림 닫기"
   },
   "post": {
     "traveler": "여행자", "more": "더보기", "bookmark": "북마크", "likes": "좋아요 {{count}}개",
@@ -129,9 +155,11 @@
     "back": "돌아가기", "editProfile": "프로필 편집", "posts": "게시글", "likes": "좋아요", "comments": "댓글",
     "tabs": ["내가 쓴 글", "좋아요한 곳", "저장한 곳", "크루 활동"], "loading": "게시물을 불러오는 중입니다.",
     "loadError": "마이페이지 게시물을 불러오지 못했습니다.", "emptyPosts": "아직 작성한 글이 없습니다.", "emptyBookmarks": "아직 저장한 곳이 없습니다.",
-    "unavailableLikes": "좋아요한 장소 목록은 아직 준비 중입니다.", "unavailableCrew": "참여한 크루 활동은 아직 준비 중입니다.",
+    "unavailableLikes": "아직 좋아요한 글이 없습니다.", "unavailableCrew": "참여한 크루 활동은 아직 준비 중입니다.",
     "write": "첫 여행 기록 작성하기", "nickname": "닉네임", "email": "이메일", "cancel": "취소", "save": "저장", "close": "닫기",
-    "editHint": "프로필 이미지는 이 화면에서 미리보기로 반영됩니다.", "traveler": "여행자"
+    "editHint": "새 프로필 이미지는 이 브라우저에 저장됩니다.", "traveler": "여행자", "imageOnly": "이미지 파일만 선택할 수 있습니다.",
+    "currentPassword": "현재 비밀번호", "currentPasswordPlaceholder": "현재 비밀번호를 입력하세요", "newPassword": "새 비밀번호", "newPasswordPlaceholder": "8자 이상의 새 비밀번호",
+    "passwordOptional": "비밀번호를 변경하지 않으려면 두 입력란을 비워 두세요.", "passwordInvalid": "현재 비밀번호와 8자 이상의 새 비밀번호를 입력해 주세요.", "saveFailed": "프로필을 저장하지 못했습니다."
   },
   "crew": {
     "pageTitle": "크루 · 모임",
@@ -141,6 +169,42 @@
     "joined": "참여 중",
     "memberCount": "{{current}}/{{capacity}}명",
     "ongoing": "상시",
-    "empty": "선택한 지역의 크루가 없습니다."
+    "empty": "선택한 지역의 크루가 없습니다.",
+    "chatJoined": "채팅방 참여 중",
+    "manager": "매니저",
+    "me": "나",
+    "welcomeMessage": "안녕하세요! 오픈채팅방입니다.",
+    "helloMessage": "반가워요!",
+    "participants": "참여자 {{count}}명",
+    "messagePlaceholder": "메시지를 입력하세요...",
+    "closeChat": "채팅방 닫기"
+  },
+  "crewCreate": {
+    "back": "크루 목록으로",
+    "title": "크루 만들기",
+    "description": "함께 여행하고 싶은 사람들을 모집해보세요.",
+    "image": "대표 사진",
+    "chooseImage": "사진을 선택해 주세요",
+    "imageAlt": "크루 대표 이미지",
+    "imageOnly": "이미지 파일만 선택해 주세요.",
+    "region": "여행 지역",
+    "regionPlaceholder": "예: 서울, 제주, 도쿄",
+    "crewTitle": "크루 제목",
+    "titlePlaceholder": "예: 서울 성수동 빈티지 투어 같이 해요",
+    "route": "여행 경로 / 소개",
+    "routePlaceholder": "어디를 여행할 예정인지 간단하게 적어 주세요.",
+    "tags": "태그",
+    "tagsPlaceholder": "예: 성수동, 빈티지, 카페",
+    "date": "여행 날짜",
+    "members": "모집 인원",
+    "cancel": "취소",
+    "submit": "크루 만들기",
+    "created": "크루가 생성되었습니다!",
+    "titleRequired": "크루 제목을 입력해 주세요.",
+    "regionRequired": "여행 지역을 입력해 주세요.",
+    "routeRequired": "여행 경로를 입력해 주세요.",
+    "dateRequired": "여행 날짜를 선택해 주세요.",
+    "membersInvalid": "모집 인원은 2명 이상 20명 이하여야 합니다.",
+    "storageFailed": "저장 공간이 부족합니다. 더 작은 이미지를 사용해 주세요."
   }
 }
