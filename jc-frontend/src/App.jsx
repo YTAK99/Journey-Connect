@@ -25,6 +25,8 @@ import AdminPostDetailPage from "./pages/admin/AdminPostDetailPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
 import AdminNotFoundPage from "./pages/admin/AdminNotFoundPage";
+import CrewChatPage from "./pages/CrewChatPage";
+
 
 function Layout({ children }) {
   const location = useLocation();
@@ -49,6 +51,7 @@ export default function App() {
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/explore" element={<SearchPage />} />
           <Route path="/crew" element={<CrewPage />} />
+          <Route path="/crew/:id/chat" element={<CrewChatPage />}  />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/my-posts" element={<MyPosts />} />
           <Route path="/write" element={<WritePost />} />
