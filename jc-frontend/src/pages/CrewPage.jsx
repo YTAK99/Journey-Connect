@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Plus, Users } from "lucide-react";
+import { CalendarDays, Plus, Users, X, Send } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
-// import LocationWeather from "../components/LocationWeather";
 import { getLocale, translate } from "../i18n";
 import useLangStore from "../store/useLangStore";
-// import useRegionStore from "../store/useRegionStore";
 
 const sampleCrews = [
   {
@@ -42,22 +40,17 @@ const sampleCrews = [
   },
 ];
 
-// [유틸 함수] 크루 이미지 주소가 없을 경우 대체(fallback) 이미지를 반환합니다.
 const crewImage = (crew) =>
     crew.image ||
     crew.coverImageUrl ||
     "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&h=220&fit=crop";
 
-// [유틸 함수] 현재 설정된 언어(ko, en 등)에 맞춰 지역 이름을 가져옵니다.
 const getRegionName = (crew, language) => crew.regionName?.[language] || crew.regionName?.ko || crew.regionName || "";
 
-// [유틸 함수] 날짜 문자열을 사용자의 언어 및 지역(Locale)에 맞는 형식으로 변환합니다.
 const formatTravelDate = (value, language) => {
   if (!value) return translate(language, "crew.ongoing");
-
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
-
   return new Intl.DateTimeFormat(getLocale(language), {
     year: "numeric",
     month: "2-digit",
@@ -66,45 +59,68 @@ const formatTravelDate = (value, language) => {
 };
 
 export default function CrewPage() {
-  // URL의 쿼리 스트링(예: ?q=검색어)을 읽어오기 위한 훅
+  // 👇 첫 번째 문제 해결: navigate 정상 작동
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
-  // 전역 상태 스토어에서 현재 언어 상태를 가져옴
   const { currentLang } = useLangStore();
-  // const { selectedRegion, setSelectedRegion } = useRegionStore();
+
   const [joined, setJoined] = useState([]);
 
-  // URL에서 검색어(q)를 추출하고, 소문자 및 공백 제거 처리
+  // 👇 두 번째 문제 해결: 채팅창 상태 및 데이터 복구
+  const [activeChatCrew, setActiveChatCrew] = useState(null);
+  const [messages, setMessages] = useState([
+    { id: 1, sender: "매니저", text: "안녕하세요! 오픈채팅방입니다.", time: "오후 3:30", isMe: false },
+    { id: 2, sender: "나", text: "반가워요!", time: "오후 3:33", isMe: true },
+  ]);
+  const [inputMessage, setInputMessage] = useState("");
+
   const keyword = (searchParams.get("q") || "").trim().toLowerCase();
   const t = (key, variables) => translate(currentLang, key, variables);
 
-  // [메모이제이션] 검색어(keyword)가 바뀔 때만 화면에 보여줄 크루 목록을 필터링합니다.
   const visibleCrews = useMemo(() => {
     return sampleCrews.filter((crew) => {
-      if (!keyword) return true; // 검색어가 없으면 모든 크루 표시
+      if (!keyword) return true;
       const regionNames = Object.values(crew.regionName || {}).join(" ");
       const searchable = `${crew.title} ${regionNames} ${crew.tags.join(" ")}`.toLowerCase();
-      return searchable.includes(keyword); // 제목, 지역, 태그 중에 검색어가 포함되어 있는지 확인
+      return searchable.includes(keyword);
     });
   }, [keyword]);
 
+  // '참여하기' 클릭 시 채팅창 열기
   const handleJoin = (crew) => {
-    setJoined((current) => (current.includes(crew.id) ? current.filter((id) => id !== crew.id) : [...current, crew.id]));
+    setJoined((current) =>
+        current.includes(crew.id) ? current : [...current, crew.id]
+    );
+    setActiveChatCrew(crew);
+  };
+
+  // 메시지 전송 로직
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (!inputMessage.trim()) return;
+
+    const newMessage = {
+      id: Date.now(),
+      sender: "나",
+      text: inputMessage,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isMe: true,
+    };
+
+    setMessages([...messages, newMessage]);
+    setInputMessage("");
   };
 
   return (
-      <main className="min-h-screen bg-sky-50">
+      <main className="w-full bg-sky-50 min-h-screen relative">
         <div className="pt-24 pb-6">
-          {/*<section className="mx-auto max-w-screen-xl space-y-4 bg-white px-6 py-5">*/}
-          {/*  /!*<LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />*!/*/}
-          {/*</section>*/}
           <section className="mx-auto max-w-7xl px-6 py-8">
-            {/* 상단 타이틀 및 크루 생성 버튼 영역 */}
             <div className="mb-6 flex items-end justify-between">
               <div>
                 <h1 className="text-xl font-bold text-foreground">{t("crew.pageTitle")}</h1>
                 <p className="mt-0.5 text-sm text-muted">{t("crew.pageDescription")}</p>
               </div>
+              {/* 첫 번째 문제: 크루 만들기 버튼 */}
               <button
                   type="button"
                   onClick={() => navigate("create")}
@@ -115,12 +131,10 @@ export default function CrewPage() {
               </button>
             </div>
 
-            {/* 크루 카드 목록 그리드 영역 */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {visibleCrews.map((crew) => {
                 const memberCount = crew.memberCount ?? 1;
                 const capacity = crew.capacity ?? 2;
-                // 모임 정원 대비 현재 참여 인원 비율 계산 (최대 100%)
                 const percent = Math.min(100, Math.round((memberCount / capacity) * 100));
                 const isJoined = joined.includes(crew.id);
 
@@ -129,7 +143,6 @@ export default function CrewPage() {
                         key={crew.id}
                         className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
                     >
-                      {/* 카드 상단 이미지 및 국가/지역 배지 */}
                       <div className="relative h-36 overflow-hidden">
                         <img src={crewImage(crew)} alt={crew.title} className="h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -138,12 +151,9 @@ export default function CrewPage() {
                     </span>
                       </div>
 
-                      {/* 카드 본문 내용 */}
                       <div className="p-4">
-                        {/* 크루 제목 */}
                         <p className="mb-2 line-clamp-2 text-sm font-semibold text-foreground">{crew.title}</p>
 
-                        {/* 태그 목록 */}
                         <div className="mb-3 flex flex-wrap gap-1">
                           {crew.tags.map((tag) => (
                               <span key={tag} className="rounded-full bg-secondary px-2 py-0.5 text-xs text-primary">
@@ -152,45 +162,100 @@ export default function CrewPage() {
                           ))}
                         </div>
 
-                        {/* 인원 현황 및 여행 날짜 정보 */}
                         <div className="mb-3">
                           <div className="mb-1 flex justify-between text-xs text-muted">
                         <span className="flex items-center gap-1">
                           <Users size={10} />
                           {t("crew.memberCount", { current: memberCount, capacity })}
                         </span>
-                        <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1">
                           <CalendarDays size={10} />
-                          {formatTravelDate(crew.travelDate, currentLang)}
+                              {formatTravelDate(crew.travelDate, currentLang)}
                         </span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                        <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-                      </div>
-                    </div>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+                          </div>
+                        </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleJoin(crew)}
-                      className={`w-full rounded-xl py-2 text-sm font-medium transition-all ${
-                        isJoined
-                          ? "border border-primary/20 bg-secondary text-primary"
-                          : "bg-primary text-white hover:bg-primaryHover"
-                      }`}
-                    >
-                      {isJoined ? t("crew.joined") : t("crew.join")}
-                    </button>
+                        <button
+                            type="button"
+                            onClick={() => handleJoin(crew)}
+                            className="w-full rounded-xl py-2 text-sm font-medium transition-all bg-primary text-white hover:bg-primaryHover"
+                        >
+                          {isJoined ? "채팅방 참여중" : t("crew.join")}
+                        </button>
+                      </div>
+                    </article>
+                );
+              })}
+            </div>
+
+            {visibleCrews.length === 0 && (
+                <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">{t("crew.empty")}</p>
+            )}
+          </section>
+        </div>
+
+        {/* 두 번째 문제: 채팅 모달 팝업 UI 복구 */}
+        {activeChatCrew && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+              <div className="flex flex-col h-[650px] w-full max-w-lg rounded-2xl overflow-hidden bg-[#b2c7d9] shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                <header className="flex items-center justify-between bg-white px-4 py-3 shadow-sm">
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-800 line-clamp-1">{activeChatCrew.title}</h2>
+                    <span className="text-[11px] text-gray-400">참여자 {activeChatCrew.memberCount}명</span>
                   </div>
-                </article>
-              );
-            })}
-          </div>
+                  <button
+                      onClick={() => setActiveChatCrew(null)}
+                      className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </header>
 
-          {visibleCrews.length === 0 && (
-            <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">{t("crew.empty")}</p>
-          )}
-        </section>
-      </div>
-    </main>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  <div className="flex justify-center">
+                <span className="rounded-full bg-black/10 px-3 py-1 text-xs text-white">
+                  2026년 9월 1일 화요일
+                </span>
+                  </div>
+
+                  {messages.map((msg) => (
+                      <div key={msg.id} className={`flex items-end gap-2 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
+                        {!msg.isMe && (
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-700">
+                              {msg.sender[0]}
+                            </div>
+                        )}
+                        <div className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
+                          {!msg.isMe && <span className="mb-1 text-xs text-gray-600">{msg.sender}</span>}
+                          <div className={`flex items-end gap-1.5 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
+                            <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.isMe ? "bg-[#fee500] text-gray-900 rounded-tr-none" : "bg-white text-gray-900 rounded-tl-none"}`}>
+                              {msg.text}
+                            </div>
+                            <span className="text-[10px] text-gray-500">{msg.time}</span>
+                          </div>
+                        </div>
+                      </div>
+                  ))}
+                </div>
+
+                <form onSubmit={handleSend} className="flex items-center gap-2 bg-[#f7f7f7] px-4 py-3 border-t border-gray-200">
+                  <input
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      placeholder="메시지를 입력하세요..."
+                      className="flex-1 rounded-full bg-white px-4 py-2 text-sm outline-none border border-gray-200 focus:border-[#fee500]"
+                  />
+                  <button type="submit" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fee500] text-gray-900 hover:bg-[#fdd800]">
+                    <Send size={16} />
+                  </button>
+                </form>
+              </div>
+            </div>
+        )}
+      </main>
   );
 }
