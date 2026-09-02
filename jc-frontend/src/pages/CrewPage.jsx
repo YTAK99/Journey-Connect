@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, Plus, Users } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
+// import LocationWeather from "../components/LocationWeather";
 import { getLocale, translate } from "../i18n";
 import useLangStore from "../store/useLangStore";
+// import useRegionStore from "../store/useRegionStore";
 
 const sampleCrews = [
   {
@@ -91,9 +93,11 @@ export default function CrewPage() {
   };
 
   return (
-      <main className="w-full bg-sky-50">
+      <main className="min-h-screen bg-sky-50">
         <div className="pt-24 pb-6">
-
+          {/*<section className="mx-auto max-w-screen-xl space-y-4 bg-white px-6 py-5">*/}
+          {/*  /!*<LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />*!/*/}
+          {/*</section>*/}
           <section className="mx-auto max-w-7xl px-6 py-8">
             {/* 상단 타이틀 및 크루 생성 버튼 영역 */}
             <div className="mb-6 flex items-end justify-between">
@@ -103,6 +107,7 @@ export default function CrewPage() {
               </div>
               <button
                   type="button"
+                  onClick={() => navigate("create")}
                   className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primaryHover"
               >
                 <Plus size={14} />
