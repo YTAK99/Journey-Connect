@@ -98,24 +98,6 @@ function FeedItem({ post }) {
             active = false;
         };
     }, [post.id]);
-        getPost(post.id)
-            .then((detailData) => {
-                if (active && detailData) {
-                    setDetailedPost((prev) => ({
-                        ...prev,
-                        ...detailData,
-                        images: detailData.images?.length ? detailData.images : (prev.images || detailData.imageUrls),
-                    }));
-                }
-            })
-            .catch((err) => {
-                console.error("피드 아이템 상세 장소 로드 실패:", err);
-            });
-
-        return () => {
-            active = false;
-        };
-    }, [post.id]);
 
     // 댓글 영역 열기/닫기 상태
     const [isCommentOpen, setIsCommentOpen] = useState(false);
