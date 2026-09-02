@@ -12,6 +12,7 @@
     "getStarted": "시작하기"
   },
   "auth": {
+    "sessionExpired": "로그인이 만료되었습니다. 다시 로그인해 주세요.",
     "email": "이메일",
     "password": "비밀번호",
     "confirmPassword": "비밀번호 확인",
@@ -121,7 +122,7 @@
     "editTitle": "여행 루트 수정하기", "createTitle": "새 여행 루트 만들기", "intro": "대표 지역을 정하고, 방문한 장소마다 위치·사진·이야기를 남겨 여행 루트를 완성하세요.",
     "tripInfo": "여행 기본 정보", "title": "여행 제목", "titlePlaceholder": "예: 비 오는 날의 교토 골목 여행", "region": "여행 대표 지역",
     "chooseRegion": "지역 선택", "startDate": "시작 날짜", "endDate": "종료 날짜", "route": "방문 장소와 이야기",
-    "routeHelp": "카페·식당·관광지명을 Google에서 검색하고 방문 순서대로 배치하세요.", "addPlace": "다음 장소 추가", "tags": "검색 태그",
+    "routeHelp": "카페·식당·관광지명을 Google에서 검색하고 방문 순서대로 배치하세요.", "placeNavigator": "방문 장소 선택", "placeNavigatorHelp": "작성할 장소를 선택하세요. 체크 표시는 필수 내용 작성 완료를 뜻합니다.", "stop": "장소", "addPlaceShort": "장소 추가", "addPlace": "다음 장소 추가", "tags": "검색 태그",
     "cancel": "취소", "saving": "저장 중...", "editSubmit": "수정 완료", "createSubmit": "여행 루트 발행하기"
   },
   "tagInput": { "help": "태그를 입력하고 Enter를 눌러 주세요. 검색에 활용됩니다.", "placeholder": "예: 제주맛집", "duplicate": "이미 입력한 태그입니다.", "tooLong": "태그는 20자 이하로 입력해 주세요.", "remove": "태그 삭제" },
@@ -142,14 +143,14 @@
   "placeEditor": {
     "choosePlace": "장소를 선택해 주세요", "moveUp": "위로 이동", "moveDown": "아래로 이동", "remove": "장소 삭제", "location": "위치",
     "change": "위치 변경", "choose": "위치 지정", "locationHelp": "Google 장소 검색으로 방문 위치를 지정하세요.", "story": "이 장소의 이야기",
-    "storyHelp": "사진 설명과 여행 기록을 서식 도구로 작성할 수 있습니다.", "photos": "이 장소의 사진", "photosHelp": "사진 순서는 상세 글과 하단 갤러리에 그대로 반영됩니다."
+    "storyHelp": "사진 설명과 여행 기록을 서식 도구로 작성할 수 있습니다.", "photos": "이 장소의 사진", "photosHelp": "사진 순서는 상세 글과 하단 갤러리에 그대로 반영됩니다.", "previous": "이전 장소", "next": "다음 장소"
   },
   "explore": {
     "noResults": "‘{{query}}’ 검색 결과가 아직 없어요.", "invitation": "첫 번째 여행기를 남겨보세요.", "write": "여행기 작성하기",
     "reset": "검색 초기화", "suggestions": "대신 이런 여행기는 어때요?", "nearby": "{{region}}의 다른 여행기", "recent": "최근 올라온 여행기",
     "loading": "추천 여행기를 불러오는 중입니다.", "unavailable": "지금은 추천할 여행기가 없습니다.", "loadMore": "더 보기", "loadingMore": "더 불러오는 중...",
     "loadFailed": "탐색 데이터를 불러오지 못했습니다.", "restartFailed": "탐색을 다시 시작하지 못했습니다.", "loadMoreFailed": "추가 탐색 결과를 불러오지 못했습니다.",
-    "destination": "여행지", "title": "탐색", "headerQuery": "헤더 검색어", "cardsLoading": "탐색 카드를 불러오는 중입니다."
+    "destination": "여행지", "allJourneys": "전체 여행 글", "title": "탐색", "headerQuery": "헤더 검색어", "cardsLoading": "탐색 카드를 불러오는 중입니다."
   },
   "myPage": {
     "back": "돌아가기", "editProfile": "프로필 편집", "posts": "게시글", "likes": "좋아요", "comments": "댓글",

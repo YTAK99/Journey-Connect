@@ -1,4 +1,5 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
+import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import Header from "./components/Header";
 import BackendTestPage from "./pages/BackendTestPage";
 import Complete from "./pages/Complete";
@@ -27,6 +28,27 @@ import AdminPostDetailPage from "./pages/admin/AdminPostDetailPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
 import AdminNotFoundPage from "./pages/admin/AdminNotFoundPage";
+import { translate } from "./i18n";
+import useLangStore from "./store/useLangStore";
+
+function SessionExpirationHandler() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentLang = useLangStore((state) => state.currentLang);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      window.alert(translate(currentLang, "auth.sessionExpired"));
+      const loginPath = location.pathname.startsWith("/admin") ? "/admin/login" : "/login";
+      navigate(loginPath, { replace: true });
+    };
+
+    window.addEventListener("jc:auth-expired", handleAuthExpired);
+    return () => window.removeEventListener("jc:auth-expired", handleAuthExpired);
+  }, [currentLang, location.pathname, navigate]);
+
+  return null;
+}
 
 function Layout({ children }) {
   const location = useLocation();
@@ -38,6 +60,7 @@ function Layout({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <SessionExpirationHandler />
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />

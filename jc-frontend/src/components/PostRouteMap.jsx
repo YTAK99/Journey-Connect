@@ -26,7 +26,7 @@ const getGoogleMapsUrl = (place, index, lang) => {
   return `https://www.google.com/maps/search/?${params.toString()}`;
 };
 
-export default function PostRouteMap({ places = [], lang = "ko" }) {
+export default function PostRouteMap({ places = [], lang = "ko", compact = false }) {
   // 언어가 한국어('ko')인지 확인
   const t = (key) => translate(lang, key);
   const mapElementRef = useRef(null);
@@ -68,7 +68,7 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
           mapId: "DEMO_MAP_ID",
           mapTypeControl: false,
           streetViewControl: false,
-          fullscreenControl: true,
+          fullscreenControl: !compact,
         });
         const bounds = new maps.LatLngBounds();
         const infoWindow = new maps.InfoWindow();
@@ -80,7 +80,7 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
           bounds.extend(position);
           // 마커 내부 순서 번호 표시용 HTML 뱃지 생성
           const badge = document.createElement("div");
-          badge.className = "flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-teal-600 text-xs font-extrabold text-white shadow-lg";
+          badge.className = `flex items-center justify-center rounded-full border-2 border-white bg-teal-600 font-extrabold text-white shadow-lg ${compact ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs"}`;
           badge.textContent = String(index + 1);
           const marker = new AdvancedMarkerElement({
             map,
@@ -110,7 +110,7 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
             strokeOpacity: 0.9,
             strokeWeight: 4,
           });
-          map.fitBounds(bounds, 60);
+          map.fitBounds(bounds, compact ? 28 : 60);
         } else {
           map.setCenter(path[0]);
           map.setZoom(15);
@@ -134,10 +134,31 @@ export default function PostRouteMap({ places = [], lang = "ko" }) {
       markers.forEach((marker) => { marker.map = null; });
       if (polyline) polyline.setMap(null);
     };
-  }, [lang, route]);
+  }, [compact, lang, route]);
 
   // 등록된 장소가 없으면 아무것도 렌더링하지 않음
   if (!orderedPlaces.length) return null;
+
+  if (compact) {
+    return (
+      <section className="grid h-80 min-h-0 grid-cols-[36%_64%] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <ol className="min-h-0 overflow-y-auto border-r border-slate-200 px-3 py-4 dark:border-slate-700">
+          {orderedPlaces.map((place, index) => (
+            <li key={place.id || `${place.placeName}-${index}`} className="relative flex min-h-14 gap-2.5 pb-3 last:min-h-0 last:pb-0">
+              {index < orderedPlaces.length - 1 && <span aria-hidden="true" className="absolute bottom-0 left-[11px] top-6 border-l-2 border-dotted border-teal-300 dark:border-teal-700" />}
+              <span className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-white bg-teal-600 text-[10px] font-extrabold text-white shadow-sm dark:border-slate-900">{index + 1}</span>
+              <a href={getGoogleMapsUrl(place, index, lang)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate pt-0.5 text-xs font-bold text-title transition-colors hover:text-primary hover:underline" title={getPlaceName(place, index, lang)}>{getPlaceName(place, index, lang)}</a>
+            </li>
+          ))}
+        </ol>
+        <div className="relative min-h-0 bg-slate-100 dark:bg-slate-800">
+          {route.length > 0 ? <div ref={mapElementRef} className="absolute inset-0" /> : <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-slate-500">{t("routeMap.empty")}</div>}
+          {loading && route.length > 0 && <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70"><Loader2 className="animate-spin text-teal-600" size={24} /></div>}
+          {error && <div className="absolute inset-x-2 top-2 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-lg">{error}</div>}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="border-t border-slate-100 py-10 dark:border-slate-800 sm:py-12">

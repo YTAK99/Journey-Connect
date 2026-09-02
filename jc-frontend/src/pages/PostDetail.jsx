@@ -13,6 +13,7 @@ import {
 import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
 import PostRouteMap from "../components/PostRouteMap";
+import PostActionsMenu from "../components/PostActionsMenu";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
 import { deletePost, getPost, getPostAnalysis } from "../services/postApi";
@@ -178,10 +179,19 @@ function PostDetail() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                  <span className="inline-flex items-center gap-1.5"><Eye size={17} /> {post.viewCount ?? 0}</span>
-                  <span className="inline-flex items-center gap-1.5"><Heart size={17} /> {post.likeCount ?? 0}</span>
-                  <span className="inline-flex items-center gap-1.5"><Bookmark size={17} /> {post.bookmarkCount ?? 0}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="inline-flex items-center gap-1.5"><Eye size={17} /> {post.viewCount ?? 0}</span>
+                    <span className="inline-flex items-center gap-1.5"><Heart size={17} /> {post.likeCount ?? 0}</span>
+                    <span className="inline-flex items-center gap-1.5"><Bookmark size={17} /> {post.bookmarkCount ?? 0}</span>
+                  </div>
+                  {isAuthor && (
+                    <PostActionsMenu
+                      onEdit={() => navigate(`/write/${post.id}`)}
+                      onDelete={handleDelete}
+                      labels={{ more: t("post.more"), edit: t("post.edit"), delete: t("post.delete") }}
+                    />
+                  )}
                 </div>
               </div>
             </header>

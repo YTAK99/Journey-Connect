@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Bookmark, Globe2, Heart, MapPin, MessageCircle, MoreHorizontal, Plus, Sparkles } from "lucide-react";
+import { Bookmark, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
-import { bookmarkPost, getExplore, getFeed, getFeedItems, getPost, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
+import { bookmarkPost, deletePost, getExplore, getFeed, getFeedItems, getPost, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
 import { parseApiDate } from "../utils/dateTime";
@@ -12,6 +12,7 @@ import { translate } from "../i18n";
 import useTranslation from "../i18n/useTranslation";
 import CommentSection from "./CommentSection";
 import PostRouteMap from "./PostRouteMap";
+import PostActionsMenu from "./PostActionsMenu";
 
 const fallbackImage = "/ex_1.jpg";
 const fallbackAvatar = "/user_1.jpg";
@@ -57,7 +58,7 @@ const getRelativeDate = (createdAt, language) => {
 };
 
 // 피드에 게시물 하나를 보여주는 컴포넌트
-function FeedItem({ post }) {
+function FeedItem({ post, onDeleted }) {
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
   // 기존 post 데이터를 유지하면서 상세 데이터를 덮어쓰도록 설정
@@ -144,6 +145,22 @@ function FeedItem({ post }) {
           : analysis?.status === "failed" || analysis?.status === "quarantined"
             ? t("analysis.unavailable")
             : t("analysis.notGenerated");
+  const currentUser = getUser();
+  const isAuthor =
+    (detailedPost.author?.id != null && currentUser?.id != null && String(detailedPost.author.id) === String(currentUser.id)) ||
+    (detailedPost.author?.userId != null && currentUser?.id != null && String(detailedPost.author.userId) === String(currentUser.id)) ||
+    (detailedPost.author?.email && currentUser?.email && detailedPost.author.email === currentUser.email);
+
+  const handleDelete = async () => {
+    if (!window.confirm(t("post.deleteConfirm"))) return;
+
+    try {
+      await deletePost(detailedPost.id);
+      onDeleted(detailedPost.id);
+    } catch (error) {
+      alert(getApiErrorMessage(error, t("post.deleteFailed")));
+    }
+  };
 
   // 좋아요 버튼
   const toggleLike = async (event) => {
@@ -219,29 +236,52 @@ function FeedItem({ post }) {
               </p>
             </div>
           </div>
-          <button type="button" className="text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100" aria-label={t("post.more")}>
-            <MoreHorizontal size={18} />
-          </button>
+          {isAuthor && (
+            <PostActionsMenu
+              onEdit={() => navigate(`/write/${detailedPost.id}`)}
+              onDelete={handleDelete}
+              labels={{ more: t("post.more"), edit: t("post.edit"), delete: t("post.delete") }}
+            />
+          )}
         </div>
       </div>
 
-      {/* 게시물 이미지 안전 추출 및 표시 영역 */}
-      {images.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 px-6 pt-5 sm:grid-cols-4">
-          {images.slice(0, 4).map((imageUrl, index) => (
-            <button key={`${imageUrl}-${index}`} type="button" className="relative h-40 overflow-hidden rounded-lg" onClick={() => navigate(`/post/${detailedPost.id}`)}>
-              <img src={imageUrl || fallbackImage} alt={t("feed.imageAlt", { index: index + 1 })} className="h-full w-full object-cover transition hover:scale-105" />
-              {/* 사진이 4장보다 많으면 남은 개수 표시 */}
-              {index === 3 && images.length > 4 && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-lg font-bold text-white">+{images.length - 4}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* 데스크톱에서는 사진과 루트를 같은 높이의 좌우 영역으로, 모바일에서는 위아래로 배치합니다. */}
+      <div className={`grid gap-3 px-5 pt-4 ${images.length > 0 ? "md:grid-cols-2" : ""}`}>
+        {images.length === 1 && (
+          <button type="button" className="h-80 overflow-hidden rounded-2xl" onClick={() => navigate(`/post/${detailedPost.id}`)}>
+            <img src={images[0] || fallbackImage} alt={t("feed.imageAlt", { index: 1 })} className="h-full w-full object-cover transition duration-300 hover:scale-105" />
+          </button>
+        )}
 
-      {/* 여행 루트 이미지 (좌우 여백 px-5 적용) */}
-      <div className="px-7"><PostRouteMap places={detailedPost.places || []} lang={currentLang} /></div>
+        {images.length === 2 && (
+          <div className="grid h-80 grid-cols-2 gap-2 overflow-hidden rounded-2xl">
+            {images.map((imageUrl, index) => <button key={`${imageUrl}-${index}`} type="button" className="overflow-hidden" onClick={() => navigate(`/post/${detailedPost.id}`)}><img src={imageUrl || fallbackImage} alt={t("feed.imageAlt", { index: index + 1 })} className="h-full w-full object-cover transition duration-300 hover:scale-105" /></button>)}
+          </div>
+        )}
+
+        {images.length === 3 && (
+          <div className="grid h-80 grid-cols-2 grid-rows-2 gap-2 overflow-hidden rounded-2xl">
+            {images.map((imageUrl, index) => <button key={`${imageUrl}-${index}`} type="button" className={`overflow-hidden ${index === 0 ? "row-span-2" : ""}`} onClick={() => navigate(`/post/${detailedPost.id}`)}><img src={imageUrl || fallbackImage} alt={t("feed.imageAlt", { index: index + 1 })} className="h-full w-full object-cover transition duration-300 hover:scale-105" /></button>)}
+          </div>
+        )}
+
+        {images.length >= 4 && (
+          <div className="grid h-80 grid-cols-2 grid-rows-2 gap-2 overflow-hidden rounded-2xl">
+            {images.slice(0, 3).map((imageUrl, index) => (
+              <button key={`${imageUrl}-${index}`} type="button" className="overflow-hidden" onClick={() => navigate(`/post/${detailedPost.id}`)}>
+                <img src={imageUrl || fallbackImage} alt={t("feed.imageAlt", { index: index + 1 })} className="h-full w-full object-cover transition duration-300 hover:scale-105" />
+              </button>
+            ))}
+            <button type="button" className="relative overflow-hidden" onClick={() => navigate(`/post/${detailedPost.id}`)} aria-label={`+${images.length - 3}`}>
+              <img src={images[3] || fallbackImage} alt={t("feed.imageAlt", { index: 4 })} className="h-full w-full object-cover" />
+              <span className="absolute inset-0 flex items-center justify-center bg-slate-950/65 text-2xl font-extrabold text-white">+{images.length - 3}</span>
+            </button>
+          </div>
+        )}
+
+        <PostRouteMap places={detailedPost.places || []} lang={currentLang} compact />
+      </div>
 
       {/* 좋아요 / 댓글 / 북마크 버튼 */}
       <div className="flex items-center justify-between px-5 pt-4">
@@ -366,6 +406,12 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
     return searchable.includes(normalizedKeyword);
   });
   const displayPosts = visiblePosts;
+  const handlePostDeleted = (postId) => {
+    setFeedResult((current) => ({
+      ...current,
+      posts: current.posts.filter((item) => String(item.id) !== String(postId)),
+    }));
+  };
 
   if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">{t("feed.loading")}</div>;
   if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
@@ -397,7 +443,7 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
   return (
     <div className="space-y-6">
       {displayPosts.map((post) => (
-        <FeedItem key={post.id} post={post} />
+        <FeedItem key={post.id} post={post} onDeleted={handlePostDeleted} />
       ))}
       <div className="py-8 text-center text-sm text-gray-500 dark:text-slate-400">{t("feed.end")}</div>
     </div>

@@ -12,6 +12,7 @@
     "getStarted": "Get started"
   },
   "auth": {
+    "sessionExpired": "Your session has expired. Please log in again.",
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Confirm password",
@@ -121,7 +122,7 @@
     "editTitle": "Edit your travel route", "createTitle": "Create a travel route", "intro": "Choose a region, then add a Google place, photos, and a story for every stop.",
     "tripInfo": "Trip details", "title": "Trip title", "titlePlaceholder": "e.g. A rainy-day walk through Kyoto", "region": "Representative region",
     "chooseRegion": "Choose region", "startDate": "Start date", "endDate": "End date", "route": "Stops and stories",
-    "routeHelp": "Search for cafés, restaurants, and attractions, then arrange them in visit order.", "addPlace": "Add next stop", "tags": "Search tags",
+    "routeHelp": "Search for cafés, restaurants, and attractions, then arrange them in visit order.", "placeNavigator": "Choose a stop", "placeNavigatorHelp": "Select a stop to edit. A check means all required details are complete.", "stop": "Stop", "addPlaceShort": "Add stop", "addPlace": "Add next stop", "tags": "Search tags",
     "cancel": "Cancel", "saving": "Saving...", "editSubmit": "Save changes", "createSubmit": "Publish travel route"
   },
   "tagInput": { "help": "Type a tag and press Enter. Tags help travelers find your post.", "placeholder": "e.g. JejuFood", "duplicate": "You already added that tag.", "tooLong": "Tags must be 20 characters or fewer.", "remove": "Remove tag" },
@@ -142,14 +143,14 @@
   "placeEditor": {
     "choosePlace": "Choose a place", "moveUp": "Move up", "moveDown": "Move down", "remove": "Remove place", "location": "Location",
     "change": "Change", "choose": "Choose", "locationHelp": "Find this stop using Google place search.", "story": "Story at this place",
-    "storyHelp": "Add photo context and travel notes with the formatting tools.", "photos": "Photos from this place", "photosHelp": "Photo order is preserved in the post and gallery."
+    "storyHelp": "Add photo context and travel notes with the formatting tools.", "photos": "Photos from this place", "photosHelp": "Photo order is preserved in the post and gallery.", "previous": "Previous stop", "next": "Next stop"
   },
   "explore": {
     "noResults": "There are no results for “{{query}}” yet.", "invitation": "Be the first to share a travel story.", "write": "Write a story",
     "reset": "Clear search", "suggestions": "How about one of these trips?", "nearby": "More stories from {{region}}", "recent": "Recently published",
     "loading": "Loading travel suggestions...", "unavailable": "There are no travel stories to recommend yet.", "loadMore": "Load more", "loadingMore": "Loading more...",
     "loadFailed": "Unable to load Explore.", "restartFailed": "Unable to restart Explore.", "loadMoreFailed": "Unable to load more results.",
-    "destination": "destination", "title": "Explore", "headerQuery": "Search", "cardsLoading": "Loading Explore cards..."
+    "destination": "destination", "allJourneys": "all travel stories", "title": "Explore", "headerQuery": "Search", "cardsLoading": "Loading Explore cards..."
   },
   "myPage": {
     "back": "Back", "editProfile": "Edit profile", "posts": "Posts", "likes": "Likes", "comments": "Comments",

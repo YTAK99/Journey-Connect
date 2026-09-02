@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import useTranslation from "../i18n/useTranslation";
+import { isLogin } from "../services/auth";
 
 export default function Home() {
   const { t } = useTranslation();
@@ -29,7 +30,7 @@ export default function Home() {
         </div>
 
         <Link
-          to="/login"
+          to={isLogin() ? "/feed" : "/login"}
           className="px-8 py-4 text-base md:text-lg font-bold text-white bg-blue-600 rounded-xl shadow-xl hover:bg-blue-700 hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300"
         >
           {t("home.getStarted")}

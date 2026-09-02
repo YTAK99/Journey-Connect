@@ -30,7 +30,14 @@ export function createApiClient(baseURL) {
   client.interceptors.response.use(
     (response) => response,
     (error) => {
-      if (error.response?.status === 401) clearStoredAuth();
+      const requestPath = error.config?.url?.split("?")[0];
+      const isProtectedRequest = !publicAuthPaths.has(requestPath);
+      const hadActiveSession = Boolean(localStorage.getItem("accessToken"));
+
+      if (error.response?.status === 401 && isProtectedRequest && hadActiveSession) {
+        clearStoredAuth();
+        window.dispatchEvent(new Event("jc:auth-expired"));
+      }
       return Promise.reject(error);
     },
   );
