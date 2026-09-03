@@ -14,6 +14,7 @@ import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
 import PostRouteMap from "../components/PostRouteMap";
 import PostActionsMenu from "../components/PostActionsMenu";
+import UserAvatar from "../components/UserAvatar";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
 import { deletePost, getPost, getPostAnalysis } from "../services/postApi";
@@ -21,7 +22,6 @@ import useTranslation from "../i18n/useTranslation";
 import { getLocalizedRegionName } from "../utils/region";
 import { normalizeEditorContent } from "../utils/richText";
 
-const fallbackAvatar = "/user_1.jpg";
 
 const formatDate = (value, language) => {
   if (!value) return "-";
@@ -164,10 +164,10 @@ function PostDetail() {
 
               <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={post.author?.profileImageUrl || fallbackAvatar}
-                    alt=""
+                  <UserAvatar
+                    src={post.author?.profileImageUrl}
                     className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-md dark:border-slate-800"
+                    iconClassName="h-6 w-6"
                   />
                   <div>
                     <p className="font-bold text-slate-900 dark:text-slate-100">

@@ -36,13 +36,6 @@
       "failed": "Unable to create your account.",
       "hasAccount": "Already have an account?"
     },
-    "findId": {
-      "title": "Find account ID",
-      "accountPlaceholder": "Email used to sign up",
-      "required": "Enter the email used to sign up.",
-      "found": "Your account ID is \"{{id}}\".",
-      "notFound": "We couldn't find a matching account."
-    },
     "findPassword": {
       "title": "Reset password",
       "emailPlaceholder": "Email used to sign up",
@@ -158,7 +151,7 @@
     "loadError": "Unable to load your profile posts.", "emptyPosts": "You haven't written a journey yet.", "emptyBookmarks": "You haven't saved any places yet.",
     "unavailableLikes": "You have not liked any posts yet.", "unavailableCrew": "Your crew activity is coming soon.",
     "write": "Write your first journey", "nickname": "Nickname", "email": "Email", "cancel": "Cancel", "save": "Save", "close": "Close",
-    "editHint": "A new profile image is saved in this browser.", "traveler": "Traveler", "imageOnly": "Select an image file.",
+    "editHint": "Use a JPEG, PNG, WebP, or GIF image up to 5MB.", "traveler": "Traveler", "imageOnly": "Select an image file.", "imageInvalid": "Select a JPEG, PNG, WebP, or GIF image up to 5MB.", "nicknameAlreadyUsed": "This nickname is already in use.",
     "currentPassword": "Current password", "currentPasswordPlaceholder": "Enter your current password", "newPassword": "New password", "newPasswordPlaceholder": "At least 8 characters",
     "passwordOptional": "Leave both password fields empty if you do not want to change it.", "passwordInvalid": "Enter your current password and a new password of at least 8 characters.", "saveFailed": "Unable to save your profile."
   },

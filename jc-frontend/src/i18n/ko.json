@@ -36,13 +36,6 @@
       "failed": "회원가입에 실패했습니다.",
       "hasAccount": "이미 계정이 있나요?"
     },
-    "findId": {
-      "title": "아이디 찾기",
-      "accountPlaceholder": "가입한 이메일",
-      "required": "가입한 이메일을 입력해 주세요.",
-      "found": "회원님의 아이디는 \"{{id}}\"입니다.",
-      "notFound": "일치하는 회원 정보가 없습니다."
-    },
     "findPassword": {
       "title": "비밀번호 찾기",
       "emailPlaceholder": "가입한 이메일",
@@ -158,7 +151,7 @@
     "loadError": "마이페이지 게시물을 불러오지 못했습니다.", "emptyPosts": "아직 작성한 글이 없습니다.", "emptyBookmarks": "아직 저장한 곳이 없습니다.",
     "unavailableLikes": "아직 좋아요한 글이 없습니다.", "unavailableCrew": "참여한 크루 활동은 아직 준비 중입니다.",
     "write": "첫 여행 기록 작성하기", "nickname": "닉네임", "email": "이메일", "cancel": "취소", "save": "저장", "close": "닫기",
-    "editHint": "새 프로필 이미지는 이 브라우저에 저장됩니다.", "traveler": "여행자", "imageOnly": "이미지 파일만 선택할 수 있습니다.",
+    "editHint": "JPEG, PNG, WebP, GIF 형식의 5MB 이하 이미지를 사용할 수 있습니다.", "traveler": "여행자", "imageOnly": "이미지 파일만 선택할 수 있습니다.", "imageInvalid": "JPEG, PNG, WebP, GIF 형식의 5MB 이하 이미지를 선택해 주세요.", "nicknameAlreadyUsed": "이미 사용 중인 닉네임입니다.",
     "currentPassword": "현재 비밀번호", "currentPasswordPlaceholder": "현재 비밀번호를 입력하세요", "newPassword": "새 비밀번호", "newPasswordPlaceholder": "8자 이상의 새 비밀번호",
     "passwordOptional": "비밀번호를 변경하지 않으려면 두 입력란을 비워 두세요.", "passwordInvalid": "현재 비밀번호와 8자 이상의 새 비밀번호를 입력해 주세요.", "saveFailed": "프로필을 저장하지 못했습니다."
   },

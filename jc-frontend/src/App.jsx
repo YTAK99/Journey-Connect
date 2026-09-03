@@ -6,7 +6,6 @@ import Complete from "./pages/Complete";
 import CrewPage from "./pages/CrewPage";
 import CrewCreate from "./pages/CrewCreate";
 import FeedPage from "./pages/FeedPage";
-import FindId from "./pages/FindId";
 import FindPassword from "./pages/FindPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Home from "./pages/Home";
@@ -52,7 +51,7 @@ function SessionExpirationHandler() {
 
 function Layout({ children }) {
   const location = useLocation();
-  const hideHeaderPaths = ["/", "/login", "/signup", "/find-id", "/find-password", "/test"];
+  const hideHeaderPaths = ["/", "/login", "/signup", "/find-password", "/test"];
   const isHeaderHidden = hideHeaderPaths.includes(location.pathname) || location.pathname.startsWith("/admin");
   return <>{!isHeaderHidden && <Header />}{children}</>;
 }
@@ -68,7 +67,6 @@ export default function App() {
           <Route path="/test" element={<BackendTestPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/find-id" element={<FindId />} />
           <Route path="/find-password" element={<FindPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/complete" element={<Complete />} />
