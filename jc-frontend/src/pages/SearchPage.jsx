@@ -5,38 +5,17 @@ import PostCard from "../components/PostCard";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getExplore, getExploreDiscovery, getFeedItems } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
-import useRegionStore from "../store/useRegionStore";
-import { getRegionSearchText } from "../utils/region";
 import { getMessages, translate } from "../i18n";
 
-const normalizeSearchValue = (value) => String(value || "").toLowerCase().replace(/[\s,]/g, "");
 const isExploreCursorError = (error) => String(
   error?.response?.data?.code || "",
 ).startsWith("EXPLORE_CURSOR_");
-
-// Google 주소에서 현재 도시명을 덜어내 추천 섹션에 사용할 상위 권역명을 추출합니다.
-const getParentRegionName = (region) => {
-  const address = String(region?.country || "").trim();
-  if (!address) return "";
-
-  const labels = Object.values(region?.label || {}).filter(Boolean);
-  const withoutCity = labels.reduce(
-    (value, label) => value.replaceAll(String(label), " "),
-    address,
-  ).trim();
-  const commaParts = withoutCity.split(",").map((part) => part.trim()).filter(Boolean);
-  if (commaParts.length > 1) return commaParts[0];
-
-  const spaceParts = withoutCity.split(/\s+/).filter(Boolean);
-  return spaceParts.at(-1) || "";
-};
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
   const t = getMessages(currentLang, "explore");
-  const { selectedRegion } = useRegionStore();
   const [posts, setPosts] = useState([]);
   const [recommendationResult, setRecommendationResult] = useState({ key: "", items: [] });
   const [loading, setLoading] = useState(true);
@@ -47,15 +26,10 @@ export default function SearchPage() {
   const requestKeyRef = useRef("");
   const rawKeyword = (searchParams.get("q") || "").trim();
   const keyword = rawKeyword.toLowerCase();
-  const regionQuery = selectedRegion?.code
-    || selectedRegion?.label?.[currentLang]
-    || selectedRegion?.label?.ko
-    || selectedRegion?.label?.en
-    || "";
-  const requestKey = `${keyword}|${regionQuery}`;
+  const requestKey = keyword;
 
   useEffect(() => {
-    // 검색어/지역이 바뀌면 이전 cursor를 폐기하고 새 request key의 첫 페이지부터 다시 조회합니다.
+    // 검색어가 바뀌면 이전 cursor를 폐기하고 전체 지역의 첫 페이지부터 다시 조회합니다.
     let active = true;
     requestKeyRef.current = requestKey;
 
@@ -68,8 +42,8 @@ export default function SearchPage() {
 
       try {
         const result = keyword
-          ? await getExplore({ keyword, region: regionQuery, size: 100 })
-          : await getExploreDiscovery({ region: regionQuery, size: 20 });
+          ? await getExplore({ keyword, size: 100 })
+          : await getExploreDiscovery({ size: 20 });
         if (!active || requestKeyRef.current !== requestKey) return;
 
         setPosts(getFeedItems(result));
@@ -91,7 +65,7 @@ export default function SearchPage() {
     return () => {
       active = false;
     };
-  }, [keyword, regionQuery, requestKey, t.loadFailed]);
+  }, [keyword, requestKey, t.loadFailed]);
 
   const loadMoreDiscovery = async () => {
     if (keyword || loadingMore || !hasNext || !nextCursor) return;
@@ -102,7 +76,6 @@ export default function SearchPage() {
 
     try {
       const result = await getExploreDiscovery({
-        region: regionQuery,
         cursor: nextCursor,
         size: 20,
       });
@@ -120,7 +93,6 @@ export default function SearchPage() {
       if (isExploreCursorError(requestError)) {
         try {
           const restarted = await getExploreDiscovery({
-            region: regionQuery,
             size: 20,
           });
           if (requestKeyRef.current !== activeRequestKey) return;
@@ -145,11 +117,11 @@ export default function SearchPage() {
     }
   };
 
-  // 검색/지역 eligibility는 서버가 authoritative하게 적용하므로 클라이언트에서 다시 거르지 않습니다.
+  // 검색 eligibility는 서버가 authoritative하게 적용하므로 클라이언트에서 다시 거르지 않습니다.
   const filteredPosts = posts;
 
   const showEmptyState = !loading && !error && filteredPosts.length === 0;
-  const recommendationKey = `${keyword}|${selectedRegion?.id || ""}`;
+  const recommendationKey = keyword;
   const recommendations = useMemo(
     () => (recommendationResult.key === recommendationKey ? recommendationResult.items : []),
     [recommendationKey, recommendationResult],
@@ -159,7 +131,7 @@ export default function SearchPage() {
   useEffect(() => {
     if (!showEmptyState) return undefined;
 
-    // 검색 결과가 없을 때도 Home feed가 아니라 all-region Explore Discovery에서 대안을 가져옵니다.
+    // 검색 결과가 없을 때 전체 지역의 최신 탐색 글을 대안으로 가져옵니다.
     let active = true;
     getExploreDiscovery({ size: 12 })
       .then((result) => {
@@ -174,21 +146,11 @@ export default function SearchPage() {
     };
   }, [recommendationKey, showEmptyState]);
 
-  const parentRegionName = useMemo(() => getParentRegionName(selectedRegion), [selectedRegion]);
-  // 동일 권역 추천을 먼저 최대 3개 확보하고, 중복 항목을 제외한 나머지를 최근 글로 보여줍니다.
-  const parentPosts = useMemo(() => {
-    const normalizedParent = normalizeSearchValue(parentRegionName);
-    if (!normalizedParent) return [];
-    return recommendations
-      .filter((post) => normalizeSearchValue(getRegionSearchText(post)).includes(normalizedParent))
-      .slice(0, 3);
-  }, [parentRegionName, recommendations]);
-  const parentPostIds = useMemo(() => new Set(parentPosts.map((post) => post.id)), [parentPosts]);
   const recentPosts = useMemo(
-    () => recommendations.filter((post) => !parentPostIds.has(post.id)).slice(0, 6),
-    [parentPostIds, recommendations],
+    () => recommendations.slice(0, 6),
+    [recommendations],
   );
-  const queryLabel = rawKeyword || selectedRegion?.label?.[currentLang] || selectedRegion?.label?.ko || t.destination;
+  const queryLabel = rawKeyword || t.allJourneys;
 
   return (
     <main className="min-h-screen bg-sky-50 dark:bg-slate-950">
@@ -210,7 +172,7 @@ export default function SearchPage() {
             <>
               <div className="grid grid-cols-1 gap-4 border-b border-gray-100 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredPosts.map((post) => (
-                  <PostCard key={post.id} post={post} setPosts={setPosts} titleOnly />
+                  <PostCard key={post.id} post={post} setPosts={setPosts} titleOnly colorFallback />
                 ))}
               </div>
 
@@ -248,7 +210,7 @@ export default function SearchPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate("/feed")}
+                      onClick={() => navigate("/explore")}
                       className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                     >
                       <RotateCcw size={15} /> {t.reset}
@@ -269,25 +231,6 @@ export default function SearchPage() {
                   </p>
                 )}
 
-                {!recommendationsLoading && parentPosts.length > 0 && (
-                  <div className="mb-8">
-                    <h3 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">{translate(currentLang, "explore.nearby", { region: parentRegionName })}</h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {parentPosts.map((post) => (
-                        <PostCard
-                          key={`parent-${post.id}`}
-                          post={post}
-                          setPosts={(updater) => setRecommendationResult((current) => ({
-                            ...current,
-                            items: typeof updater === "function" ? updater(current.items) : updater,
-                          }))}
-                          titleOnly
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {!recommendationsLoading && recentPosts.length > 0 && (
                   <div>
                     <h3 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">{t.recent}</h3>
@@ -301,6 +244,7 @@ export default function SearchPage() {
                             items: typeof updater === "function" ? updater(current.items) : updater,
                           }))}
                           titleOnly
+                          colorFallback
                         />
                       ))}
                     </div>

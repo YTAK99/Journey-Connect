@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, ChevronLeft, MapPin, Plus, Sparkles } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, MapPin, Plus, Sparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import PostPlaceEditor from "../components/PostPlaceEditor";
 import GoogleMapPlacePicker from "../components/GoogleMapPlacePicker";
@@ -44,6 +44,7 @@ function WritePost() {
   const [tags, setTags] = useState([]);
   const [representativeRegion, setRepresentativeRegion] = useState(() => id ? null : selectedRegion);
   const [places, setPlaces] = useState(() => [emptyPlace()]);
+  const [activePlaceId, setActivePlaceId] = useState(() => null);
   const [coverImageKey, setCoverImageKey] = useState(null);
   const [regionPickerOpen, setRegionPickerOpen] = useState(false);
   const [placePickerIndex, setPlacePickerIndex] = useState(null);
@@ -68,7 +69,7 @@ function WritePost() {
       setTags(Array.isArray(post.tags) ? post.tags : []);
       setRepresentativeRegion(toRegionPreference(post.region || {}, lang));
       setCoverImageKey(post.coverImageUrl || null);
-      setPlaces(sourcePlaces.map((place) => ({
+      const loadedPlaces = sourcePlaces.map((place) => ({
         localId: uid(), regionCode: place.region?.code || null, regionPlaceId: place.region?.googlePlaceId || null,
         regionNames: place.region?.localizedNames || {}, displayName: place.region?.localizedNames?.[lang] || place.placeName || place.region?.displayName || "",
         address: place.region?.displayName || place.placeName || "",
@@ -76,7 +77,9 @@ function WritePost() {
         longitude: place.longitude ?? place.region?.longitude ?? null,
         content: normalizeEditorContent(place.content || ""),
         images: (place.images || []).map((image) => ({ imageUrl: image.imageUrl, altText: image.altText || post.title })),
-      })));
+      }));
+      setPlaces(loadedPlaces);
+      setActivePlaceId(loadedPlaces[0]?.localId || null);
     }).catch((error) => {
       alert(getApiErrorMessage(error, getMessages(useLangStore.getState().currentLang, "writePost").loadFailed));
       navigate("/my-posts");
@@ -91,7 +94,18 @@ function WritePost() {
     [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
     return next;
   });
-  const removePlace = (index) => setPlaces((current) => current.length === 1 ? current : current.filter((_, itemIndex) => itemIndex !== index));
+  const removePlace = (index) => setPlaces((current) => {
+    if (current.length === 1) return current;
+    const removedPlace = current[index];
+    const next = current.filter((_, itemIndex) => itemIndex !== index);
+    if (removedPlace.localId === activePlaceId) setActivePlaceId(next[Math.min(index, next.length - 1)].localId);
+    return next;
+  });
+  const addPlace = () => {
+    const nextPlace = emptyPlace();
+    setPlaces((current) => [...current, nextPlace]);
+    setActivePlaceId(nextPlace.localId);
+  };
   const confirmPlace = (selection) => {
     updatePlace(placePickerIndex, {
       regionCode: null,
@@ -108,8 +122,18 @@ function WritePost() {
   const handleSubmit = async () => {
     if (!title.trim()) return alert(t.titleRequired);
     if (!representativeRegion?.code && !representativeRegion?.placeId) return alert(t.regionRequired);
-    if (places.some((place) => !place.regionPlaceId)) return alert(t.placeRequired);
-    if (places.some((place) => !richTextToPlainText(place.content))) return alert(t.contentRequired);
+    const missingLocation = places.find((place) => !place.regionPlaceId);
+    if (missingLocation) {
+      setActivePlaceId(missingLocation.localId);
+      document.getElementById("route-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return alert(t.placeRequired);
+    }
+    const missingContent = places.find((place) => !richTextToPlainText(place.content));
+    if (missingContent) {
+      setActivePlaceId(missingContent.localId);
+      document.getElementById("route-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return alert(t.contentRequired);
+    }
     if (startDate && endDate && startDate > endDate) return alert(t.invalidDates);
 
     try {
@@ -164,6 +188,8 @@ function WritePost() {
   if (loading) return <div className="min-h-screen bg-background p-8 pt-28 text-center text-slate-500">{t.loading}</div>;
   const inputClass = "mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-950/40";
   const regionName = representativeRegion?.label?.[currentLang] || representativeRegion?.label?.en || "";
+  const activePlaceIndex = Math.max(0, places.findIndex((place) => place.localId === activePlaceId));
+  const activePlace = places[activePlaceIndex];
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-background to-background pb-16 pt-24 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950">
@@ -174,7 +200,20 @@ function WritePost() {
           <div className="space-y-10 px-6 py-8 sm:px-10 sm:py-10">
             <section><h2 className="mb-5 font-bold text-slate-900 dark:text-white">1. {t.tripInfo}</h2><div className="space-y-5"><label className="block"><span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.title}</span><input className={`${inputClass} text-lg font-semibold`} value={title} maxLength={120} placeholder={t.titlePlaceholder} onChange={(event) => setTitle(event.target.value)} /></label><div><span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t.region}</span><div className="mt-2 flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700"><MapPin size={18} className="text-teal-500" /><span className="min-w-0 flex-1 text-sm text-slate-800 dark:text-slate-100">{regionName || t.regionRequired}</span><button type="button" onClick={() => setRegionPickerOpen(true)} className="rounded-full border border-teal-200 px-3 py-1.5 text-xs font-bold text-teal-700 dark:border-teal-800 dark:text-teal-200">{t.chooseRegion}</button></div></div><div className="grid grid-cols-2 gap-3 sm:gap-5"><label><span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200"><CalendarDays size={15} className="text-teal-500" /> {t.startDate}</span><input type="date" className={inputClass} value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label><label><span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200"><CalendarDays size={15} className="text-teal-500" /> {t.endDate}</span><input type="date" min={startDate || undefined} className={inputClass} value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label></div></div></section>
             <div className="h-px bg-slate-100 dark:bg-slate-800" />
-            <section><div className="mb-5"><h2 className="font-bold text-slate-900 dark:text-white">2. {t.route}</h2><p className="mt-1 text-xs text-slate-500">{t.routeHelp}</p></div><div className="space-y-6">{places.map((place, index) => <PostPlaceEditor key={place.localId} place={place} index={index} total={places.length} lang={currentLang} onChange={updatePlace} onChooseLocation={setPlacePickerIndex} onMove={movePlace} onRemove={removePlace} selectedCoverKey={coverImageKey} onSelectCover={(image) => setCoverImageKey(imageKey(image))} />)}</div><button type="button" disabled={places.length >= 20} onClick={() => setPlaces((current) => [...current, emptyPlace()])} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-teal-300 px-5 py-4 font-bold text-teal-700 hover:bg-teal-50 disabled:opacity-40 dark:border-teal-800 dark:text-teal-200"><Plus size={18} /> {t.addPlace}</button></section>
+            <section id="route-editor" className="scroll-mt-24"><div className="mb-5"><h2 className="font-bold text-slate-900 dark:text-white">2. {t.route}</h2><p className="mt-1 text-xs text-slate-500">{t.routeHelp}</p></div>
+              <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-950/35">
+                <div className="mb-3 flex items-center justify-between gap-3 px-1"><div><p className="text-sm font-bold text-slate-800 dark:text-slate-100">{t.placeNavigator}</p><p className="mt-0.5 text-xs text-slate-500">{t.placeNavigatorHelp}</p></div><span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-bold text-teal-700 shadow-sm dark:bg-slate-900 dark:text-teal-200">{activePlaceIndex + 1} / {places.length}</span></div>
+                <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label={t.placeNavigator}>
+                  {places.map((place, index) => {
+                    const isActive = index === activePlaceIndex;
+                    const isComplete = Boolean(place.regionPlaceId && richTextToPlainText(place.content));
+                    return <button key={place.localId} type="button" role="tab" aria-selected={isActive} onClick={() => setActivePlaceId(place.localId)} className={`group flex min-w-fit items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition ${isActive ? "border-teal-500 bg-teal-500 text-white shadow-md shadow-teal-100 dark:shadow-none" : "border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:bg-teal-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-teal-950/30"}`}><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold ${isActive ? "bg-white text-teal-600" : isComplete ? "bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-200" : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200"}`}>{isComplete ? <Check size={14} strokeWidth={3} /> : index + 1}</span><span className="hidden max-w-28 truncate text-xs font-semibold sm:block">{place.displayName || `${t.stop} ${index + 1}`}</span></button>;
+                  })}
+                  <button type="button" disabled={places.length >= 20} onClick={addPlace} className="flex min-w-fit items-center gap-1.5 rounded-xl border border-dashed border-teal-300 bg-white px-3 py-2 text-xs font-bold text-teal-700 hover:bg-teal-50 disabled:opacity-40 dark:border-teal-800 dark:bg-slate-900 dark:text-teal-200"><Plus size={15} /> {t.addPlaceShort}</button>
+                </div>
+              </div>
+              {activePlace && <PostPlaceEditor key={activePlace.localId} place={activePlace} index={activePlaceIndex} total={places.length} lang={currentLang} onChange={updatePlace} onChooseLocation={setPlacePickerIndex} onMove={movePlace} onRemove={removePlace} onPrevious={() => setActivePlaceId(places[activePlaceIndex - 1].localId)} onNext={() => setActivePlaceId(places[activePlaceIndex + 1].localId)} selectedCoverKey={coverImageKey} onSelectCover={(image) => setCoverImageKey(imageKey(image))} />}
+            </section>
             <div className="h-px bg-slate-100 dark:bg-slate-800" />
             <section><h2 className="mb-5 font-bold text-slate-900 dark:text-white">3. {t.tags}</h2><TagInput tags={tags} onChange={setTags} lang={currentLang} /></section>
           </div>

@@ -52,7 +52,12 @@ export default function StoryList({ selectedRegion }) {
           const region = getLocalizedRegionName(story, currentLang);
 
           return (
-            <button key={story.id} type="button" className="group flex shrink-0 cursor-pointer flex-col items-center">
+            <button
+              key={story.id}
+              type="button"
+              onClick={() => navigate(`/post/${story.id}`)}
+              className="group flex shrink-0 cursor-pointer flex-col items-center"
+            >
               <span className="h-14 w-14 overflow-hidden rounded-full border-2 border-teal-500 p-0.5">
                 <img
                   src={story.coverImageUrl || fallbackImage}

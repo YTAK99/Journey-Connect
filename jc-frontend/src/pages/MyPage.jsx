@@ -78,12 +78,21 @@ function EmptyState({ icon: Icon, message, actionLabel, onAction }) {
 }
 
 function ProfileEditor({ user, labels, onClose, onSave }) {
-  const [name, setName] = useState(user.name);
-  const [image, setImage] = useState(user.image);
+  const [name, setName] = useState(user.name || user.nickname || "");
+  const [image, setImage] = useState(user.image || user.profileImageUrl || fallbackAvatar);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   const handleImage = (event) => {
     const file = event.target.files?.[0];
-    if (file) setImage(URL.createObjectURL(file));
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert(labels.imageOnly);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setImage(reader.result);
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -123,13 +132,38 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
         <label htmlFor="profile-email" className="text-sm font-semibold text-foreground">{labels.email}</label>
         <input id="profile-email" value={user.email} readOnly className="mt-2 w-full cursor-not-allowed rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-muted" />
 
+        <label htmlFor="profile-current-password" className="mt-4 block text-sm font-semibold text-foreground">{labels.currentPassword}</label>
+        <input
+          id="profile-current-password"
+          type="password"
+          value={currentPassword}
+          onChange={(event) => setCurrentPassword(event.target.value)}
+          placeholder={labels.currentPasswordPlaceholder}
+          className="mt-2 w-full rounded-xl border border-border bg-inputBg px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+        <label htmlFor="profile-new-password" className="mt-4 block text-sm font-semibold text-foreground">{labels.newPassword}</label>
+        <input
+          id="profile-new-password"
+          type="password"
+          value={newPassword}
+          onChange={(event) => setNewPassword(event.target.value)}
+          placeholder={labels.newPasswordPlaceholder}
+          className="mt-2 w-full rounded-xl border border-border bg-inputBg px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+        <p className="mt-2 text-xs text-muted">{labels.passwordOptional}</p>
+
         <div className="mt-7 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-muted hover:bg-secondary">
             {labels.cancel}
           </button>
           <button
             type="button"
-            onClick={() => onSave({ name: name.trim() || user.name, image })}
+            onClick={() => onSave({
+              name: name.trim() || user.name,
+              image,
+              currentPassword,
+              newPassword,
+            })}
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primaryHover"
           >
             {labels.save}
@@ -147,11 +181,17 @@ export default function MyPage() {
   const loginUser = getUser();
   const [activeTab, setActiveTab] = useState(0);
   const [posts, setPosts] = useState([]);
+  const [likedPosts, setLikedPosts] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
-  const [user, setUser] = useState({
+  const savedProfile = (() => {
+    try { return JSON.parse(localStorage.getItem("myProfile") || "null"); }
+    catch { return null; }
+  })();
+  const matchingSavedProfile = savedProfile?.email === loginUser?.email ? savedProfile : null;
+  const [user, setUser] = useState(matchingSavedProfile || {
     name: loginUser?.nickname || loginUser?.email || labels.traveler,
     email: loginUser?.email || "",
     image: loginUser?.profileImageUrl || fallbackAvatar,
@@ -164,24 +204,32 @@ export default function MyPage() {
     }
 
     let active = true;
-    Promise.all([
-      apiClient.get("/users/me/posts", { params: { size: 100 } }),
-      apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
-    ])
-      .then(([postResponse, bookmarkResponse]) => {
-        if (!active) return;
-        setPosts(getFeedItems(unwrapApiResponse(postResponse)));
-        setBookmarks(getFeedItems(unwrapApiResponse(bookmarkResponse)));
-      })
-      .catch((requestError) => {
-        if (active) setError(getApiErrorMessage(requestError, labels.loadError));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    const loadProfileContent = () => {
+      Promise.all([
+        apiClient.get("/users/me/posts", { params: { size: 100 } }),
+        apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
+        apiClient.get("/users/me/likes", { params: { size: 100 } }),
+      ])
+        .then(([postResponse, bookmarkResponse, likeResponse]) => {
+          if (!active) return;
+          setPosts(getFeedItems(unwrapApiResponse(postResponse)));
+          setBookmarks(getFeedItems(unwrapApiResponse(bookmarkResponse)));
+          setLikedPosts(getFeedItems(unwrapApiResponse(likeResponse)));
+        })
+        .catch((requestError) => {
+          if (active) setError(getApiErrorMessage(requestError, labels.loadError));
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    };
+
+    loadProfileContent();
+    window.addEventListener("likeChanged", loadProfileContent);
 
     return () => {
       active = false;
+      window.removeEventListener("likeChanged", loadProfileContent);
     };
   }, [labels.loadError, navigate]);
 
@@ -202,7 +250,10 @@ export default function MyPage() {
       if (!posts.length) return <EmptyState icon={FileText} message={labels.emptyPosts} actionLabel={labels.write} onAction={() => navigate("/write")} />;
       return posts.map((post) => <PostTile key={post.id} post={post} />);
     }
-    if (activeTab === 1) return <EmptyState icon={Heart} message={labels.unavailableLikes} />;
+    if (activeTab === 1) {
+      if (!likedPosts.length) return <EmptyState icon={Heart} message={labels.unavailableLikes} />;
+      return likedPosts.map((post) => <PostTile key={post.id} post={post} />);
+    }
     if (activeTab === 2) {
       if (!bookmarks.length) return <EmptyState icon={Bookmark} message={labels.emptyBookmarks} />;
       return bookmarks.map((post) => <PostTile key={post.id} post={post} />);
@@ -292,9 +343,49 @@ export default function MyPage() {
           user={user}
           labels={labels}
           onClose={() => setEditOpen(false)}
-          onSave={(nextUser) => {
-            setUser((current) => ({ ...current, ...nextUser }));
-            setEditOpen(false);
+          onSave={async (nextUser) => {
+            if (nextUser.newPassword && (!nextUser.currentPassword || nextUser.newPassword.length < 8)) {
+              alert(labels.passwordInvalid);
+              return;
+            }
+
+            try {
+              if (nextUser.newPassword) {
+                await apiClient.patch("/users/me/password", {
+                  currentPassword: nextUser.currentPassword,
+                  newPassword: nextUser.newPassword,
+                });
+              }
+
+              const profileImageUrl = nextUser.image?.startsWith("data:")
+                ? loginUser?.profileImageUrl || null
+                : nextUser.image;
+              const response = await apiClient.patch("/users/me", {
+                nickname: nextUser.name,
+                bio: loginUser?.bio || null,
+                profileImageUrl,
+              });
+              const savedUser = unwrapApiResponse(response);
+
+              const updatedProfile = {
+                ...user,
+                name: savedUser.nickname,
+                email: savedUser.email,
+                image: nextUser.image || savedUser.profileImageUrl || fallbackAvatar,
+              };
+              const updatedAuthUser = {
+                ...loginUser,
+                ...savedUser,
+                image: updatedProfile.image,
+              };
+              setUser(updatedProfile);
+              localStorage.setItem("myProfile", JSON.stringify(updatedProfile));
+              localStorage.setItem("loginUser", JSON.stringify(updatedAuthUser));
+              window.dispatchEvent(new CustomEvent("userProfileUpdated", { detail: updatedAuthUser }));
+              setEditOpen(false);
+            } catch (saveError) {
+              alert(getApiErrorMessage(saveError, labels.saveFailed));
+            }
           }}
         />
       )}

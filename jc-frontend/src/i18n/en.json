@@ -12,6 +12,7 @@
     "getStarted": "Get started"
   },
   "auth": {
+    "sessionExpired": "Your session has expired. Please log in again.",
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Confirm password",
@@ -20,7 +21,10 @@
       "action": "Log in",
       "submitting": "Logging in...",
       "required": "Enter your email and password.",
-      "failed": "Unable to log in."
+      "failed": "Unable to log in.",
+      "google": "Continue with Google",
+      "googleFailed": "Unable to sign in with Google.",
+      "googleUnavailable": "Google sign-in is unavailable."
     },
     "signup": {
       "title": "Create account",
@@ -40,11 +44,24 @@
       "notFound": "We couldn't find a matching account."
     },
     "findPassword": {
-      "title": "Find password",
-      "idPlaceholder": "Account ID",
-      "required": "Enter both your account ID and email.",
-      "found": "Your password is \"{{password}}\".",
-      "notFound": "We couldn't find a matching account."
+      "title": "Reset password",
+      "emailPlaceholder": "Email used to sign up",
+      "required": "Enter the email used to sign up.",
+      "action": "Request password reset",
+      "submitting": "Requesting...",
+      "requested": "Check the password reset instructions.",
+      "failed": "Unable to request a password reset."
+    },
+    "resetPassword": {
+      "title": "Reset password",
+      "tokenPlaceholder": "Reset token",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "required": "Enter the reset token and your new password.",
+      "action": "Change password",
+      "submitting": "Changing...",
+      "succeeded": "Your password has been changed.",
+      "failed": "Unable to change your password."
     },
     "backToLogin": "Back to login"
   },
@@ -58,6 +75,16 @@
     "toggleDarkMode": "Toggle dark mode",
     "logout": "Log out",
     "notifications": "Notifications"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "joinRequest": "You have a new crew join request.",
+    "postLiked": "Someone liked your post.",
+    "minutesAgo": "{{count}}m ago",
+    "empty": "No new notifications.",
+    "markAllRead": "Mark all as read",
+    "count": "{{count}} notifications",
+    "close": "Close notifications"
   },
   "post": {
     "traveler": "Traveler", "more": "More", "bookmark": "Bookmark", "likes": "{{count}} likes",
@@ -95,7 +122,7 @@
     "editTitle": "Edit your travel route", "createTitle": "Create a travel route", "intro": "Choose a region, then add a Google place, photos, and a story for every stop.",
     "tripInfo": "Trip details", "title": "Trip title", "titlePlaceholder": "e.g. A rainy-day walk through Kyoto", "region": "Representative region",
     "chooseRegion": "Choose region", "startDate": "Start date", "endDate": "End date", "route": "Stops and stories",
-    "routeHelp": "Search for cafés, restaurants, and attractions, then arrange them in visit order.", "addPlace": "Add next stop", "tags": "Search tags",
+    "routeHelp": "Search for cafés, restaurants, and attractions, then arrange them in visit order.", "placeNavigator": "Choose a stop", "placeNavigatorHelp": "Select a stop to edit. A check means all required details are complete.", "stop": "Stop", "addPlaceShort": "Add stop", "addPlace": "Add next stop", "tags": "Search tags",
     "cancel": "Cancel", "saving": "Saving...", "editSubmit": "Save changes", "createSubmit": "Publish travel route"
   },
   "tagInput": { "help": "Type a tag and press Enter. Tags help travelers find your post.", "placeholder": "e.g. JejuFood", "duplicate": "You already added that tag.", "tooLong": "Tags must be 20 characters or fewer.", "remove": "Remove tag" },
@@ -116,22 +143,24 @@
   "placeEditor": {
     "choosePlace": "Choose a place", "moveUp": "Move up", "moveDown": "Move down", "remove": "Remove place", "location": "Location",
     "change": "Change", "choose": "Choose", "locationHelp": "Find this stop using Google place search.", "story": "Story at this place",
-    "storyHelp": "Add photo context and travel notes with the formatting tools.", "photos": "Photos from this place", "photosHelp": "Photo order is preserved in the post and gallery."
+    "storyHelp": "Add photo context and travel notes with the formatting tools.", "photos": "Photos from this place", "photosHelp": "Photo order is preserved in the post and gallery.", "previous": "Previous stop", "next": "Next stop"
   },
   "explore": {
     "noResults": "There are no results for “{{query}}” yet.", "invitation": "Be the first to share a travel story.", "write": "Write a story",
     "reset": "Clear search", "suggestions": "How about one of these trips?", "nearby": "More stories from {{region}}", "recent": "Recently published",
     "loading": "Loading travel suggestions...", "unavailable": "There are no travel stories to recommend yet.", "loadMore": "Load more", "loadingMore": "Loading more...",
     "loadFailed": "Unable to load Explore.", "restartFailed": "Unable to restart Explore.", "loadMoreFailed": "Unable to load more results.",
-    "destination": "destination", "title": "Explore", "headerQuery": "Search", "cardsLoading": "Loading Explore cards..."
+    "destination": "destination", "allJourneys": "all travel stories", "title": "Explore", "headerQuery": "Search", "cardsLoading": "Loading Explore cards..."
   },
   "myPage": {
     "back": "Back", "editProfile": "Edit profile", "posts": "Posts", "likes": "Likes", "comments": "Comments",
     "tabs": ["My journeys", "Liked places", "Saved", "Crew activity"], "loading": "Loading your posts...",
     "loadError": "Unable to load your profile posts.", "emptyPosts": "You haven't written a journey yet.", "emptyBookmarks": "You haven't saved any places yet.",
-    "unavailableLikes": "Your liked places list is coming soon.", "unavailableCrew": "Your crew activity is coming soon.",
+    "unavailableLikes": "You have not liked any posts yet.", "unavailableCrew": "Your crew activity is coming soon.",
     "write": "Write your first journey", "nickname": "Nickname", "email": "Email", "cancel": "Cancel", "save": "Save", "close": "Close",
-    "editHint": "The profile image is previewed on this screen only.", "traveler": "Traveler"
+    "editHint": "A new profile image is saved in this browser.", "traveler": "Traveler", "imageOnly": "Select an image file.",
+    "currentPassword": "Current password", "currentPasswordPlaceholder": "Enter your current password", "newPassword": "New password", "newPasswordPlaceholder": "At least 8 characters",
+    "passwordOptional": "Leave both password fields empty if you do not want to change it.", "passwordInvalid": "Enter your current password and a new password of at least 8 characters.", "saveFailed": "Unable to save your profile."
   },
   "crew": {
     "pageTitle": "Crews & Meetups",
@@ -141,6 +170,42 @@
     "joined": "Joined",
     "memberCount": "{{current}} of {{capacity}}",
     "ongoing": "Ongoing",
-    "empty": "No crews found for the selected region."
+    "empty": "No crews found for the selected region.",
+    "chatJoined": "In chat",
+    "manager": "Manager",
+    "me": "Me",
+    "welcomeMessage": "Welcome to the open chat!",
+    "helloMessage": "Nice to meet you!",
+    "participants": "{{count}} participants",
+    "messagePlaceholder": "Type a message...",
+    "closeChat": "Close chat"
+  },
+  "crewCreate": {
+    "back": "Back to crews",
+    "title": "Create a crew",
+    "description": "Find people who want to travel with you.",
+    "image": "Cover image",
+    "chooseImage": "Choose an image",
+    "imageAlt": "Crew cover",
+    "imageOnly": "Select an image file.",
+    "region": "Destination",
+    "regionPlaceholder": "e.g. Seoul, Jeju, Tokyo",
+    "crewTitle": "Crew title",
+    "titlePlaceholder": "e.g. Join our vintage tour in Seongsu",
+    "route": "Route / introduction",
+    "routePlaceholder": "Briefly describe your travel plan.",
+    "tags": "Tags",
+    "tagsPlaceholder": "e.g. Seongsu, vintage, cafés",
+    "date": "Travel date",
+    "members": "Capacity",
+    "cancel": "Cancel",
+    "submit": "Create crew",
+    "created": "Crew created!",
+    "titleRequired": "Enter a crew title.",
+    "regionRequired": "Enter a destination.",
+    "routeRequired": "Enter a travel plan.",
+    "dateRequired": "Choose a travel date.",
+    "membersInvalid": "Capacity must be between 2 and 20.",
+    "storageFailed": "There is not enough storage. Use a smaller image."
   }
 }

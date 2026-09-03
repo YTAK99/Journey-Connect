@@ -20,6 +20,20 @@ export const login = async (emailOrRequest, password) => {
   return saveAuth(unwrapApiResponse(response));
 };
 
+export const loginWithGoogle = async (idToken) => {
+  const response = await apiClient.post("/auth/google", { idToken });
+  return saveAuth(unwrapApiResponse(response));
+};
+
+export const requestPasswordReset = async (email) => {
+  const response = await apiClient.post("/auth/password-reset/requests", { email });
+  return unwrapApiResponse(response);
+};
+
+export const confirmPasswordReset = async ({ token, newPassword }) => {
+  await apiClient.post("/auth/password-reset/confirm", { token, newPassword });
+};
+
 export const logout = async () => {
   const refreshToken = localStorage.getItem("refreshToken");
   try {

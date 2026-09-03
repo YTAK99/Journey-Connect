@@ -1,6 +1,7 @@
 import { useState } from "react";
 import FeedCard from "../components/FeedCard";
 import LocationWeather from "../components/LocationWeather";
+import StoryList from "../components/StoryList";
 import useRegionStore from "../store/useRegionStore";
 import { useSearchParams } from "react-router";
 
@@ -36,6 +37,8 @@ export default function FeedPage() {
                 pickerOpen={regionPickerOpen}
                 onPickerOpenChange={setRegionPickerOpen}
             />
+
+            <StoryList selectedRegion={selectedRegion} />
 
           </section>
 
