@@ -71,11 +71,21 @@
   },
   "notifications": {
     "title": "Notifications",
-    "joinRequest": "You have a new crew join request.",
-    "postLiked": "Someone liked your post.",
-    "minutesAgo": "{{count}}m ago",
+    "postLiked": "{{actor}} liked your post.",
+    "postCommented": "{{actor}} commented on your post.",
+    "commentReplied": "{{actor}} replied to your comment.",
+    "crewApplication": "{{actor}} requested to join your crew.",
+    "crewApproved": "{{actor}} approved your crew request.",
+    "crewRejected": "{{actor}} declined your crew request.",
+    "reportResolved": "Your post report has been resolved.",
+    "reportRejected": "Your report review has been closed.",
+    "generic": "You have a new notification.",
+    "someone": "A traveler",
     "empty": "No new notifications.",
-    "markAllRead": "Mark all as read",
+    "loading": "Loading notifications...",
+    "loadFailed": "Unable to load notifications.",
+    "loginRequired": "Log in to view notifications.",
+    "allRead": "All read",
     "count": "{{count}} notifications",
     "close": "Close notifications"
   },
@@ -94,7 +104,7 @@
     "noRegionResults": "There are no travel stories for {{region}} yet.", "selectedRegion": "the selected region", "emptyHelp": "Check the local information or explore travel stories from another region.", "changeRegion": "Choose another region", "exploreWorld": "Explore worldwide stories", "writeFirst": "Write the first story", "end": "You're all caught up.",
     "imageAlt": "Post image {{index}}"
   },
-  "comments": { "toggle": "View comments", "count": "{{count}} comments", "loading": "Loading comments...", "loadFailed": "Unable to load comments.", "loginRequired": "Log in to leave a comment.", "addFailed": "Unable to post your comment.", "placeholder": "Leave a comment...", "submit": "Post", "submitting": "Posting..." },
+  "comments": { "toggle": "View comments", "count": "{{count}} comments", "loading": "Loading comments...", "loadFailed": "Unable to load comments.", "loginRequired": "Log in to leave a comment.", "addFailed": "Unable to post your comment.", "updateFailed": "Unable to update your comment.", "deleteFailed": "Unable to delete your comment.", "deleteConfirm": "Delete this comment?", "empty": "No comments yet.", "placeholder": "Leave a comment...", "submit": "Post", "submitting": "Posting...", "edit": "Edit comment", "delete": "Delete comment", "saveEdit": "Save edit", "cancelEdit": "Cancel edit" },
   "analysis": {
     "loading": "Loading AI summary...", "preparing": "AI summary is being prepared.", "unavailable": "AI summary is currently unavailable.",
     "notGenerated": "AI summary has not been generated yet.", "loadFailed": "Unable to load the AI summary.", "show": "View", "hide": "Hide"
@@ -104,6 +114,7 @@
     "loginRequired": "Please log in.", "loadFailed": "Unable to load your posts.", "loading": "Loading your posts...",
     "title": "My posts", "count": "{{count}} posts", "empty": "You haven't written any posts yet."
   },
+  "publicProfile": { "open": "View {{nickname}}'s profile", "loading": "Loading profile...", "loadFailed": "Unable to load this profile.", "notFound": "User not found.", "posts": "Travel stories", "postCount": "{{count}}", "empty": "No travel stories have been published yet." },
   "search": { "homePlaceholder": "Where would you like to go today?" },
   "complete": { "title": "Your itinerary has been published.", "description": "Your travel itinerary is now available to other travelers.", "viewSchedule": "View my itinerary" },
   "writePost": {

@@ -333,6 +333,20 @@ public class PostService {
         comments.delete(comment);
     }
 
+    @Transactional
+    public PostDtos.CommentView updateComment(Long userId, Long commentId, String content) {
+        Comment comment = comments.findById(commentId)
+                .orElseThrow(() -> notFound("COMMENT_NOT_FOUND", "댓글"));
+        if (!comment.getAuthor().getId().equals(userId)) {
+            throw new DomainException(
+                    HttpStatus.FORBIDDEN,
+                    "COMMENT_FORBIDDEN",
+                    "본인 댓글만 수정할 수 있습니다.");
+        }
+        comment.updateContent(content.trim());
+        return commentView(comment);
+    }
+
     public PageResponse<PostDtos.Summary> publicUserPosts(Long userId, Pageable pageable) {
         return publicUserPosts(userId, null, pageable);
     }

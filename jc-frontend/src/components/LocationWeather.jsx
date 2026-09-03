@@ -130,7 +130,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
 
         <form onSubmit={submitSearch} className="mb-4 flex gap-2">
           <div className="relative min-w-0 flex-1">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400" />
             <input
               autoFocus
               value={query}
@@ -174,7 +174,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
               </span>
             </button>
           ))}
-          {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500">{labels.findingSuggestions}</p>}
+          {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400">{labels.findingSuggestions}</p>}
           {query.trim().length >= 2 && suggestionError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950/30 dark:text-rose-300">{suggestionError}</p>}
           {query.trim().length >= 2 && !suggestionLoading && !suggestionError && visibleSuggestions.length === 0 && filtered.length === 0 && (
             <p className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400">
@@ -315,7 +315,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
                   {loading && <Loader2 size={15} className="animate-spin text-teal-600" />}
                 </h2>
                 {display.address && <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{display.address}</p>}
-                {errorMessage && <p className="mt-1 text-xs text-red-500">{errorMessage}</p>}
+                {errorMessage && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errorMessage}</p>}
               </div>
 
               <div className="flex items-center gap-3 rounded-full bg-gray-50 px-3 py-1.5 text-sm text-gray-600 dark:bg-slate-800 dark:text-slate-300">
@@ -351,7 +351,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
             onClick={() => onPickerOpenChange(true)}
             className="inline-flex items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            <RefreshCw size={14} className="text-gray-500" />
+            <RefreshCw size={14} className="text-gray-500 dark:text-slate-400" />
             {labels.changeRegion}
           </button>
         </div>

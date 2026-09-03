@@ -102,35 +102,35 @@ function CrewCreate() {
   };
 
   return (
-    <div className="min-h-screen bg-[#eef9ff]">
+    <div className="min-h-screen bg-[#eef9ff] dark:bg-slate-950">
       <div className="mx-auto max-w-5xl px-6 py-8">
         <button
           type="button"
           onClick={() => navigate("/crew")}
-          className="mb-6 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+          className="mb-6 flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100"
         >
           <ArrowLeft size={20} />
           {t("crewCreate.back")}
         </button>
 
-        <div className="rounded-2xl bg-white p-8 shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900">{t("crewCreate.title")}</h1>
+        <div className="rounded-2xl bg-white p-8 shadow-sm dark:bg-slate-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{t("crewCreate.title")}</h1>
 
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
             {t("crewCreate.description")}
           </p>
 
           <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-6">
             {/* 대표 이미지 */}
             <div>
-              <label className="text-sm font-semibold text-gray-800">
+              <label className="text-sm font-semibold text-gray-800 dark:text-slate-200">
                 {t("crewCreate.image")}
               </label>
 
               <div className="mt-2">
                 <label
                   htmlFor="crew-image"
-                  className="flex h-52 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
+                  className="flex h-52 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
                 >
                   {image ? (
                     <img
@@ -139,7 +139,7 @@ function CrewCreate() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="text-center text-gray-400">
+                    <div className="text-center text-gray-400 dark:text-slate-400">
                       <ImagePlus size={40} className="mx-auto mb-2" />
                       <p className="text-sm">{t("crewCreate.chooseImage")}</p>
                     </div>
@@ -160,7 +160,7 @@ function CrewCreate() {
             <div>
               <label
                 htmlFor="crew-region"
-                className="text-sm font-semibold text-gray-800"
+                className="text-sm font-semibold text-gray-800 dark:text-slate-200"
               >
                 {t("crewCreate.region")}
               </label>
@@ -171,7 +171,7 @@ function CrewCreate() {
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 placeholder={t("crewCreate.regionPlaceholder")}
-                className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
 
@@ -179,7 +179,7 @@ function CrewCreate() {
             <div>
               <label
                 htmlFor="crew-title"
-                className="text-sm font-semibold text-gray-800"
+                className="text-sm font-semibold text-gray-800 dark:text-slate-200"
               >
                 {t("crewCreate.crewTitle")}
               </label>
@@ -190,7 +190,7 @@ function CrewCreate() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t("crewCreate.titlePlaceholder")}
-                className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
 
@@ -198,7 +198,7 @@ function CrewCreate() {
             <div>
               <label
                 htmlFor="crew-description"
-                className="text-sm font-semibold text-gray-800"
+                className="text-sm font-semibold text-gray-800 dark:text-slate-200"
               >
                 {t("crewCreate.route")}
               </label>
@@ -209,7 +209,7 @@ function CrewCreate() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t("crewCreate.routePlaceholder")}
                 rows={5}
-                className="mt-2 w-full resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
+                className="mt-2 w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
 
@@ -217,7 +217,7 @@ function CrewCreate() {
             <div>
               <label
                 htmlFor="crew-tags"
-                className="text-sm font-semibold text-gray-800"
+                className="text-sm font-semibold text-gray-800 dark:text-slate-200"
               >
                 {t("crewCreate.tags")}
               </label>
@@ -228,10 +228,10 @@ function CrewCreate() {
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
                 placeholder={t("crewCreate.tagsPlaceholder")}
-                className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
 
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 태그는 쉼표(,)로 구분해주세요.
               </p>
             </div>
@@ -241,7 +241,7 @@ function CrewCreate() {
               <div>
                 <label
                   htmlFor="crew-date"
-                  className="text-sm font-semibold text-gray-800"
+                  className="text-sm font-semibold text-gray-800 dark:text-slate-200"
                 >
                   {t("crewCreate.date")}
                 </label>
@@ -251,14 +251,14 @@ function CrewCreate() {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="crew-members"
-                  className="text-sm font-semibold text-gray-800"
+                  className="text-sm font-semibold text-gray-800 dark:text-slate-200"
                 >
                   {t("crewCreate.members")}
                 </label>
@@ -270,7 +270,7 @@ function CrewCreate() {
                   max="20"
                   value={maxMembers}
                   onChange={(e) => setMaxMembers(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-teal-500"
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                 />
               </div>
             </div>
@@ -280,7 +280,7 @@ function CrewCreate() {
               <button
                 type="button"
                 onClick={() => navigate("/crew")}
-                className="flex-1 rounded-xl border border-gray-300 py-3 font-semibold text-gray-700 hover:bg-gray-50"
+                className="flex-1 rounded-xl border border-gray-300 py-3 font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 {t("crewCreate.cancel")}
               </button>

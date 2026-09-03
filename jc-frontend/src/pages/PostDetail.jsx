@@ -164,11 +164,19 @@ function PostDetail() {
 
               <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <UserAvatar
-                    src={post.author?.profileImageUrl}
-                    className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-md dark:border-slate-800"
-                    iconClassName="h-6 w-6"
-                  />
+                  <button
+                    type="button"
+                    disabled={post.author?.id == null}
+                    onClick={() => navigate(isAuthor ? "/mypage" : `/users/${post.author.id}`)}
+                    aria-label={t("publicProfile.open", { nickname: post.author?.nickname || t("post.traveler") })}
+                    className="shrink-0 rounded-full transition hover:ring-2 hover:ring-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:pointer-events-none"
+                  >
+                    <UserAvatar
+                      src={post.author?.profileImageUrl}
+                      className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-md dark:border-slate-800"
+                      iconClassName="h-6 w-6"
+                    />
+                  </button>
                   <div>
                     <p className="font-bold text-slate-900 dark:text-slate-100">
                       {post.author?.nickname || t("post.traveler")}

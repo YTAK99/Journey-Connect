@@ -122,7 +122,7 @@ export default function CrewPage() {
   };
 
   return (
-      <main className="w-full bg-sky-50 min-h-screen relative">
+      <main className="relative min-h-screen w-full bg-sky-50 dark:bg-slate-950">
         <div className="pt-24 pb-6">
           <section className="mx-auto max-w-7xl px-6 py-8">
             <div className="mb-6 flex items-end justify-between">
@@ -202,7 +202,7 @@ export default function CrewPage() {
             </div>
 
             {visibleCrews.length === 0 && (
-                <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">{t("crew.empty")}</p>
+                <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">{t("crew.empty")}</p>
             )}
           </section>
         </div>
@@ -210,16 +210,16 @@ export default function CrewPage() {
         {/* 두 번째 문제: 채팅 모달 팝업 UI 복구 */}
         {activeChatCrew && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-              <div className="flex flex-col h-[650px] w-full max-w-lg rounded-2xl overflow-hidden bg-[#b2c7d9] shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-                <header className="flex items-center justify-between bg-white px-4 py-3 shadow-sm">
+              <div className="animate-in fade-in zoom-in-95 flex h-[650px] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-[#b2c7d9] shadow-2xl duration-200 dark:bg-slate-800">
+                <header className="flex items-center justify-between bg-white px-4 py-3 shadow-sm dark:bg-slate-900">
                   <div>
-                    <h2 className="text-sm font-bold text-gray-800 line-clamp-1">{getCrewTitle(activeChatCrew, currentLang)}</h2>
-                    <span className="text-[11px] text-gray-400">{t("crew.participants", { count: activeChatCrew.memberCount ?? activeChatCrew.currentMembers ?? 1 })}</span>
+                    <h2 className="line-clamp-1 text-sm font-bold text-gray-800 dark:text-slate-100">{getCrewTitle(activeChatCrew, currentLang)}</h2>
+                    <span className="text-[11px] text-gray-400 dark:text-slate-400">{t("crew.participants", { count: activeChatCrew.memberCount ?? activeChatCrew.currentMembers ?? 1 })}</span>
                   </div>
                   <button
                       onClick={() => setActiveChatCrew(null)}
                       aria-label={t("crew.closeChat")}
-                      className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 transition-colors"
+                      className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
                   >
                     <X size={20} />
                   </button>
@@ -235,30 +235,30 @@ export default function CrewPage() {
                   {messages.map((msg) => (
                       <div key={msg.id} className={`flex items-end gap-2 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
                         {!msg.isMe && (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-700">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-700 dark:bg-slate-700 dark:text-slate-200">
                               {t(msg.senderKey)[0]}
                             </div>
                         )}
                         <div className={`flex flex-col ${msg.isMe ? "items-end" : "items-start"}`}>
-                          {!msg.isMe && <span className="mb-1 text-xs text-gray-600">{t(msg.senderKey)}</span>}
+                          {!msg.isMe && <span className="mb-1 text-xs text-gray-600 dark:text-slate-300">{t(msg.senderKey)}</span>}
                           <div className={`flex items-end gap-1.5 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}>
-                            <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.isMe ? "bg-[#fee500] text-gray-900 rounded-tr-none" : "bg-white text-gray-900 rounded-tl-none"}`}>
+                            <div className={`max-w-xs rounded-2xl px-4 py-2 text-sm shadow-sm ${msg.isMe ? "rounded-tr-none bg-[#fee500] text-gray-900" : "rounded-tl-none bg-white text-gray-900 dark:bg-slate-900 dark:text-slate-100"}`}>
                               {msg.textKey ? t(msg.textKey) : msg.text}
                             </div>
-                            <span className="text-[10px] text-gray-500">{msg.time}</span>
+                            <span className="text-[10px] text-gray-500 dark:text-slate-400">{msg.time}</span>
                           </div>
                         </div>
                       </div>
                   ))}
                 </div>
 
-                <form onSubmit={handleSend} className="flex items-center gap-2 bg-[#f7f7f7] px-4 py-3 border-t border-gray-200">
+                <form onSubmit={handleSend} className="flex items-center gap-2 border-t border-gray-200 bg-[#f7f7f7] px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
                   <input
                       type="text"
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       placeholder={t("crew.messagePlaceholder")}
-                      className="flex-1 rounded-full bg-white px-4 py-2 text-sm outline-none border border-gray-200 focus:border-[#fee500]"
+                      className="flex-1 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:border-[#fee500] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                   />
                   <button type="submit" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#fee500] text-gray-900 hover:bg-[#fdd800]">
                     <Send size={16} />

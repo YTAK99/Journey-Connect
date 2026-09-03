@@ -196,6 +196,14 @@ public class PostController {
         postService.deleteComment(userId(token), commentId);
     }
 
+    @PatchMapping("/comments/{commentId}")
+    ApiResponse<PostDtos.CommentView> updateComment(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long commentId,
+            @Valid @RequestBody PostDtos.CommentUpdateRequest request) {
+        return ApiResponse.ok(postService.updateComment(userId(token), commentId, request.content()));
+    }
+
     private long userId(Jwt token) {
         return Long.parseLong(token.getSubject());
     }

@@ -222,11 +222,19 @@ function FeedItem({ post, onDeleted }) {
       <div className="px-5 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <UserAvatar
-              src={detailedPost.author?.profileImageUrl}
-              className="h-10 w-10 rounded-full object-cover"
-              iconClassName="h-5 w-5"
-            />
+            <button
+              type="button"
+              disabled={detailedPost.author?.id == null}
+              onClick={() => navigate(isAuthor ? "/mypage" : `/users/${detailedPost.author.id}`)}
+              aria-label={t("publicProfile.open", { nickname: detailedPost.author?.nickname || t("post.traveler") })}
+              className="shrink-0 rounded-full transition hover:ring-2 hover:ring-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:pointer-events-none"
+            >
+              <UserAvatar
+                src={detailedPost.author?.profileImageUrl}
+                className="h-10 w-10 rounded-full object-cover"
+                iconClassName="h-5 w-5"
+              />
+            </button>
             <div>
               <h3 className="text-base font-semibold leading-5 text-gray-900 dark:text-slate-100">
                 {detailedPost.author?.nickname || t("post.traveler")}

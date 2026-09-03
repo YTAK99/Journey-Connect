@@ -29,7 +29,7 @@ class PostCommentIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
 
     @Test
-    void commentsAreListedAndOnlyAuthorCanDelete() {
+    void commentsAreListedAndOnlyAuthorCanUpdateOrDelete() {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         UserAccount author = users.save(new UserAccount(
                 "comment-author-" + suffix + "@example.com", "hash", "comment-author-" + suffix));
@@ -58,6 +58,18 @@ class PostCommentIntegrationTest {
                     assertThat(exception.getCode()).isEqualTo("COMMENT_FORBIDDEN");
                 });
         assertThat(comments.existsById(created.id())).isTrue();
+
+        assertThatThrownBy(() -> postService.updateComment(other.getId(), created.id(), "forbidden"))
+                .isInstanceOfSatisfying(DomainException.class, exception -> {
+                    assertThat(exception.getStatus().value()).isEqualTo(403);
+                    assertThat(exception.getCode()).isEqualTo("COMMENT_FORBIDDEN");
+                });
+
+        PostDtos.CommentView updated =
+                postService.updateComment(commenter.getId(), created.id(), "  updated comment  ");
+        assertThat(updated.content()).isEqualTo("updated comment");
+        assertThat(comments.findById(created.id()).orElseThrow().getContent())
+                .isEqualTo("updated comment");
 
         postService.deleteComment(commenter.getId(), created.id());
         assertThat(comments.existsById(created.id())).isFalse();
