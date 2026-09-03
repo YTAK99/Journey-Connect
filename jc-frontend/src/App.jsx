@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import Header from "./components/Header";
+import JourneyAiPanel from "./components/JourneyAiPanel";
 import BackendTestPage from "./pages/BackendTestPage";
 import Complete from "./pages/Complete";
 import CrewPage from "./pages/CrewPage";
@@ -28,6 +29,7 @@ import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
 import AdminNotFoundPage from "./pages/admin/AdminNotFoundPage";
 import { translate } from "./i18n";
+import { isLogin } from "./services/auth";
 import useLangStore from "./store/useLangStore";
 
 function SessionExpirationHandler() {
@@ -53,7 +55,8 @@ function Layout({ children }) {
   const location = useLocation();
   const hideHeaderPaths = ["/", "/login", "/signup", "/find-password", "/test"];
   const isHeaderHidden = hideHeaderPaths.includes(location.pathname) || location.pathname.startsWith("/admin");
-  return <>{!isHeaderHidden && <Header />}{children}</>;
+  const showJourneyAi = !isHeaderHidden && isLogin();
+  return <>{!isHeaderHidden && <Header />}{children}{showJourneyAi && <JourneyAiPanel />}</>;
 }
 
 export default function App() {
