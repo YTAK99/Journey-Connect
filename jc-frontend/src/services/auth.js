@@ -61,5 +61,4 @@ export const getUser = () => {
 };
 
 export const isLogin = () => Boolean(localStorage.getItem("accessToken"));
-export const findId = () => null;
 export const findPassword = () => null;

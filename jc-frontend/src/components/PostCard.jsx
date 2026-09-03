@@ -9,9 +9,9 @@ import useLangStore from "../store/useLangStore";
 import TagChips from "./TagChips";
 import { translate } from "../i18n";
 import { getUser } from "../services/auth";
+import UserAvatar from "./UserAvatar";
 
 const fallbackImage = "/ex_2.jpg";
-const fallbackAvatar = "/user_1.jpg";
 
 const getStableFallbackColor = (value) => {
   const hash = String(value ?? "journey").split("").reduce(
@@ -52,7 +52,7 @@ function PostCard({ post, setPosts, editable = false, titleOnly = false, colorFa
     : post.author?.nickname || post.authorName || post.nickname || t("post.traveler");
   const displayAvatar = isMyPost
     ? currentUser?.profileImageUrl || currentUser?.image || post.author?.profileImageUrl || post.authorImage
-    : post.author?.profileImageUrl || post.authorImage || post.profileImageUrl || fallbackAvatar;
+    : post.author?.profileImageUrl || post.authorImage || post.profileImageUrl;
 
   const toggleBookmark = async (event) => {
     event.stopPropagation();
@@ -108,11 +108,10 @@ function PostCard({ post, setPosts, editable = false, titleOnly = false, colorFa
       <div className="p-4">
         {!titleOnly && (
           <div className="mb-3 flex items-center gap-2">
-            <img
-              src={displayAvatar || fallbackAvatar}
-              alt=""
+            <UserAvatar
+              src={displayAvatar}
               className="h-7 w-7 rounded-full border border-gray-100 object-cover dark:border-slate-700"
-              onError={(event) => { event.currentTarget.src = fallbackAvatar; }}
+              iconClassName="h-3.5 w-3.5"
             />
             <span className="text-xs font-medium text-gray-700 dark:text-slate-300">{displayNickname}</span>
           </div>

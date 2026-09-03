@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router";
-import { Bell, Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
+import { Bell, Languages, LogOut, Menu, Moon, Search, Settings, Sun, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";
 import { translate } from "../i18n";
 import NotificationSidebar from "./NotificationSidebar";
+import UserAvatar from "./UserAvatar";
 
 // 상단 내비게이션 바에 표시될 메뉴 항목들 (피드, 탐색, 크루)과 다국어 지원 라벨
 const navItems = [
@@ -205,15 +206,11 @@ export default function Header() {
             className="flex h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-800 text-sm focus:ring-4 focus:ring-gray-300 dark:bg-slate-700 dark:focus:ring-slate-600"
             aria-label={t("header.profile")}
           >
-            {isLogin() ? (
-              <img
-                src={currentUser?.profileImageUrl || currentUser?.image || "/user_1.jpg"}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <User className="m-1.5 h-5 w-5 text-white" />
-            )}
+            <UserAvatar
+              src={isLogin() ? currentUser?.profileImageUrl : null}
+              className="h-full w-full object-cover"
+              iconClassName="h-5 w-5"
+            />
           </button>
 
           <div ref={settingsRef} className="relative">

@@ -8,19 +8,20 @@ import {
   Heart,
   MessageCircle,
   Plus,
-  User,
   Users,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/apiClient";
 import { getUser, isLogin } from "../services/auth";
-import { getFeedItems } from "../services/postApi";
+import { getFeedItems, uploadPostImages } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import { getMessages } from "../i18n";
+import UserAvatar from "../components/UserAvatar";
 
-const fallbackAvatar = "/user_1.jpg";
 const fallbackPostImage = "/ex_1.jpg";
+const profileImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const maxProfileImageSize = 5 * 1024 * 1024;
 
 function PostTile({ post }) {
   const navigate = useNavigate();
@@ -78,21 +79,25 @@ function EmptyState({ icon: Icon, message, actionLabel, onAction }) {
 }
 
 function ProfileEditor({ user, labels, onClose, onSave }) {
-  const [name, setName] = useState(user.name || user.nickname || "");
-  const [image, setImage] = useState(user.image || user.profileImageUrl || fallbackAvatar);
+  const [name, setName] = useState(user.nickname || "");
+  const [imagePreview, setImagePreview] = useState(user.profileImageUrl || "");
+  const [imageFile, setImageFile] = useState(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => () => {
+    if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+  }, [imagePreview]);
 
   const handleImage = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      alert(labels.imageOnly);
+    if (!profileImageTypes.has(file.type) || file.size > maxProfileImageSize) {
+      alert(labels.imageInvalid);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setImage(reader.result);
-    reader.readAsDataURL(file);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
   return (
@@ -113,12 +118,12 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
 
         <div className="mb-6 flex flex-col items-center">
           <label htmlFor="profile-image" className="group relative h-28 w-28 cursor-pointer overflow-hidden rounded-full border-4 border-secondary bg-secondary">
-            {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <User className="m-7 h-14 w-14 text-primary" />}
+            <UserAvatar src={imagePreview} className="h-full w-full object-cover" iconClassName="h-14 w-14" />
             <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/40 group-hover:opacity-100">
               <Camera size={25} />
             </span>
           </label>
-          <input id="profile-image" type="file" accept="image/*" className="hidden" onChange={handleImage} />
+          <input id="profile-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleImage} />
           <p className="mt-3 text-center text-xs text-muted">{labels.editHint}</p>
         </div>
 
@@ -159,8 +164,8 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
           <button
             type="button"
             onClick={() => onSave({
-              name: name.trim() || user.name,
-              image,
+              nickname: name.trim(),
+              imageFile,
               currentPassword,
               newPassword,
             })}
@@ -186,15 +191,10 @@ export default function MyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
-  const savedProfile = (() => {
-    try { return JSON.parse(localStorage.getItem("myProfile") || "null"); }
-    catch { return null; }
-  })();
-  const matchingSavedProfile = savedProfile?.email === loginUser?.email ? savedProfile : null;
-  const [user, setUser] = useState(matchingSavedProfile || {
-    name: loginUser?.nickname || loginUser?.email || labels.traveler,
+  const [user, setUser] = useState({
+    ...loginUser,
+    nickname: loginUser?.nickname || loginUser?.email || labels.traveler,
     email: loginUser?.email || "",
-    image: loginUser?.profileImageUrl || fallbackAvatar,
   });
 
   useEffect(() => {
@@ -272,13 +272,10 @@ export default function MyPage() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5">
               <div className="relative shrink-0">
-                <img
-                  src={user.image || fallbackAvatar}
-                  alt=""
+                <UserAvatar
+                  src={user.profileImageUrl}
                   className="h-20 w-20 rounded-full border-4 border-secondary object-cover sm:h-24 sm:w-24"
-                  onError={(event) => {
-                    event.currentTarget.src = fallbackAvatar;
-                  }}
+                  iconClassName="h-10 w-10 sm:h-12 sm:w-12"
                 />
                 <button
                   type="button"
@@ -291,7 +288,7 @@ export default function MyPage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-lg font-bold sm:text-xl">{user.name}</h1>
+                <h1 className="truncate text-lg font-bold sm:text-xl">{user.nickname}</h1>
                 <p className="truncate text-sm text-muted">{user.email}</p>
                 <dl className="mt-4 flex gap-5 sm:gap-7">
                   {[
@@ -357,34 +354,33 @@ export default function MyPage() {
                 });
               }
 
-              const profileImageUrl = nextUser.image?.startsWith("data:")
-                ? loginUser?.profileImageUrl || null
-                : nextUser.image;
+              let profileImageUrl = user.profileImageUrl || null;
+              if (nextUser.imageFile) {
+                const uploadedImages = await uploadPostImages([nextUser.imageFile]);
+                profileImageUrl = uploadedImages?.[0]?.imageUrl || null;
+                if (!profileImageUrl) throw new Error(labels.saveFailed);
+              }
               const response = await apiClient.patch("/users/me", {
-                nickname: nextUser.name,
+                nickname: nextUser.nickname,
                 bio: loginUser?.bio || null,
                 profileImageUrl,
               });
               const savedUser = unwrapApiResponse(response);
 
-              const updatedProfile = {
-                ...user,
-                name: savedUser.nickname,
-                email: savedUser.email,
-                image: nextUser.image || savedUser.profileImageUrl || fallbackAvatar,
-              };
               const updatedAuthUser = {
                 ...loginUser,
                 ...savedUser,
-                image: updatedProfile.image,
               };
-              setUser(updatedProfile);
-              localStorage.setItem("myProfile", JSON.stringify(updatedProfile));
+              setUser(updatedAuthUser);
+              localStorage.removeItem("myProfile");
               localStorage.setItem("loginUser", JSON.stringify(updatedAuthUser));
               window.dispatchEvent(new CustomEvent("userProfileUpdated", { detail: updatedAuthUser }));
               setEditOpen(false);
             } catch (saveError) {
-              alert(getApiErrorMessage(saveError, labels.saveFailed));
+              const errorCode = saveError.response?.data?.code;
+              alert(errorCode === "NICKNAME_ALREADY_USED"
+                ? labels.nicknameAlreadyUsed
+                : getApiErrorMessage(saveError, labels.saveFailed));
             }
           }}
         />
