@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import MyPage from "./pages/MyPage";
 import MyPosts from "./pages/MyPosts";
 import PostDetail from "./pages/PostDetail";
+import PublicProfile from "./pages/PublicProfile";
 import SearchPage from "./pages/SearchPage";
 import Signup from "./pages/Signup";
 import WritePost from "./pages/WritePost";
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/write" element={<WritePost />} />
           <Route path="/write/:id" element={<WritePost />} />
           <Route path="/post/:id" element={<PostDetail />} />
+          <Route path="/users/:userId" element={<PublicProfile />} />
 
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin" element={<AdminRouteGuard><AdminLayout /></AdminRouteGuard>}>

@@ -71,11 +71,21 @@
   },
   "notifications": {
     "title": "알림",
-    "joinRequest": "크루 가입 요청이 들어왔습니다.",
-    "postLiked": "내 게시글에 좋아요가 눌렸습니다.",
-    "minutesAgo": "{{count}}분 전",
+    "postLiked": "{{actor}}님이 내 게시글을 좋아합니다.",
+    "postCommented": "{{actor}}님이 내 게시글에 댓글을 남겼습니다.",
+    "commentReplied": "{{actor}}님이 내 댓글에 답글을 남겼습니다.",
+    "crewApplication": "{{actor}}님이 내 크루에 가입을 요청했습니다.",
+    "crewApproved": "{{actor}}님이 크루 가입 요청을 승인했습니다.",
+    "crewRejected": "{{actor}}님이 크루 가입 요청을 거절했습니다.",
+    "reportResolved": "신고한 게시물의 처리가 완료되었습니다.",
+    "reportRejected": "신고 검토가 종료되었습니다.",
+    "generic": "새로운 알림이 도착했습니다.",
+    "someone": "여행자",
     "empty": "새로운 알림이 없습니다.",
-    "markAllRead": "모두 읽음으로 표시",
+    "loading": "알림을 불러오는 중입니다.",
+    "loadFailed": "알림을 불러오지 못했습니다.",
+    "loginRequired": "로그인하면 알림을 확인할 수 있습니다.",
+    "allRead": "모두 읽음",
     "count": "{{count}}개의 알림",
     "close": "알림 닫기"
   },
@@ -94,7 +104,7 @@
     "noRegionResults": "아직 {{region}}에 등록된 여행기가 없어요.", "selectedRegion": "선택한 지역", "emptyHelp": "현지 정보를 확인하거나 다른 지역의 여행기를 둘러보세요.", "changeRegion": "다른 지역 선택", "exploreWorld": "전 세계 여행기 둘러보기", "writeFirst": "첫 여행기 작성하기", "end": "모든 게시물을 불러왔습니다.",
     "imageAlt": "게시물 사진 {{index}}"
   },
-  "comments": { "toggle": "댓글 보기", "count": "댓글 {{count}}개", "loading": "댓글을 불러오는 중입니다.", "loadFailed": "댓글을 불러오지 못했습니다.", "loginRequired": "댓글을 작성하려면 로그인해 주세요.", "addFailed": "댓글을 등록하지 못했습니다.", "placeholder": "댓글을 남겨보세요...", "submit": "등록", "submitting": "등록 중..." },
+  "comments": { "toggle": "댓글 보기", "count": "댓글 {{count}}개", "loading": "댓글을 불러오는 중입니다.", "loadFailed": "댓글을 불러오지 못했습니다.", "loginRequired": "댓글을 작성하려면 로그인해 주세요.", "addFailed": "댓글을 등록하지 못했습니다.", "updateFailed": "댓글을 수정하지 못했습니다.", "deleteFailed": "댓글을 삭제하지 못했습니다.", "deleteConfirm": "이 댓글을 삭제하시겠습니까?", "empty": "아직 댓글이 없습니다.", "placeholder": "댓글을 남겨보세요...", "submit": "등록", "submitting": "등록 중...", "edit": "댓글 수정", "delete": "댓글 삭제", "saveEdit": "수정 저장", "cancelEdit": "수정 취소" },
   "analysis": {
     "loading": "AI 요약을 불러오는 중입니다.", "preparing": "AI 요약을 준비 중입니다.", "unavailable": "AI 요약을 현재 제공할 수 없습니다.",
     "notGenerated": "AI 요약이 아직 생성되지 않았습니다.", "loadFailed": "AI 요약을 불러오지 못했습니다.", "show": "보기", "hide": "접기"
@@ -104,6 +114,7 @@
     "loginRequired": "로그인이 필요합니다.", "loadFailed": "내 글 목록을 불러오지 못했습니다.", "loading": "게시글을 불러오는 중입니다.",
     "title": "내가 작성한 글", "count": "총 {{count}}개의 게시글", "empty": "작성한 글이 없습니다."
   },
+  "publicProfile": { "open": "{{nickname}}님의 프로필 보기", "loading": "프로필을 불러오는 중입니다.", "loadFailed": "프로필을 불러오지 못했습니다.", "notFound": "사용자를 찾을 수 없습니다.", "posts": "작성한 여행기", "postCount": "{{count}}개", "empty": "아직 작성한 여행기가 없습니다." },
   "search": { "homePlaceholder": "오늘은 어디로 갈까요?" },
   "complete": { "title": "일정이 성공적으로 등록되었습니다.", "description": "작성한 여행 일정은 다른 사용자들과 공유됩니다.", "viewSchedule": "내 일정 보러 가기" },
   "writePost": {

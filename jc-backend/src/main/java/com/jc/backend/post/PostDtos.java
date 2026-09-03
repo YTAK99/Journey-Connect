@@ -79,6 +79,9 @@ public final class PostDtos {
         }
     }
 
+    public record CommentUpdateRequest(
+            @NotBlank @Size(max = 1000) String content) {}
+
     public record Author(Long id, String nickname, String profileImageUrl) {}
 
     public record ImageView(Long id, String imageUrl, int sortOrder, String altText) {}

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router";
 import { Bell, Languages, LogOut, Menu, Moon, Search, Settings, Sun, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
+import { getUnreadNotificationCount } from "../services/notificationApi";
 import useLangStore from "../store/useLangStore";
 import { translate } from "../i18n";
 import NotificationSidebar from "./NotificationSidebar";
@@ -106,6 +107,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [searchText, setSearchText] = useState(searchParams.get("q") || "");
   const [isDark, setIsDark] = useState(getInitialDarkMode);
   const settingsRef = useRef(null);
@@ -113,11 +115,34 @@ export default function Header() {
   const { currentLang, setLang } = useLangStore();
   const t = (key) => translate(currentLang, key);
 
+  const refreshUnreadNotificationCount = useCallback(async () => {
+    if (!isLogin()) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+    try {
+      const result = await getUnreadNotificationCount();
+      setUnreadNotificationCount(Number(result?.count) || 0);
+    } catch {
+      // 세션 만료 처리는 공통 API 인터셉터에 맡기고 헤더 배지는 조용히 유지합니다.
+    }
+  }, []);
+  const handleAllNotificationsRead = useCallback(() => setUnreadNotificationCount(0), []);
+
   useEffect(() => {
     const handleProfileUpdate = () => setCurrentUser(getUser());
     window.addEventListener("userProfileUpdated", handleProfileUpdate);
     return () => window.removeEventListener("userProfileUpdated", handleProfileUpdate);
   }, []);
+
+  useEffect(() => {
+    const initialRefreshId = window.setTimeout(refreshUnreadNotificationCount, 0);
+    const intervalId = window.setInterval(refreshUnreadNotificationCount, 30000);
+    return () => {
+      window.clearTimeout(initialRefreshId);
+      window.clearInterval(intervalId);
+    };
+  }, [refreshUnreadNotificationCount]);
 
   useEffect(() => {
   // 다크 모드 상태가 바뀔 때마다 HTML 루트 클래스 및 로컬스토리지 업데이트
@@ -185,18 +210,23 @@ export default function Header() {
       <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between px-4 py-3">
         {/* 로고는 피드의 기본 진입점입니다. */}
         <Link to="/feed" className="flex self-center" aria-label="Journey Connect 피드로 이동">
-          <img src="/JC_logo.svg" alt="Journey Connect" className="h-7 w-auto" />
+          <img src="/JC_logo.svg" alt="Journey Connect" className="h-[25px] w-auto" />
         </Link>
 
         <div className="flex items-center space-x-3 md:order-3">
-          {/* 알림함 연결 전까지 헤더 진입점을 먼저 노출합니다. */}
+          {/* 읽지 않은 알림 수를 배지로 표시하고 알림함을 엽니다. */}
           <button
             type="button"
             onClick={() => setIsNotificationsOpen(true)}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
             aria-label={t("header.notifications")}
           >
             <Bell size={18} />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-4 text-white ring-2 ring-white dark:ring-slate-950">
+                {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+              </span>
+            )}
           </button>
 
           {/* 현재 로그인 사용자의 프로필 진입 버튼 */}
@@ -268,6 +298,8 @@ export default function Header() {
       <NotificationSidebar
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
+        authenticated={isLogin()}
+        onAllRead={handleAllNotificationsRead}
       />
     </nav>
   );

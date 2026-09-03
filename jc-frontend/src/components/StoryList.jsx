@@ -42,10 +42,10 @@ export default function StoryList({ selectedRegion }) {
           onClick={() => navigate("/write")}
           className="group flex shrink-0 cursor-pointer flex-col items-center"
         >
-          <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-teal-400 bg-teal-50 transition group-hover:bg-teal-100">
-            <Plus size={22} className="text-teal-500" />
+          <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-teal-400 bg-teal-50 transition group-hover:bg-teal-100 dark:border-teal-600 dark:bg-teal-950/40 dark:group-hover:bg-teal-900/60">
+            <Plus size={22} className="text-teal-500 dark:text-teal-300" />
           </span>
-          <span className="mt-1.5 text-xs text-gray-600">{t("stories.post")}</span>
+          <span className="mt-1.5 text-xs text-gray-600 dark:text-slate-300">{t("stories.post")}</span>
         </button>
 
         {visibleStories.map((story) => {
@@ -58,7 +58,7 @@ export default function StoryList({ selectedRegion }) {
               onClick={() => navigate(`/post/${story.id}`)}
               className="group flex shrink-0 cursor-pointer flex-col items-center"
             >
-              <span className="h-14 w-14 overflow-hidden rounded-full border-2 border-teal-500 p-0.5">
+              <span className="h-14 w-14 overflow-hidden rounded-full border-2 border-teal-500 p-0.5 dark:border-teal-300">
                 <img
                   src={story.coverImageUrl || fallbackImage}
                   alt={region}
@@ -69,15 +69,15 @@ export default function StoryList({ selectedRegion }) {
                   }}
                 />
               </span>
-              <span className="mt-1.5 max-w-[62px] truncate text-center text-xs text-gray-700">{region}</span>
+              <span className="mt-1.5 max-w-[62px] truncate text-center text-xs text-gray-700 dark:text-slate-200">{region}</span>
             </button>
           );
         })}
 
         {!error && stories.length > 0 && visibleStories.length === 0 && (
-          <p className="shrink-0 text-xs text-gray-500">{t("stories.emptyRegion")}</p>
+          <p className="shrink-0 text-xs text-gray-500 dark:text-slate-400">{t("stories.emptyRegion")}</p>
         )}
-        {error && <p className="shrink-0 text-xs text-red-500">{error}</p>}
+        {error && <p className="shrink-0 text-xs text-red-500 dark:text-red-400">{error}</p>}
       </div>
     </div>
   );

@@ -39,7 +39,7 @@ function MyPosts() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-title">{t("myPosts.title")}</h1>
-            <p className="text-gray-500">{t("myPosts.count", { count: posts.length })}</p>
+            <p className="text-gray-500 dark:text-slate-400">{t("myPosts.count", { count: posts.length })}</p>
           </div>
           <button
             type="button"
@@ -51,7 +51,7 @@ function MyPosts() {
         </div>
 
         {posts.length === 0 ? (
-          <p className="rounded-lg border border-gray-100 bg-white p-8 text-center text-gray-500">
+          <p className="rounded-lg border border-gray-100 bg-white p-8 text-center text-gray-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
             {t("myPosts.empty")}
           </p>
         ) : (

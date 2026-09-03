@@ -59,6 +59,15 @@ export const addPostComment = async (postId, content) => {
   return unwrap(response);
 };
 
+export const updatePostComment = async (commentId, content) => {
+  const response = await apiClient.patch(`/comments/${commentId}`, { content });
+  return unwrap(response);
+};
+
+export const deletePostComment = async (commentId) => {
+  await apiClient.delete(`/comments/${commentId}`);
+};
+
 export const createPost = async (post) => {
   const response = await apiClient.post("/posts", post);
   return unwrap(response);
