@@ -86,6 +86,38 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
     @Query("""
             select p
             from JourneyPost p
+            where p.published = true
+              and p.moderationStatus = 'visible'
+              and lower(p.region.code) = lower(:regionCode)
+            order by p.createdAt desc, p.id desc
+            """)
+    List<JourneyPost> findFeedByRegionCode(
+            @Param("regionCode") String regionCode,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"author", "region"})
+    @Query("""
+            select p
+            from JourneyPost p
+            where p.published = true
+              and p.moderationStatus = 'visible'
+              and lower(p.region.code) = lower(:regionCode)
+              and (
+                    p.createdAt < :cursorCreatedAt
+                    or (p.createdAt = :cursorCreatedAt and p.id < :cursorId)
+              )
+            order by p.createdAt desc, p.id desc
+            """)
+    List<JourneyPost> findFeedAfterByRegionCode(
+            @Param("regionCode") String regionCode,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"author", "region"})
+    @Query("""
+            select p
+            from JourneyPost p
             where p.id in :postIds
               and p.published = true
               and p.moderationStatus = 'visible'

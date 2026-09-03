@@ -1,11 +1,20 @@
 from pathlib import Path
 import subprocess
 
-EXPECTED_HEAD = '2d25f3263fd32988208540c7a2e12f2171a07adf'
+BASELINE_COMMIT = '961f28bf445d0e38591ef60b15f8ac1e6a0cd768'
 ROOT = Path.cwd()
 actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-if actual != EXPECTED_HEAD:
-    raise SystemExit(f"Refusing to patch: expected {EXPECTED_HEAD}, got {actual}")
+ancestor_check = subprocess.run(
+    ["git", "merge-base", "--is-ancestor", BASELINE_COMMIT, "HEAD"],
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+)
+if ancestor_check.returncode != 0:
+    raise SystemExit(
+        "Refusing to patch: required baseline commit "
+        f"{BASELINE_COMMIT} is not an ancestor of current HEAD {actual}. "
+        "Merge or rebase the latest develop branch into this feature branch first."
+    )
 
 OPERATIONS = [
     ('jc-backend/src/main/java/com/jc/backend/post/PostController.java', '    @GetMapping("/feed")\n    ApiResponse<CursorPageResponse<PostDtos.Summary>> feed(\n            @RequestParam(required = false) String cursor,\n            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,\n            @AuthenticationPrincipal Jwt token) {\n        return ApiResponse.ok(recommendationFeedService.feed(\n                cursor, size, userIdOrNull(token), token == null ? null : token.getId()));\n    }\n', '    @GetMapping("/feed")\n    ApiResponse<CursorPageResponse<PostDtos.Summary>> feed(\n            @RequestParam(required = false) String cursor,\n            @RequestParam(required = false) String region,\n            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,\n            @AuthenticationPrincipal Jwt token) {\n        return ApiResponse.ok(recommendationFeedService.feed(\n                cursor, size, region, userIdOrNull(token), token == null ? null : token.getId()));\n    }\n', 'op-1'),

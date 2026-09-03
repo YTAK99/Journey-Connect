@@ -106,4 +106,44 @@ class PostApiIntegrationTest {
                 .andExpect(jsonPath("$.data.items[*].title").value(
                         org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(postTitle))));
     }
+
+    @Test
+    void feedRegionWorksForAnonymousAndAuthenticatedCallers() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        Region other = regions.save(new Region(
+                "ZZ-FEED-OTHER-" + suffix,
+                "ZZ",
+                "Other " + suffix,
+                null));
+        String otherTitle = "other-region-" + suffix;
+        posts.save(new JourneyPost(owner, other, otherTitle, "content"));
+
+        mockMvc.perform(get("/api/v1/feed").param("region", "KR-SEOUL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[*].title").value(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(otherTitle))));
+
+        mockMvc.perform(get("/api/v1/feed")
+                        .param("region", "KR-SEOUL")
+                        .with(jwt().jwt(token -> token.subject(reactor.getId().toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[*].title").value(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem(otherTitle))));
+    }
+
+    @Test
+    void feedRegionValidationAndSizeBoundariesStayStable() throws Exception {
+        mockMvc.perform(get("/api/v1/feed").param("region", " "))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/feed").param("region", "ZZ-NOT-FOUND"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("REGION_NOT_FOUND"));
+
+        mockMvc.perform(get("/api/v1/feed").param("size", "0"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/v1/feed").param("size", "101"))
+                .andExpect(status().isBadRequest());
+    }
 }

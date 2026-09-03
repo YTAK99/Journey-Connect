@@ -54,10 +54,11 @@ public class PostController {
     @GetMapping("/feed")
     ApiResponse<CursorPageResponse<PostDtos.Summary>> feed(
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String region,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @AuthenticationPrincipal Jwt token) {
         return ApiResponse.ok(recommendationFeedService.feed(
-                cursor, size, userIdOrNull(token), token == null ? null : token.getId()));
+                cursor, size, region, userIdOrNull(token), token == null ? null : token.getId()));
     }
 
     @GetMapping("/feed/page")

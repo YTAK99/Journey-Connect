@@ -30,6 +30,25 @@ class RecommendationCursorCodecTest {
                 .isInstanceOf(DomainException.class);
     }
 
+    @Test
+    void regionalCursorBindsRegionWithoutBreakingLegacyGlobalCursor() {
+        RecommendationCursorCodec codec = codec();
+        String regional = codec.encode("run:regional", 20, 7L, "jwt-7", "KR-SEOUL");
+
+        assertThat(codec.decode(regional, 7L, "jwt-7", "KR-SEOUL"))
+                .isEqualTo(new RecommendationCursorCodec.Cursor("run:regional", 20, "KR-SEOUL"));
+        assertThatThrownBy(() -> codec.decode(regional, 7L, "jwt-7", "KR-BUSAN"))
+                .isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> codec.decode(regional, 7L, "jwt-7", null))
+                .isInstanceOf(DomainException.class);
+
+        String legacy = codec.encode("run:legacy", 20, 7L, "jwt-7");
+        assertThat(codec.decode(legacy, 7L, "jwt-7"))
+                .isEqualTo(new RecommendationCursorCodec.Cursor("run:legacy", 20));
+        assertThatThrownBy(() -> codec.decode(legacy, 7L, "jwt-7", "KR-SEOUL"))
+                .isInstanceOf(DomainException.class);
+    }
+
     private static RecommendationCursorCodec codec() {
         return new RecommendationCursorCodec(properties("release:p0-6"));
     }
