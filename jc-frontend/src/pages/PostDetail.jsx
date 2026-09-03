@@ -13,6 +13,8 @@ import {
 import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
 import PostRouteMap from "../components/PostRouteMap";
+import PostActionsMenu from "../components/PostActionsMenu";
+import UserAvatar from "../components/UserAvatar";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
 import { deletePost, getPost, getPostAnalysis } from "../services/postApi";
@@ -20,7 +22,6 @@ import useTranslation from "../i18n/useTranslation";
 import { getLocalizedRegionName } from "../utils/region";
 import { normalizeEditorContent } from "../utils/richText";
 
-const fallbackAvatar = "/user_1.jpg";
 
 const formatDate = (value, language) => {
   if (!value) return "-";
@@ -163,10 +164,10 @@ function PostDetail() {
 
               <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={post.author?.profileImageUrl || fallbackAvatar}
-                    alt=""
+                  <UserAvatar
+                    src={post.author?.profileImageUrl}
                     className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-md dark:border-slate-800"
+                    iconClassName="h-6 w-6"
                   />
                   <div>
                     <p className="font-bold text-slate-900 dark:text-slate-100">
@@ -178,10 +179,19 @@ function PostDetail() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                  <span className="inline-flex items-center gap-1.5"><Eye size={17} /> {post.viewCount ?? 0}</span>
-                  <span className="inline-flex items-center gap-1.5"><Heart size={17} /> {post.likeCount ?? 0}</span>
-                  <span className="inline-flex items-center gap-1.5"><Bookmark size={17} /> {post.bookmarkCount ?? 0}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+                    <span className="inline-flex items-center gap-1.5"><Eye size={17} /> {post.viewCount ?? 0}</span>
+                    <span className="inline-flex items-center gap-1.5"><Heart size={17} /> {post.likeCount ?? 0}</span>
+                    <span className="inline-flex items-center gap-1.5"><Bookmark size={17} /> {post.bookmarkCount ?? 0}</span>
+                  </div>
+                  {isAuthor && (
+                    <PostActionsMenu
+                      onEdit={() => navigate(`/write/${post.id}`)}
+                      onDelete={handleDelete}
+                      labels={{ more: t("post.more"), edit: t("post.edit"), delete: t("post.delete") }}
+                    />
+                  )}
                 </div>
               </div>
             </header>

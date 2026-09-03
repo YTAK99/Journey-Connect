@@ -1,11 +1,13 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
+import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import Header from "./components/Header";
 import BackendTestPage from "./pages/BackendTestPage";
 import Complete from "./pages/Complete";
 import CrewPage from "./pages/CrewPage";
+import CrewCreate from "./pages/CrewCreate";
 import FeedPage from "./pages/FeedPage";
-import FindId from "./pages/FindId";
 import FindPassword from "./pages/FindPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import MyPage from "./pages/MyPage";
@@ -25,10 +27,31 @@ import AdminPostDetailPage from "./pages/admin/AdminPostDetailPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
 import AdminNotFoundPage from "./pages/admin/AdminNotFoundPage";
+import { translate } from "./i18n";
+import useLangStore from "./store/useLangStore";
+
+function SessionExpirationHandler() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentLang = useLangStore((state) => state.currentLang);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      window.alert(translate(currentLang, "auth.sessionExpired"));
+      const loginPath = location.pathname.startsWith("/admin") ? "/admin/login" : "/login";
+      navigate(loginPath, { replace: true });
+    };
+
+    window.addEventListener("jc:auth-expired", handleAuthExpired);
+    return () => window.removeEventListener("jc:auth-expired", handleAuthExpired);
+  }, [currentLang, location.pathname, navigate]);
+
+  return null;
+}
 
 function Layout({ children }) {
   const location = useLocation();
-  const hideHeaderPaths = ["/", "/login", "/signup", "/find-id", "/find-password", "/test"];
+  const hideHeaderPaths = ["/", "/login", "/signup", "/find-password", "/test"];
   const isHeaderHidden = hideHeaderPaths.includes(location.pathname) || location.pathname.startsWith("/admin");
   return <>{!isHeaderHidden && <Header />}{children}</>;
 }
@@ -36,6 +59,7 @@ function Layout({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <SessionExpirationHandler />
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -43,12 +67,13 @@ export default function App() {
           <Route path="/test" element={<BackendTestPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/find-id" element={<FindId />} />
           <Route path="/find-password" element={<FindPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/complete" element={<Complete />} />
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/explore" element={<SearchPage />} />
           <Route path="/crew" element={<CrewPage />} />
+          <Route path="/crew/create" element={<CrewCreate />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/my-posts" element={<MyPosts />} />
           <Route path="/write" element={<WritePost />} />

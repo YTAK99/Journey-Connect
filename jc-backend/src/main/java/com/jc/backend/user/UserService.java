@@ -8,6 +8,7 @@ import com.jc.backend.post.PostDtos;
 import com.jc.backend.post.PostService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +19,12 @@ public class UserService {
 
     private final UserRepository users;
     private final PostService posts;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository users, PostService posts) {
+    public UserService(UserRepository users, PostService posts, PasswordEncoder passwordEncoder) {
         this.users = users;
         this.posts = posts;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public AuthDtos.UserSummary me(long userId) {
@@ -46,6 +49,18 @@ public class UserService {
 
         user.updateProfile(nickname, request.bio(), request.profileImageUrl());
         return AuthService.summary(user);
+    }
+
+    @Transactional
+    public void changePassword(long userId, UserDtos.ChangePasswordRequest request) {
+        UserAccount user = user(userId);
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "CURRENT_PASSWORD_MISMATCH",
+                    "현재 비밀번호가 일치하지 않습니다.");
+        }
+        user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
     }
 
     public UserDtos.PublicProfile publicProfile(long userId, Long viewerId) {

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from "react-router";
-import { Languages, LogOut, Menu, Moon, Search, Settings, Sun, User, X } from "lucide-react";
+import { Bell, Languages, LogOut, Menu, Moon, Search, Settings, Sun, X } from "lucide-react";
 import { getUser, isLogin, logout } from "../services/auth";
 import useLangStore from "../store/useLangStore";
 import { translate } from "../i18n";
-import bellIcon from "../assets/bell.svg";
+import NotificationSidebar from "./NotificationSidebar";
+import UserAvatar from "./UserAvatar";
 
 // 상단 내비게이션 바에 표시될 메뉴 항목들 (피드, 탐색, 크루)과 다국어 지원 라벨
 const navItems = [
@@ -104,12 +105,19 @@ export default function Header() {
   // 모바일 메뉴, 설정 패널, 검색어와 다크 모드 상태를 헤더에서 함께 관리합니다.
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchText, setSearchText] = useState(searchParams.get("q") || "");
   const [isDark, setIsDark] = useState(getInitialDarkMode);
   const settingsRef = useRef(null);
-  const user = getUser();
+  const [currentUser, setCurrentUser] = useState(() => getUser());
   const { currentLang, setLang } = useLangStore();
   const t = (key) => translate(currentLang, key);
+
+  useEffect(() => {
+    const handleProfileUpdate = () => setCurrentUser(getUser());
+    window.addEventListener("userProfileUpdated", handleProfileUpdate);
+    return () => window.removeEventListener("userProfileUpdated", handleProfileUpdate);
+  }, []);
 
   useEffect(() => {
   // 다크 모드 상태가 바뀔 때마다 HTML 루트 클래스 및 로컬스토리지 업데이트
@@ -182,8 +190,13 @@ export default function Header() {
 
         <div className="flex items-center space-x-3 md:order-3">
           {/* 알림함 연결 전까지 헤더 진입점을 먼저 노출합니다. */}
-          <button type="button" className="cursor-pointer" aria-label={t("header.notifications")}>
-            <img src={bellIcon} alt="" className="h-6 w-6" />
+          <button
+            type="button"
+            onClick={() => setIsNotificationsOpen(true)}
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+            aria-label={t("header.notifications")}
+          >
+            <Bell size={18} />
           </button>
 
           {/* 현재 로그인 사용자의 프로필 진입 버튼 */}
@@ -193,11 +206,11 @@ export default function Header() {
             className="flex h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-800 text-sm focus:ring-4 focus:ring-gray-300 dark:bg-slate-700 dark:focus:ring-slate-600"
             aria-label={t("header.profile")}
           >
-            {isLogin() ? (
-              <img src={user?.profileImageUrl || "/user_1.jpg"} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <User className="m-1.5 h-5 w-5 text-white" />
-            )}
+            <UserAvatar
+              src={isLogin() ? currentUser?.profileImageUrl : null}
+              className="h-full w-full object-cover"
+              iconClassName="h-5 w-5"
+            />
           </button>
 
           <div ref={settingsRef} className="relative">
@@ -252,6 +265,10 @@ export default function Header() {
           {searchInput}
         </form>
       </div>
+      <NotificationSidebar
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
     </nav>
   );
 }

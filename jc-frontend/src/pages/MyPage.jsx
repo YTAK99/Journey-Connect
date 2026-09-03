@@ -8,19 +8,20 @@ import {
   Heart,
   MessageCircle,
   Plus,
-  User,
   Users,
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/apiClient";
 import { getUser, isLogin } from "../services/auth";
-import { getFeedItems } from "../services/postApi";
+import { getFeedItems, uploadPostImages } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import { getMessages } from "../i18n";
+import UserAvatar from "../components/UserAvatar";
 
-const fallbackAvatar = "/user_1.jpg";
 const fallbackPostImage = "/ex_1.jpg";
+const profileImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const maxProfileImageSize = 5 * 1024 * 1024;
 
 function PostTile({ post }) {
   const navigate = useNavigate();
@@ -78,12 +79,25 @@ function EmptyState({ icon: Icon, message, actionLabel, onAction }) {
 }
 
 function ProfileEditor({ user, labels, onClose, onSave }) {
-  const [name, setName] = useState(user.name);
-  const [image, setImage] = useState(user.image);
+  const [name, setName] = useState(user.nickname || "");
+  const [imagePreview, setImagePreview] = useState(user.profileImageUrl || "");
+  const [imageFile, setImageFile] = useState(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => () => {
+    if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+  }, [imagePreview]);
 
   const handleImage = (event) => {
     const file = event.target.files?.[0];
-    if (file) setImage(URL.createObjectURL(file));
+    if (!file) return;
+    if (!profileImageTypes.has(file.type) || file.size > maxProfileImageSize) {
+      alert(labels.imageInvalid);
+      return;
+    }
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
   return (
@@ -104,12 +118,12 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
 
         <div className="mb-6 flex flex-col items-center">
           <label htmlFor="profile-image" className="group relative h-28 w-28 cursor-pointer overflow-hidden rounded-full border-4 border-secondary bg-secondary">
-            {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <User className="m-7 h-14 w-14 text-primary" />}
+            <UserAvatar src={imagePreview} className="h-full w-full object-cover" iconClassName="h-14 w-14" />
             <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/40 group-hover:opacity-100">
               <Camera size={25} />
             </span>
           </label>
-          <input id="profile-image" type="file" accept="image/*" className="hidden" onChange={handleImage} />
+          <input id="profile-image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleImage} />
           <p className="mt-3 text-center text-xs text-muted">{labels.editHint}</p>
         </div>
 
@@ -123,13 +137,38 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
         <label htmlFor="profile-email" className="text-sm font-semibold text-foreground">{labels.email}</label>
         <input id="profile-email" value={user.email} readOnly className="mt-2 w-full cursor-not-allowed rounded-xl border border-border bg-secondary px-4 py-3 text-sm text-muted" />
 
+        <label htmlFor="profile-current-password" className="mt-4 block text-sm font-semibold text-foreground">{labels.currentPassword}</label>
+        <input
+          id="profile-current-password"
+          type="password"
+          value={currentPassword}
+          onChange={(event) => setCurrentPassword(event.target.value)}
+          placeholder={labels.currentPasswordPlaceholder}
+          className="mt-2 w-full rounded-xl border border-border bg-inputBg px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+        <label htmlFor="profile-new-password" className="mt-4 block text-sm font-semibold text-foreground">{labels.newPassword}</label>
+        <input
+          id="profile-new-password"
+          type="password"
+          value={newPassword}
+          onChange={(event) => setNewPassword(event.target.value)}
+          placeholder={labels.newPasswordPlaceholder}
+          className="mt-2 w-full rounded-xl border border-border bg-inputBg px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        />
+        <p className="mt-2 text-xs text-muted">{labels.passwordOptional}</p>
+
         <div className="mt-7 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-muted hover:bg-secondary">
             {labels.cancel}
           </button>
           <button
             type="button"
-            onClick={() => onSave({ name: name.trim() || user.name, image })}
+            onClick={() => onSave({
+              nickname: name.trim(),
+              imageFile,
+              currentPassword,
+              newPassword,
+            })}
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primaryHover"
           >
             {labels.save}
@@ -147,14 +186,15 @@ export default function MyPage() {
   const loginUser = getUser();
   const [activeTab, setActiveTab] = useState(0);
   const [posts, setPosts] = useState([]);
+  const [likedPosts, setLikedPosts] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [user, setUser] = useState({
-    name: loginUser?.nickname || loginUser?.email || labels.traveler,
+    ...loginUser,
+    nickname: loginUser?.nickname || loginUser?.email || labels.traveler,
     email: loginUser?.email || "",
-    image: loginUser?.profileImageUrl || fallbackAvatar,
   });
 
   useEffect(() => {
@@ -164,24 +204,32 @@ export default function MyPage() {
     }
 
     let active = true;
-    Promise.all([
-      apiClient.get("/users/me/posts", { params: { size: 100 } }),
-      apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
-    ])
-      .then(([postResponse, bookmarkResponse]) => {
-        if (!active) return;
-        setPosts(getFeedItems(unwrapApiResponse(postResponse)));
-        setBookmarks(getFeedItems(unwrapApiResponse(bookmarkResponse)));
-      })
-      .catch((requestError) => {
-        if (active) setError(getApiErrorMessage(requestError, labels.loadError));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    const loadProfileContent = () => {
+      Promise.all([
+        apiClient.get("/users/me/posts", { params: { size: 100 } }),
+        apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
+        apiClient.get("/users/me/likes", { params: { size: 100 } }),
+      ])
+        .then(([postResponse, bookmarkResponse, likeResponse]) => {
+          if (!active) return;
+          setPosts(getFeedItems(unwrapApiResponse(postResponse)));
+          setBookmarks(getFeedItems(unwrapApiResponse(bookmarkResponse)));
+          setLikedPosts(getFeedItems(unwrapApiResponse(likeResponse)));
+        })
+        .catch((requestError) => {
+          if (active) setError(getApiErrorMessage(requestError, labels.loadError));
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    };
+
+    loadProfileContent();
+    window.addEventListener("likeChanged", loadProfileContent);
 
     return () => {
       active = false;
+      window.removeEventListener("likeChanged", loadProfileContent);
     };
   }, [labels.loadError, navigate]);
 
@@ -202,7 +250,10 @@ export default function MyPage() {
       if (!posts.length) return <EmptyState icon={FileText} message={labels.emptyPosts} actionLabel={labels.write} onAction={() => navigate("/write")} />;
       return posts.map((post) => <PostTile key={post.id} post={post} />);
     }
-    if (activeTab === 1) return <EmptyState icon={Heart} message={labels.unavailableLikes} />;
+    if (activeTab === 1) {
+      if (!likedPosts.length) return <EmptyState icon={Heart} message={labels.unavailableLikes} />;
+      return likedPosts.map((post) => <PostTile key={post.id} post={post} />);
+    }
     if (activeTab === 2) {
       if (!bookmarks.length) return <EmptyState icon={Bookmark} message={labels.emptyBookmarks} />;
       return bookmarks.map((post) => <PostTile key={post.id} post={post} />);
@@ -221,13 +272,10 @@ export default function MyPage() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <div className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5">
               <div className="relative shrink-0">
-                <img
-                  src={user.image || fallbackAvatar}
-                  alt=""
+                <UserAvatar
+                  src={user.profileImageUrl}
                   className="h-20 w-20 rounded-full border-4 border-secondary object-cover sm:h-24 sm:w-24"
-                  onError={(event) => {
-                    event.currentTarget.src = fallbackAvatar;
-                  }}
+                  iconClassName="h-10 w-10 sm:h-12 sm:w-12"
                 />
                 <button
                   type="button"
@@ -240,7 +288,7 @@ export default function MyPage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-lg font-bold sm:text-xl">{user.name}</h1>
+                <h1 className="truncate text-lg font-bold sm:text-xl">{user.nickname}</h1>
                 <p className="truncate text-sm text-muted">{user.email}</p>
                 <dl className="mt-4 flex gap-5 sm:gap-7">
                   {[
@@ -292,9 +340,48 @@ export default function MyPage() {
           user={user}
           labels={labels}
           onClose={() => setEditOpen(false)}
-          onSave={(nextUser) => {
-            setUser((current) => ({ ...current, ...nextUser }));
-            setEditOpen(false);
+          onSave={async (nextUser) => {
+            if (nextUser.newPassword && (!nextUser.currentPassword || nextUser.newPassword.length < 8)) {
+              alert(labels.passwordInvalid);
+              return;
+            }
+
+            try {
+              if (nextUser.newPassword) {
+                await apiClient.patch("/users/me/password", {
+                  currentPassword: nextUser.currentPassword,
+                  newPassword: nextUser.newPassword,
+                });
+              }
+
+              let profileImageUrl = user.profileImageUrl || null;
+              if (nextUser.imageFile) {
+                const uploadedImages = await uploadPostImages([nextUser.imageFile]);
+                profileImageUrl = uploadedImages?.[0]?.imageUrl || null;
+                if (!profileImageUrl) throw new Error(labels.saveFailed);
+              }
+              const response = await apiClient.patch("/users/me", {
+                nickname: nextUser.nickname,
+                bio: loginUser?.bio || null,
+                profileImageUrl,
+              });
+              const savedUser = unwrapApiResponse(response);
+
+              const updatedAuthUser = {
+                ...loginUser,
+                ...savedUser,
+              };
+              setUser(updatedAuthUser);
+              localStorage.removeItem("myProfile");
+              localStorage.setItem("loginUser", JSON.stringify(updatedAuthUser));
+              window.dispatchEvent(new CustomEvent("userProfileUpdated", { detail: updatedAuthUser }));
+              setEditOpen(false);
+            } catch (saveError) {
+              const errorCode = saveError.response?.data?.code;
+              alert(errorCode === "NICKNAME_ALREADY_USED"
+                ? labels.nicknameAlreadyUsed
+                : getApiErrorMessage(saveError, labels.saveFailed));
+            }
           }}
         />
       )}

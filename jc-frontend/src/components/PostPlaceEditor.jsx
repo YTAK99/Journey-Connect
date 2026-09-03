@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, MapPin, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MapPin, Trash2 } from "lucide-react";
 import MultipleImageUploader from "./MultipleImageUploader";
 import RichTextEditor from "./RichTextEditor";
 import { translate } from "../i18n";
@@ -12,6 +12,8 @@ export default function PostPlaceEditor({
   onChooseLocation,
   onMove,
   onRemove,
+  onPrevious,
+  onNext,
   selectedCoverKey,
   onSelectCover,
 }) {
@@ -86,6 +88,15 @@ export default function PostPlaceEditor({
             onSelectCover={onSelectCover}
           />
         </section>
+
+        <footer className="flex items-center justify-between gap-3 border-t border-slate-200 pt-5 dark:border-slate-700">
+          <button type="button" disabled={index === 0} onClick={onPrevious} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:border-teal-300 hover:text-teal-700 disabled:opacity-30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            <ChevronLeft size={16} /> {t("placeEditor.previous")}
+          </button>
+          <button type="button" disabled={index === total - 1} onClick={onNext} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-teal-600 disabled:opacity-30">
+            {t("placeEditor.next")} <ChevronRight size={16} />
+          </button>
+        </footer>
       </div>
     </article>
   );
