@@ -116,7 +116,6 @@ export default function CrewPage() {
   const { currentLang } = useLangStore();
 
   // 내가 참여한 크루
-  // 기존 ID 방식 + 새 객체 방식 둘 다 대응
   const [joined, setJoined] = useState(() => {
     try {
       return JSON.parse(
@@ -168,7 +167,9 @@ export default function CrewPage() {
   const t = (key, variables) =>
     translate(currentLang, key, variables);
 
-  // localStorage의 내가 만든 크루 목록 다시 읽기
+  // =========================
+  // localStorage 크루 다시 읽기
+  // =========================
   useEffect(() => {
     const loadCrews = () => {
       try {
@@ -176,18 +177,29 @@ export default function CrewPage() {
           localStorage.getItem("crews") || "[]"
         );
 
-        setCreatedCrews(storedCrews);
-      } catch (error) {
-        console.error(
-          "Failed to load crews",
-          error
+        const storedJoined = JSON.parse(
+          localStorage.getItem("joinedCrews") || "[]"
         );
+
+        setCreatedCrews(
+          Array.isArray(storedCrews) ? storedCrews : []
+        );
+
+        setJoined(
+          Array.isArray(storedJoined) ? storedJoined : []
+        );
+      } catch (error) {
+        console.error("Failed to load crews:", error);
+
+        setCreatedCrews([]);
+        setJoined([]);
       }
     };
 
+    // 처음 페이지에 들어왔을 때
     loadCrews();
 
-    // 다른 페이지에서 크루가 수정/생성된 경우 반영
+    // 다른 페이지에서 크루가 변경되었을 때
     window.addEventListener("crewChanged", loadCrews);
 
     return () => {
@@ -198,84 +210,117 @@ export default function CrewPage() {
     };
   }, []);
 
-  // 마이페이지에서 "오픈채팅방 입장"으로 들어왔을 때
-  // 해당 크루의 채팅창을 자동으로 연다.
+  // =========================
+  // 마이페이지에서
+  // "오픈채팅방 입장"으로 들어왔을 때
+  // =========================
   useEffect(() => {
     const openChatCrew = location.state?.openChatCrew;
 
-    if (openChatCrew) {
-      setActiveChatCrew(openChatCrew);
-
-      navigate("/crew", {
-        replace: true,
-        state: null,
-      });
+    if (!openChatCrew) {
+      return;
     }
+
+    setActiveChatCrew(openChatCrew);
+
+    // state 제거
+    navigate("/crew", {
+      replace: true,
+      state: null,
+    });
   }, [location.state, navigate]);
 
+  // =========================
   // 화면에 보여줄 크루
+  // =========================
   const visibleCrews = useMemo(() => {
-    return [...createdCrews, ...sampleCrews].filter(
-      (crew) => {
-        if (!keyword) {
-          return true;
-        }
+    const allCrews = [
+      ...createdCrews,
+      ...sampleCrews,
+    ];
 
-        const regionNames =
-          typeof crew?.regionName === "object"
-            ? Object.values(crew.regionName).join(" ")
-            : crew?.regionName ||
-              crew?.region ||
-              "";
-
-        const searchable = `
-          ${getCrewTitle(crew, currentLang)}
-          ${regionNames}
-          ${(crew?.tags || []).join(" ")}
-        `
-          .toLowerCase()
-          .trim();
-
-        return searchable.includes(keyword);
-      }
+    // 같은 ID 중복 제거
+    const uniqueCrews = Array.from(
+      new Map(
+        allCrews.map((crew) => [
+          String(crew.id),
+          crew,
+        ])
+      ).values()
     );
+
+    return uniqueCrews.filter((crew) => {
+      if (!keyword) {
+        return true;
+      }
+
+      const regionNames =
+        typeof crew?.regionName === "object"
+          ? Object.values(crew.regionName).join(" ")
+          : crew?.regionName ||
+            crew?.region ||
+            "";
+
+      const searchable = `
+        ${getCrewTitle(crew, currentLang)}
+        ${regionNames}
+        ${(crew?.tags || []).join(" ")}
+      `
+        .toLowerCase()
+        .trim();
+
+      return searchable.includes(keyword);
+    });
   }, [createdCrews, currentLang, keyword]);
 
   // =========================
   // 크루 참여하기
   // =========================
   const handleJoin = (crew) => {
-    setJoined((current) => {
-      // 기존에 ID로 저장된 경우와
-      // 크루 객체로 저장된 경우 모두 확인
-      const alreadyJoined = current.some((item) => {
+    const currentJoined = (() => {
+      try {
+        const value = JSON.parse(
+          localStorage.getItem("joinedCrews") || "[]"
+        );
+
+        return Array.isArray(value) ? value : [];
+      } catch {
+        return [];
+      }
+    })();
+
+    const alreadyJoined = currentJoined.some(
+      (item) => {
         const id =
           item && typeof item === "object"
             ? item.id
             : item;
 
-        return String(id) === String(crew.id);
-      });
-
-      // 이미 참여한 크루라면 아무것도 하지 않음
-      if (alreadyJoined) {
-        return current;
+        return (
+          String(id) === String(crew.id)
+        );
       }
+    );
 
-      // ★ 중요
-      // 크루 ID만 저장하지 않고
-      // 크루 정보 전체를 저장한다.
-      const nextJoined = [...current, crew];
+    if (alreadyJoined) {
+      return;
+    }
 
-      localStorage.setItem(
-        "joinedCrews",
-        JSON.stringify(nextJoined)
-      );
+    // 현재 구조에서는 크루 객체를 저장
+    // → 샘플 크루도 마이페이지에서 표시 가능
+    const nextJoined = [
+      ...currentJoined,
+      crew,
+    ];
 
-      return nextJoined;
-    });
+    localStorage.setItem(
+      "joinedCrews",
+      JSON.stringify(nextJoined)
+    );
 
-    // 마이페이지가 바로 갱신될 수 있도록 이벤트 발생
+    setJoined(nextJoined);
+
+    // 마이페이지 등에 변경사항 알림
     window.dispatchEvent(
       new Event("crewChanged")
     );
@@ -356,21 +401,25 @@ export default function CrewPage() {
                 crew?.date ??
                 "";
 
-              // 내가 작성한 크루인지 확인
+              // 내가 만든 크루인지 확인
               const isMine = createdCrews.some(
                 (createdCrew) =>
                   String(createdCrew.id) ===
                   String(crew.id)
               );
 
-              const percent = Math.min(
-                100,
-                Math.round(
-                  (memberCount / capacity) * 100
-                )
-              );
+              const percent =
+                capacity > 0
+                  ? Math.min(
+                      100,
+                      Math.round(
+                        (memberCount / capacity) *
+                          100
+                      )
+                    )
+                  : 0;
 
-              // ★ ID 저장 / 객체 저장 모두 대응
+              // ID 저장 / 객체 저장 모두 대응
               const isJoined = joined.some(
                 (item) => {
                   const id =
@@ -457,7 +506,9 @@ export default function CrewPage() {
                         </span>
 
                         <span className="flex items-center gap-1">
-                          <CalendarDays size={10} />
+                          <CalendarDays
+                            size={10}
+                          />
 
                           {formatTravelDate(
                             travelDate,
@@ -483,15 +534,19 @@ export default function CrewPage() {
                       onClick={() =>
                         handleJoin(crew)
                       }
-                      disabled={isJoined}
+                      disabled={
+                        isJoined || percent >= 100
+                      }
                       className={`w-full rounded-xl py-2 text-sm font-medium text-white transition-all ${
-                        isJoined
+                        isJoined || percent >= 100
                           ? "cursor-default bg-gray-400"
                           : "bg-primary hover:bg-primaryHover"
                       }`}
                     >
                       {isJoined
                         ? "참여완료"
+                        : percent >= 100
+                        ? "모집마감"
                         : "참여하기"}
                     </button>
                   </div>
@@ -568,9 +623,7 @@ export default function CrewPage() {
                 >
                   {!msg.isMe && (
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-300 text-xs font-bold text-gray-700">
-                      {t(
-                        msg.senderKey
-                      )[0]}
+                      {t(msg.senderKey)?.[0]}
                     </div>
                   )}
 
@@ -624,9 +677,7 @@ export default function CrewPage() {
                 type="text"
                 value={inputMessage}
                 onChange={(e) =>
-                  setInputMessage(
-                    e.target.value
-                  )
+                  setInputMessage(e.target.value)
                 }
                 placeholder={t(
                   "crew.messagePlaceholder"
