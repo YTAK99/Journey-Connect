@@ -10,7 +10,8 @@ const validCoordinate = (place) => Number.isFinite(place?.latitude)
   && place.longitude >= -180 && place.longitude <= 180;
 
 // 장소 이름을 가져오는 함수 (이름이 없으면 언어 설정에 맞춰 '장소 N' 또는 'Stop N' 반환)
-const getPlaceName = (place, index, lang) => place.placeName
+const getPlaceName = (place, index, lang) => place.region?.localizedNames?.[lang]
+  || place.placeName
   || place.region?.displayName
   || translate(lang, "routeMap.stop", { count: index + 1 });
 
@@ -55,9 +56,8 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
 
     const initialize = async () => {
       try {
-        // 1. 구글 맵 API 및 마커 라이브러리 로드
+        // 1. 구글 맵 API 로드
         const maps = await loadGoogleMaps();
-        const { AdvancedMarkerElement } = await maps.importLibrary("marker");
         if (!active) return;
 
         // 첫 번째 장소의 좌표를 지도의 초기 중심점으로 설정
@@ -65,7 +65,6 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
         const map = new maps.Map(mapElementRef.current, {
           center: { lat: first.latitude, lng: first.longitude },
           zoom: 14,
-          mapId: "DEMO_MAP_ID",
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: !compact,
@@ -78,16 +77,16 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
         markers = route.map(({ place, index }, routeIndex) => {
           const position = path[routeIndex];
           bounds.extend(position);
-          // 마커 내부 순서 번호 표시용 HTML 뱃지 생성
-          const badge = document.createElement("div");
-          badge.className = `flex items-center justify-center rounded-full border-2 border-white bg-teal-600 font-extrabold text-white shadow-lg ${compact ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs"}`;
-          badge.textContent = String(index + 1);
-          const marker = new AdvancedMarkerElement({
+          const marker = new maps.Marker({
             map,
             position,
             title: getPlaceName(place, index, lang),
-            content: badge,
-            gmpClickable: true,
+            label: {
+              text: String(index + 1),
+              color: "#ffffff",
+              fontSize: compact ? "10px" : "12px",
+              fontWeight: "700",
+            },
           });
           // 마커 클릭 시 장소 이름이 담긴 인포윈도우(말풍선) 오픈
           const handleMarkerClick = () => {
@@ -95,8 +94,8 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
             infoWindow.setContent(`<div style="padding:4px 2px;font-weight:700">${index + 1}. ${name.replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</div>`);
             infoWindow.open({ map, anchor: marker });
           };
-          marker.addEventListener("gmp-click", handleMarkerClick);
-          markerClickHandlers.push({ marker, handleMarkerClick });
+          const clickListener = marker.addListener("click", handleMarkerClick);
+          markerClickHandlers.push(clickListener);
           return marker;
         });
 
@@ -128,10 +127,8 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
     // 클린업 함수: 컴포넌트 언마운트 시 이벤트 리스너 및 지도 객체 정리
     return () => {
       active = false;
-      markerClickHandlers.forEach(({ marker, handleMarkerClick }) => {
-        marker.removeEventListener("gmp-click", handleMarkerClick);
-      });
-      markers.forEach((marker) => { marker.map = null; });
+      markerClickHandlers.forEach((listener) => listener.remove());
+      markers.forEach((marker) => marker.setMap(null));
       if (polyline) polyline.setMap(null);
     };
   }, [compact, lang, route]);

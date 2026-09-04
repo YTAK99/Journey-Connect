@@ -5,5 +5,6 @@ public enum CrewMemberStatus {
     PENDING,
     APPROVED,
     REJECTED,
-    CANCELLED
+    CANCELLED,
+    KICKED
 }

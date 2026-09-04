@@ -5,6 +5,8 @@ import BackendTestPage from "./pages/BackendTestPage";
 import Complete from "./pages/Complete";
 import CrewPage from "./pages/CrewPage";
 import CrewCreate from "./pages/CrewCreate";
+import CrewDetail from "./pages/CrewDetail";
+import CrewChat from "./pages/CrewChat";
 import FeedPage from "./pages/FeedPage";
 import FindPassword from "./pages/FindPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -75,6 +77,8 @@ export default function App() {
           <Route path="/explore" element={<SearchPage />} />
           <Route path="/crew" element={<CrewPage />} />
           <Route path="/crew/create" element={<CrewCreate />} />
+          <Route path="/crew/:id" element={<CrewDetail />} />
+          <Route path="/crew/:id/chat" element={<CrewChat />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/my-posts" element={<MyPosts />} />
           <Route path="/write" element={<WritePost />} />

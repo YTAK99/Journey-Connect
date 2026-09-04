@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Bookmark,
   Camera,
+  CalendarDays,
   Edit3,
   FileText,
   Heart,
@@ -11,13 +12,15 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import apiClient, { getApiErrorMessage, unwrapApiResponse } from "../services/apiClient";
 import { getUser, isLogin } from "../services/auth";
 import { getFeedItems, uploadPostImages } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import { getMessages } from "../i18n";
 import UserAvatar from "../components/UserAvatar";
+import { crewStatusLabel, getStableCrewColor } from "../data/crewCategories";
+import { crewPageItems, getMyCrews } from "../services/crewApi";
 
 const fallbackPostImage = "/ex_1.jpg";
 const profileImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -75,6 +78,35 @@ function EmptyState({ icon: Icon, message, actionLabel, onAction }) {
         </button>
       )}
     </div>
+  );
+}
+
+function CrewTile({ item, lang }) {
+  const navigate = useNavigate();
+  const crew = item.crew || item;
+  const ended = !crew.recruiting;
+  const canChat = crew.viewer?.canAccessChat;
+  const ko = lang === "ko";
+  const fallbackColor = getStableCrewColor(crew.id ?? crew.title);
+  return (
+    <article className="col-span-full overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+      <div className="flex flex-col sm:flex-row">
+        <button type="button" onClick={() => navigate(`/crew/${crew.id}`)} className="h-44 w-full shrink-0 overflow-hidden text-left sm:h-auto sm:w-48" style={{ backgroundColor: fallbackColor }}>
+          {crew.coverImageUrl && <img src={crew.coverImageUrl} alt="" className="h-full w-full object-cover" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
+        </button>
+        <div className="min-w-0 flex-1 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0"><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold ${ended ? "bg-slate-100 text-slate-500 dark:bg-slate-800" : item.membershipStatus === "PENDING" ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" : "bg-teal-50 text-primary dark:bg-teal-950/30"}`}>{ended ? (ko ? "종료됨" : "Ended") : crewStatusLabel(item.membershipStatus, lang)}</span><h3 className="mt-2 truncate text-lg font-extrabold text-title">{crew.title}</h3></div>
+            <span className="shrink-0 text-xs font-semibold text-muted">{crew.memberCount}/{crew.capacity}</span>
+          </div>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">{crew.description}</p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted"><CalendarDays size={14} className="text-primary" /> {crew.travelDate || (ko ? "날짜 협의" : "Date TBD")}</span>
+            <div className="flex gap-2"><button type="button" onClick={() => navigate(`/crew/${crew.id}`)} className="rounded-xl border border-border px-3 py-2 text-xs font-bold text-muted hover:text-primary">{ko ? "상세 보기" : "Details"}</button>{canChat && <button type="button" onClick={() => navigate(`/crew/${crew.id}/chat`)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold ${ended ? "bg-secondary text-muted" : "bg-primary text-white"}`}><MessageCircle size={14} /> {ended ? (ko ? "채팅 기록" : "Chat history") : (ko ? "채팅방" : "Chat")}</button>}</div>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -181,13 +213,15 @@ function ProfileEditor({ user, labels, onClose, onSave }) {
 
 export default function MyPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentLang } = useLangStore();
   const labels = getMessages(currentLang, "myPage");
   const loginUser = getUser();
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "crews" ? 3 : 0);
   const [posts, setPosts] = useState([]);
   const [likedPosts, setLikedPosts] = useState([]);
   const [bookmarks, setBookmarks] = useState([]);
+  const [myCrews, setMyCrews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
@@ -209,12 +243,14 @@ export default function MyPage() {
         apiClient.get("/users/me/posts", { params: { size: 100 } }),
         apiClient.get("/users/me/bookmarks", { params: { size: 100 } }),
         apiClient.get("/users/me/likes", { params: { size: 100 } }),
+        getMyCrews(),
       ])
-        .then(([postResponse, bookmarkResponse, likeResponse]) => {
+        .then(([postResponse, bookmarkResponse, likeResponse, crewPage]) => {
           if (!active) return;
           setPosts(getFeedItems(unwrapApiResponse(postResponse)));
           setBookmarks(getFeedItems(unwrapApiResponse(bookmarkResponse)));
           setLikedPosts(getFeedItems(unwrapApiResponse(likeResponse)));
+          setMyCrews(crewPageItems(crewPage));
         })
         .catch((requestError) => {
           if (active) setError(getApiErrorMessage(requestError, labels.loadError));
@@ -258,7 +294,8 @@ export default function MyPage() {
       if (!bookmarks.length) return <EmptyState icon={Bookmark} message={labels.emptyBookmarks} />;
       return bookmarks.map((post) => <PostTile key={post.id} post={post} />);
     }
-    return <EmptyState icon={Users} message={labels.unavailableCrew} />;
+    if (!myCrews.length) return <EmptyState icon={Users} message={labels.unavailableCrew} actionLabel={currentLang === "ko" ? "크루 둘러보기" : "Browse crews"} onAction={() => navigate("/crew")} />;
+    return myCrews.map((crew) => <CrewTile key={crew.crew?.id || crew.id} item={crew} lang={currentLang} />);
   };
 
   return (

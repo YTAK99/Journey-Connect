@@ -96,6 +96,32 @@ public class RegionService {
                 "지역 코드는 필수입니다.");
     }
 
+    @Transactional
+    public Region requireClientPlace(
+            String placeId, String displayName, double latitude, double longitude) {
+        validateCoordinates(latitude, longitude);
+        if (placeId == null || placeId.isBlank()) {
+            return require(null, displayName, null);
+        }
+        String normalizedPlaceId = placeId.trim();
+        return regions.findByGooglePlaceId(normalizedPlaceId).orElseGet(() -> {
+            String normalizedName = normalizeDisplayName(displayName);
+            regions.insertGoogleRegionIfMissing(
+                    googleCode(normalizedPlaceId),
+                    "ZZ",
+                    normalizedName,
+                    normalizedPlaceId,
+                    joinSearchText(normalizedName, normalizedPlaceId),
+                    latitude,
+                    longitude);
+            return regions.findByGooglePlaceId(normalizedPlaceId)
+                    .orElseThrow(() -> new DomainException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "REGION_REGISTRATION_FAILED",
+                            "지역을 등록하지 못했습니다."));
+        });
+    }
+
     private Region registerGooglePlace(String placeId) {
         // 한·영 Place Details를 함께 저장해 표시 언어와 상관없이 같은 지역을 검색할 수 있게 합니다.
         GoogleLocationDtos.ResolvedPlace korean = googleLocations.resolvePlace(placeId, "ko");

@@ -38,23 +38,19 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         const initialCenter = Number.isFinite(value?.latitude) && Number.isFinite(value?.longitude)
           ? { lat: value.latitude, lng: value.longitude }
           : SEOUL;
-        // 2. 구글 맵 라이브러리(마커, 장소) 로드
-        const [{ AdvancedMarkerElement }, { Place, PlaceAutocompleteElement }] = await Promise.all([
-          maps.importLibrary("marker"),
-          maps.importLibrary("places"),
-        ]);
+        // 2. 구글 장소 라이브러리 로드
+        const { Place, PlaceAutocompleteElement } = await maps.importLibrary("places");
         if (!active) return;
         // 3. 맵 인스턴스 생성
         map = new maps.Map(mapElementRef.current, {
           center: initialCenter,
           zoom: value?.latitude ? 16 : 12,
-          mapId: "DEMO_MAP_ID",
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
         });
         // 지도 위에 표시될 마커 생성
-        markerRef.current = new AdvancedMarkerElement({
+        markerRef.current = new maps.Marker({
           map,
           position: value?.latitude ? initialCenter : undefined,
         });
@@ -62,7 +58,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         // 4. 장소 선택 시 마커 위치 이동 및 상태 업데이트 함수
         const applySelection = (next) => {
           if (!active) return;
-          markerRef.current.position = { lat: next.latitude, lng: next.longitude };
+          markerRef.current.setPosition({ lat: next.latitude, lng: next.longitude });
           map.panTo({ lat: next.latitude, lng: next.longitude });
           map.setZoom(Math.max(map.getZoom() || 15, 16));
           setSelection(next);
@@ -174,7 +170,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         autocompleteElement.removeEventListener("gmp-select", autocompleteSelectHandler);
       }
       if (autocompleteContainer) autocompleteContainer.replaceChildren();
-      if (markerRef.current) markerRef.current.map = null;
+      if (markerRef.current) markerRef.current.setMap(null);
     };
   }, [lang, value]);
 

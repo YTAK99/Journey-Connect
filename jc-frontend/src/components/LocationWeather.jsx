@@ -6,6 +6,7 @@ import { getGoogleLocationSuggestions, getGoogleLocationSummary } from "../servi
 import useLangStore from "../store/useLangStore";
 import { getMessages } from "../i18n";
 import { toRegionPreference } from "../utils/region";
+import { loadGoogleMaps } from "../utils/googleMapsLoader";
 
 const getLocalDate = (timezone, lang) => {
   try {
@@ -65,6 +66,40 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
 
     let active = true;
     const timer = setTimeout(() => {
+      if (searchMode === "region") {
+        loadGoogleMaps()
+          .then(async (maps) => {
+            if (!active) return;
+            const { AutocompleteSuggestion } = await maps.importLibrary("places");
+            const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+              input: trimmed,
+              language: currentLang === "ko" ? "ko" : "en",
+              includedPrimaryTypes: ["locality", "administrative_area_level_1", "administrative_area_level_2"],
+            });
+            if (!active) return;
+            const predictions = (response.suggestions || [])
+              .map((item) => item.placePrediction)
+              .filter(Boolean);
+            setSuggestions(predictions.slice(0, 6).map((prediction) => ({
+                placeId: prediction.placeId,
+                mainText: prediction.mainText?.toString() || prediction.text?.toString() || "",
+                secondaryText: prediction.secondaryText?.toString() || "",
+                description: prediction.text?.toString() || prediction.mainText?.toString() || "",
+                browserResult: true,
+                placePrediction: prediction,
+              })));
+            setSuggestionError("");
+            setSuggestionLoading(false);
+          })
+          .catch(() => {
+            if (active) {
+              setSuggestions([]);
+              setSuggestionError(labels.suggestionsFailed);
+              setSuggestionLoading(false);
+            }
+          });
+        return;
+      }
       getGoogleLocationSuggestions(trimmed, currentLang, searchMode)
         .then((items) => {
           if (active) setSuggestions(Array.isArray(items) ? items : []);
@@ -91,7 +126,37 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
 
   const visibleSuggestions = query.trim().length >= 2 ? suggestions : [];
 
-  const selectSuggestion = (suggestion) => {
+  const selectSuggestion = async (suggestion) => {
+    if (suggestion.browserResult && suggestion.placePrediction) {
+      setSuggestionLoading(true);
+      setSuggestionError("");
+      try {
+        const place = suggestion.placePrediction.toPlace();
+        await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "location"] });
+        if (!place.location) throw new Error("Selected city has no coordinates.");
+        const name = place.displayName || suggestion.mainText;
+        onSearch(name, {
+          id: `google:${suggestion.placeId}`,
+          placeId: suggestion.placeId,
+          code: null,
+          label: { ko: name, en: name },
+          country: place.formattedAddress || suggestion.secondaryText,
+          timezone: "UTC",
+          weather: { temp: 0, conditionKo: "날씨 확인 중", conditionEn: "Checking weather" },
+          flightTime: { ko: "이동 시간 확인 중", en: "Checking travel time" },
+          latitude: place.location.lat(),
+          longitude: place.location.lng(),
+          address: place.formattedAddress || "",
+          custom: true,
+        });
+        onClose();
+      } catch {
+        setSuggestionError(labels.suggestionsFailed);
+      } finally {
+        setSuggestionLoading(false);
+      }
+      return;
+    }
     onSearch(suggestion.description, {
       id: `google:${suggestion.placeId}`,
       placeId: suggestion.placeId,
@@ -243,17 +308,20 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     let ignore = false;
 
     // 장소 조회가 성공한 동적 지역만 좌표·시간대가 포함된 값으로 전역 상태를 갱신합니다.
-    getGoogleLocationSummary(request.query, currentLang)
+    getGoogleLocationSummary(request.query, currentLang, request.location)
       .then((data) => {
         if (!ignore) {
           setSummary(data);
+          setErrorMessage("");
           if (request.persistDynamic) onRegionChange(createCustomRegion(request.query, data));
         }
       })
-      .catch((error) => {
+      .catch(() => {
         if (!ignore) {
           setSummary(null);
-          setErrorMessage(getApiErrorMessage(error, labels.locationFailed));
+          setErrorMessage(currentLang === "ko"
+            ? "실시간 정보를 불러오지 못해 기본 지역 정보를 표시합니다."
+            : "Showing saved region information because live data is unavailable.");
         }
       })
       .finally(() => {
@@ -263,7 +331,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     return () => {
       ignore = true;
     };
-  }, [currentLang, labels.locationFailed, onRegionChange, request]);
+  }, [currentLang, onRegionChange, request]);
 
   const runSearch = (nextQuery, presetRegion = null) => {
     setLoading(true);
@@ -276,7 +344,12 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     setRequest((value) => ({
       id: value.id + 1,
       query: nextQuery,
-      persistDynamic: !presetRegion,
+      persistDynamic: !presetRegion || Boolean(presetRegion?.custom),
+      location: presetRegion?.custom ? {
+        latitude: presetRegion.latitude,
+        longitude: presetRegion.longitude,
+        address: presetRegion.address,
+      } : null,
     }));
   };
 
@@ -315,7 +388,6 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
                   {loading && <Loader2 size={15} className="animate-spin text-teal-600" />}
                 </h2>
                 {display.address && <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{display.address}</p>}
-                {errorMessage && <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errorMessage}</p>}
               </div>
 
               <div className="flex items-center gap-3 rounded-full bg-gray-50 px-3 py-1.5 text-sm text-gray-600 dark:bg-slate-800 dark:text-slate-300">
@@ -344,6 +416,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
                 </span>
               </span>
             </div>
+            {errorMessage && <p className="mt-2 text-xs text-amber-600 dark:text-amber-300">{errorMessage}</p>}
           </div>
 
           <button

@@ -13,6 +13,9 @@ import org.springframework.data.repository.query.Param;
 /** 피드 정렬·검색·작성자별 목록과 상세 연관 데이터를 조회하는 게시물 저장소입니다. */
 public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> {
 
+    @EntityGraph(attributePaths = {"region"})
+    List<JourneyPost> findByIdInAndAuthorId(List<Long> ids, Long authorId);
+
     @EntityGraph(attributePaths = {"author", "region"}) // 목록 DTO에 필요한 관계를 즉시 로딩해 N+1을 막습니다.
     Page<JourneyPost> findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(String moderationStatus, Pageable pageable);
 

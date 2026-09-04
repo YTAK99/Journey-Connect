@@ -53,9 +53,8 @@ public class CrewRecommendationCandidateSource {
                     on viewer.crew_id = c.id
                    and viewer.user_id = ?
                  where c.recruiting = true
-                   and (c.travel_date is null or c.travel_date >= ?)
                    and owner_user.account_status = 'active'
-                   and (viewer.id is null or viewer.status = 'CANCELLED')
+                   and (viewer.id is null or viewer.status in ('CANCELLED', 'REJECTED'))
                    and (select count(*)
                           from crew_member active_member
                          where active_member.crew_id = c.id
@@ -81,7 +80,6 @@ public class CrewRecommendationCandidateSource {
                         nullableStatus(resultSet.getString("viewer_status")),
                         List.of()),
                 viewerId,
-                Date.valueOf(today),
                 limit);
 
         if (candidates.isEmpty()) {

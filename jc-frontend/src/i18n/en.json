@@ -160,7 +160,7 @@
     "back": "Back", "editProfile": "Edit profile", "posts": "Posts", "likes": "Likes", "comments": "Comments",
     "tabs": ["My journeys", "Liked places", "Saved", "Crew activity"], "loading": "Loading your posts...",
     "loadError": "Unable to load your profile posts.", "emptyPosts": "You haven't written a journey yet.", "emptyBookmarks": "You haven't saved any places yet.",
-    "unavailableLikes": "You have not liked any posts yet.", "unavailableCrew": "Your crew activity is coming soon.",
+    "unavailableLikes": "You have not liked any posts yet.", "unavailableCrew": "You have not created or joined a crew yet.",
     "write": "Write your first journey", "nickname": "Nickname", "email": "Email", "cancel": "Cancel", "save": "Save", "close": "Close",
     "editHint": "Use a JPEG, PNG, WebP, or GIF image up to 5MB.", "traveler": "Traveler", "imageOnly": "Select an image file.", "imageInvalid": "Select a JPEG, PNG, WebP, or GIF image up to 5MB.", "nicknameAlreadyUsed": "This nickname is already in use.",
     "currentPassword": "Current password", "currentPasswordPlaceholder": "Enter your current password", "newPassword": "New password", "newPasswordPlaceholder": "At least 8 characters",

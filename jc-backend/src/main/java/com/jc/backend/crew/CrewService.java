@@ -5,6 +5,9 @@ import com.jc.backend.common.PageResponse;
 import com.jc.backend.notification.NotificationService;
 import com.jc.backend.post.Tag;
 import com.jc.backend.post.TagService;
+import com.jc.backend.post.JourneyPost;
+import com.jc.backend.post.JourneyPostRepository;
+import com.jc.backend.post.RichTextSanitizer;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionService;
 import com.jc.backend.user.UserAccount;
@@ -48,6 +51,8 @@ public class CrewService {
     private final UserRepository users;
     private final RegionService regionService;
     private final TagService tagService;
+    private final JourneyPostRepository posts;
+    private final RichTextSanitizer richTextSanitizer;
     private final NotificationService notificationService;
     private final CrewRecommendationFeedbackService recommendationFeedback;
 
@@ -57,6 +62,8 @@ public class CrewService {
             UserRepository users,
             RegionService regionService,
             TagService tagService,
+            JourneyPostRepository posts,
+            RichTextSanitizer richTextSanitizer,
             NotificationService notificationService,
             CrewRecommendationFeedbackService recommendationFeedback) {
         this.crews = crews;
@@ -64,26 +71,30 @@ public class CrewService {
         this.users = users;
         this.regionService = regionService;
         this.tagService = tagService;
+        this.posts = posts;
+        this.richTextSanitizer = richTextSanitizer;
         this.notificationService = notificationService;
         this.recommendationFeedback = recommendationFeedback;
     }
 
     public PageResponse<CrewDtos.View> list(Pageable pageable) {
-        return list(null, null, null, pageable);
+        return list(null, null, null, null, pageable);
     }
 
     public PageResponse<CrewDtos.View> list(Long viewerId, Pageable pageable) {
-        return list(viewerId, null, null, pageable);
+        return list(viewerId, null, null, null, pageable);
     }
 
     public PageResponse<CrewDtos.View> list(
             Long viewerId,
             String keyword,
             String region,
+            CrewCategory category,
             Pageable pageable) {
         Page<Crew> page = crews.searchRecruiting(
                 normalizeSearch(keyword),
                 normalizeSearch(region),
+                category,
                 pageable);
         List<Long> crewIds = page.getContent().stream().map(Crew::getId).toList();
         Map<Long, Long> activeCounts = countMap(crewIds, ACTIVE_STATUSES);
@@ -166,10 +177,13 @@ public class CrewService {
     public CrewDtos.View create(Long userId, CrewDtos.CreateRequest request) {
         UserAccount owner = lockedUser(userId);
         ensureOwnedRecruitingLimit(userId);
-        Region region = regionService.require(request.regionCode(), request.regionName());
         boolean approvalRequired = request.approvalRequired() == null
                 || request.approvalRequired();
-        ensureTravelDateNotPassed(request.travelDate());
+        List<Crew.RoutePlaceData> routePlaces = resolveRoutePlaces(request.routePlaces());
+        List<JourneyPost> routes = resolveRoutes(userId, request.routeIds(), false);
+        Region region = routePlaces.isEmpty()
+                ? regionService.require(request.regionCode(), request.regionName())
+                : routePlaces.get(0).region();
         Crew crew = new Crew(
                 owner,
                 region,
@@ -181,6 +195,8 @@ public class CrewService {
                 request.coverImageUrl(),
                 tagService.resolve(request.tags()));
         crew.updateOpenChatUrl(normalizeOpenChatUrl(request.openChatUrl()));
+        crew.updateCategoryAndRoutes(request.category(), routes);
+        crew.replaceRoutePlaces(routePlaces);
         crew = crews.save(crew);
         members.save(new CrewMember(crew, owner, CrewMemberStatus.OWNER));
         return view(
@@ -209,7 +225,12 @@ public class CrewService {
                     "현재 참가 인원보다 정원을 작게 설정할 수 없습니다.");
         }
 
-        Region nextRegion = crew.getRegion();
+        List<Crew.RoutePlaceData> nextRoutePlaces = request.routePlaces() == null
+                ? null
+                : resolveRoutePlaces(request.routePlaces());
+        Region nextRegion = nextRoutePlaces == null
+                ? crew.getRegion()
+                : nextRoutePlaces.get(0).region();
         if (request.regionCode() != null || request.regionName() != null) {
             nextRegion = regionService.require(request.regionCode(), request.regionName());
         }
@@ -227,10 +248,6 @@ public class CrewService {
         LocalDate nextTravelDate = request.travelDate() == null
                 ? crew.getTravelDate()
                 : request.travelDate();
-        if (crew.isRecruiting()) {
-            ensureTravelDateNotPassed(nextTravelDate);
-        }
-
         String nextCoverImageUrl = request.coverImageUrl() == null
                 ? crew.getCoverImageUrl()
                 : normalizeOptional(request.coverImageUrl());
@@ -240,6 +257,12 @@ public class CrewService {
         List<Tag> nextTags = request.tags() == null
                 ? crew.getTags()
                 : tagService.resolve(request.tags());
+        CrewCategory nextCategory = request.category() == null
+                ? crew.getCategory()
+                : request.category();
+        List<JourneyPost> nextRoutes = request.routeIds() == null
+                ? crew.getRoutes()
+                : resolveRoutes(ownerId, request.routeIds(), true);
 
         crew.updateDetails(
                 nextRegion,
@@ -250,6 +273,8 @@ public class CrewService {
                 nextCoverImageUrl,
                 nextTags);
         crew.updateOpenChatUrl(nextOpenChatUrl);
+        crew.updateCategoryAndRoutes(nextCategory, nextRoutes);
+        if (nextRoutePlaces != null) crew.replaceRoutePlaces(nextRoutePlaces);
         return managementView(crew, ownerId, memberCount);
     }
 
@@ -265,7 +290,12 @@ public class CrewService {
     public CrewDtos.View reopenRecruitment(Long ownerId, Long crewId) {
         Crew crew = lockedCrew(crewId);
         ensureOwner(crew, ownerId);
-        ensureTravelDateNotPassed(crew.getTravelDate());
+        if (crew.getEndedAt() != null) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_ALREADY_ENDED",
+                    "종료된 크루는 다시 모집할 수 없습니다.");
+        }
 
         long memberCount = approvedMemberCount(crewId);
         if (memberCount >= crew.getCapacity()) {
@@ -289,15 +319,26 @@ public class CrewService {
      */
     @Transactional
     public CrewDtos.ApplicationView join(Long userId, Long crewId) {
+        // 기존 내부 호출과 테스트 계약은 유지하되, HTTP API는 사용자가 입력한 메시지를 전달합니다.
+        return join(userId, crewId, "참여 신청합니다.");
+    }
+
+    @Transactional
+    public CrewDtos.ApplicationView join(Long userId, Long crewId, String message) {
         // 크루 행 잠금 뒤 정원을 다시 세어 동시 신청이 capacity를 넘지 않게 합니다.
         Crew crew = lockedCrew(crewId);
         ensureRecruiting(crew);
-        ensureTravelDateNotPassed(crew.getTravelDate());
         UserAccount applicant = user(userId);
 
         CrewMember existing = members.findByCrewIdAndUserId(crewId, userId).orElse(null);
         if (existing != null && EXISTING_APPLICATION_STATUSES.contains(existing.getStatus())) {
             return applicationView(existing);
+        }
+        if (existing != null && existing.getStatus() == CrewMemberStatus.KICKED) {
+            throw new DomainException(
+                    HttpStatus.FORBIDDEN,
+                    "CREW_MEMBER_KICKED",
+                    "내보내기 된 크루에는 다시 참여할 수 없습니다.");
         }
 
         if (approvedMemberCount(crewId) >= crew.getCapacity()) {
@@ -310,11 +351,13 @@ public class CrewService {
         CrewMemberStatus nextStatus = crew.isApprovalRequired()
                 ? CrewMemberStatus.PENDING
                 : CrewMemberStatus.APPROVED;
+        String applicationMessage = normalizeApplicationMessage(message, crew.isApprovalRequired());
         CrewMember application;
         if (existing == null) {
             application = members.save(new CrewMember(crew, applicant, nextStatus));
+            application.apply(nextStatus, applicationMessage);
         } else {
-            existing.reapply(nextStatus);
+            existing.apply(nextStatus, applicationMessage);
             application = existing;
         }
         if (nextStatus == CrewMemberStatus.PENDING) {
@@ -328,6 +371,30 @@ public class CrewService {
             recommendationFeedback.recordApprovedJoin(userId, crewId);
         }
         return applicationView(application);
+    }
+
+    @Transactional
+    public void kick(Long ownerId, Long crewId, Long memberUserId) {
+        Crew crew = lockedCrew(crewId);
+        ensureOwner(crew, ownerId);
+        if (ownerId.equals(memberUserId)) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_OWNER_CANNOT_BE_KICKED",
+                    "크루장은 내보낼 수 없습니다.");
+        }
+        CrewMember member = members.findByCrewIdAndUserId(crewId, memberUserId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "CREW_MEMBER_NOT_FOUND",
+                        "참여자를 찾을 수 없습니다."));
+        if (member.getStatus() != CrewMemberStatus.APPROVED) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "CREW_MEMBER_NOT_ACTIVE",
+                    "현재 참여 중인 멤버만 내보낼 수 있습니다.");
+        }
+        member.kick(user(ownerId));
     }
 
     @Transactional
@@ -448,6 +515,23 @@ public class CrewService {
     private String normalizeOptional(String value) {
         String normalized = value.trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private String normalizeApplicationMessage(String value, boolean required) {
+        String normalized = value == null ? null : value.trim();
+        if (required && (normalized == null || normalized.isBlank())) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "CREW_APPLICATION_MESSAGE_REQUIRED",
+                    "승인제 크루에는 가입 신청 메시지가 필요합니다.");
+        }
+        if (normalized != null && normalized.length() > 500) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "CREW_APPLICATION_MESSAGE_TOO_LONG",
+                    "가입 신청 메시지는 500자 이내여야 합니다.");
+        }
+        return normalized == null || normalized.isBlank() ? null : normalized;
     }
 
     private String normalizeOpenChatUrl(String value) {
@@ -606,12 +690,12 @@ public class CrewService {
                         || effectiveStatus == CrewMemberStatus.REJECTED
                         || effectiveStatus == CrewMemberStatus.CANCELLED)
                 && crew.isRecruiting()
-                && !travelDatePassed(crew.getTravelDate())
                 && memberCount < crew.getCapacity();
         boolean canCancel = effectiveStatus == CrewMemberStatus.PENDING
                 || effectiveStatus == CrewMemberStatus.APPROVED;
         boolean canAccessOpenChat = crew.getOpenChatUrl() != null
                 && (owner || effectiveStatus == CrewMemberStatus.APPROVED);
+        boolean canAccessChat = owner || effectiveStatus == CrewMemberStatus.APPROVED;
 
         return new CrewDtos.Viewer(
                 effectiveStatus,
@@ -619,7 +703,8 @@ public class CrewService {
                 canJoin,
                 canCancel,
                 owner,
-                canAccessOpenChat);
+                canAccessOpenChat,
+                canAccessChat);
     }
 
     private LocalDateTime joinedOrAppliedAt(CrewMember member) {
@@ -650,6 +735,9 @@ public class CrewService {
                         ? crew.getOpenChatUrl()
                         : null,
                 tags,
+                crew.getCategory(),
+                routeViews(crew.getRoutes()),
+                routePlaceViews(crew.getRoutePlaces()),
                 crew.getTravelDate(),
                 crew.getCapacity(),
                 memberCount,
@@ -659,6 +747,7 @@ public class CrewService {
                 crew.getOwner().getId(),
                 crew.getOwner().getNickname(),
                 crew.getCreatedAt(),
+                crew.getEndedAt(),
                 viewer);
     }
 
@@ -679,11 +768,95 @@ public class CrewService {
                 application.getCrew().getId(),
                 application.getUser().getId(),
                 application.getUser().getNickname(),
+                application.getUser().getProfileImageUrl(),
+                application.getApplicationMessage(),
                 application.getStatus(),
                 application.getReviewedBy() == null
                         ? null
                         : application.getReviewedBy().getId(),
                 application.getReviewedAt(),
                 application.getCreatedAt());
+    }
+
+    private List<JourneyPost> resolveRoutes(Long ownerId, List<Long> routeIds, boolean required) {
+        if (routeIds == null || routeIds.isEmpty()) {
+            if (required) {
+                throw new DomainException(
+                        HttpStatus.BAD_REQUEST,
+                        "CREW_ROUTE_REQUIRED",
+                        "여행 루트를 한 개 이상 선택해 주세요.");
+            }
+            return List.of();
+        }
+        List<Long> distinctIds = routeIds.stream().distinct().toList();
+        List<JourneyPost> found = posts.findByIdInAndAuthorId(distinctIds, ownerId);
+        Map<Long, JourneyPost> byId = found.stream()
+                .collect(Collectors.toMap(JourneyPost::getId, route -> route));
+        if (byId.size() != distinctIds.size()
+                || found.stream().anyMatch(route -> !route.isPublished() || !route.isModerationVisible())) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CREW_ROUTE",
+                    "본인이 작성한 공개 여행 루트만 선택할 수 있습니다.");
+        }
+        return distinctIds.stream().map(byId::get).toList();
+    }
+
+    private List<CrewDtos.RouteView> routeViews(List<JourneyPost> routes) {
+        return routes.stream().map(route -> new CrewDtos.RouteView(
+                route.getId(),
+                route.getTitle(),
+                route.getRegionName(),
+                route.getCoverImageUrl(),
+                route.getTravelStartDate(),
+                route.getTravelEndDate())).toList();
+    }
+
+    private List<Crew.RoutePlaceData> resolveRoutePlaces(List<CrewDtos.RoutePlaceRequest> places) {
+        if (places == null || places.isEmpty()) return List.of();
+        return places.stream().map(place -> {
+            boolean hasClientCoordinates = place.latitude() != null && place.longitude() != null;
+            Region region = hasClientCoordinates
+                    ? regionService.requireClientPlace(
+                            place.regionPlaceId(), place.regionName(), place.latitude(), place.longitude())
+                    : regionService.require(place.regionCode(), place.regionName(), place.regionPlaceId());
+            if (region.getCenter() == null) {
+                throw new DomainException(
+                        HttpStatus.BAD_REQUEST,
+                        "CREW_ROUTE_COORDINATES_REQUIRED",
+                        "경유지의 지도 좌표를 확인할 수 없습니다.");
+            }
+            List<Crew.RouteImageData> images = place.images() == null
+                    ? List.of()
+                    : place.images().stream()
+                            .map(image -> new Crew.RouteImageData(
+                                    image.imageUrl().trim(),
+                                    normalizeAltText(image.altText())))
+                            .toList();
+            return new Crew.RoutePlaceData(
+                    region,
+                    richTextSanitizer.sanitizeRequired(place.content()),
+                    images);
+        }).toList();
+    }
+
+    private List<CrewDtos.RoutePlaceView> routePlaceViews(List<CrewRoutePlace> places) {
+        return places.stream().map(place -> new CrewDtos.RoutePlaceView(
+                place.getId(),
+                regionService.view(place.getRegion()),
+                place.getPlaceName(),
+                place.getLatitude(),
+                place.getLongitude(),
+                place.getContent(),
+                place.getSortOrder(),
+                place.getImages().stream().map(image -> new CrewDtos.RouteImageView(
+                        image.getId(),
+                        image.getImageUrl(),
+                        image.getSortOrder(),
+                        image.getAltText())).toList())).toList();
+    }
+
+    private String normalizeAltText(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 }

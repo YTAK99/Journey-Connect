@@ -40,11 +40,13 @@ public class CrewController {
             @AuthenticationPrincipal Jwt token,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String region,
+            @RequestParam(required = false) CrewCategory category,
             @PageableDefault(size = 20) Pageable pageable) {
         return ApiResponse.ok(crewService.list(
                 userIdOrNull(token),
                 keyword,
                 region,
+                category,
                 pageable));
     }
 
@@ -86,6 +88,13 @@ public class CrewController {
         return ApiResponse.ok(crewService.closeRecruitment(userId(token), crewId));
     }
 
+    @PostMapping("/{crewId}/end")
+    ApiResponse<CrewDtos.View> end(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long crewId) {
+        return ApiResponse.ok(crewService.closeRecruitment(userId(token), crewId));
+    }
+
     @PostMapping("/{crewId}/reopen")
     ApiResponse<CrewDtos.View> reopenRecruitment(
             @AuthenticationPrincipal Jwt token,
@@ -97,14 +106,25 @@ public class CrewController {
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<CrewDtos.ApplicationView> join(
             @AuthenticationPrincipal Jwt token,
-            @PathVariable Long crewId) {
-        return ApiResponse.created(crewService.join(userId(token), crewId));
+            @PathVariable Long crewId,
+            @Valid @RequestBody(required = false) CrewDtos.JoinRequest request) {
+        return ApiResponse.created(crewService.join(
+                userId(token), crewId, request == null ? null : request.message()));
     }
 
     @DeleteMapping("/{crewId}/join")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void cancelJoin(@AuthenticationPrincipal Jwt token, @PathVariable Long crewId) {
         crewService.cancelJoin(userId(token), crewId);
+    }
+
+    @DeleteMapping("/{crewId}/members/{memberUserId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void kick(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable Long crewId,
+            @PathVariable Long memberUserId) {
+        crewService.kick(userId(token), crewId, memberUserId);
     }
 
     @GetMapping("/{crewId}/members")

@@ -58,6 +58,8 @@ class SecurityConfig(
                         "/api/v1/auth/logout",
                         "/api/v1/auth/password-reset/**",
                         "/api/v1/test/**",
+                        "/ws",
+                        "/ws/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/api-docs/**",
