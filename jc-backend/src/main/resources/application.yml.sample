@@ -43,6 +43,11 @@ app:
       # 운영 활성화 여부는 .env에서 결정하며, 기본값은 false / 실제 yml에서는 true로
       enabled: ${JC_AI_CONTENT_ANALYSIS_ENABLED:false}
       worker-enabled: ${JC_AI_CONTENT_ANALYSIS_WORKER_ENABLED:false}
+      worker-poll-delay-ms: ${JC_AI_CONTENT_ANALYSIS_WORKER_POLL_DELAY_MS:10000}
+      worker-initial-delay-ms: ${JC_AI_CONTENT_ANALYSIS_WORKER_INITIAL_DELAY_MS:1000}
+      provider-timeout: ${JC_AI_CONTENT_ANALYSIS_PROVIDER_TIMEOUT:60s}
+      rate-limit-cooldown: ${JC_AI_CONTENT_ANALYSIS_RATE_LIMIT_COOLDOWN:120s}
+      running-lease-timeout: ${JC_AI_CONTENT_ANALYSIS_RUNNING_LEASE_TIMEOUT:120s}
       model-version: ${JC_AI_CONTENT_MODEL:gemini-3.6-flash}
   security:
     jwt-secret: ${JWT_SECRET:journey-connect-local-dev-secret-32bytes}

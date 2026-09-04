@@ -116,6 +116,35 @@ public class JdbcPostContentAnalysisJobStore implements PostContentAnalysisJobSt
 
     @Override
     @Transactional
+    public int recoverStaleRunning(Instant staleBefore, Instant retryAt, int maxAttempts) {
+        if (maxAttempts <= 0) {
+            throw new IllegalArgumentException("maxAttempts must be positive");
+        }
+
+        List<PostContentAnalysisJob> stale = jdbcTemplate.query(
+                """
+                select *
+                from public.post_content_analysis_job
+                where status = 'running'
+                  and updated_at <= ?
+                order by updated_at, analysis_run_id
+                limit 100
+                for update skip locked
+                """,
+                this::map,
+                Timestamp.from(staleBefore));
+
+        for (PostContentAnalysisJob running : stale) {
+            PostContentAnalysisJob recovered = running.attemptCount() >= maxAttempts
+                    ? running.markFailed("worker_lease_expired", retryAt)
+                    : running.scheduleRetry(retryAt, "worker_lease_expired", retryAt);
+            save(recovered);
+        }
+        return stale.size();
+    }
+
+    @Override
+    @Transactional
     public Optional<PostContentAnalysisJob> claimNextReady(Instant now) {
         List<PostContentAnalysisJob> rows = jdbcTemplate.query(
                 """
