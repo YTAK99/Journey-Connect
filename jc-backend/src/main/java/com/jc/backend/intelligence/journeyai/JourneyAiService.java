@@ -58,9 +58,14 @@ public class JourneyAiService {
             Return only the JSON object required by the response schema.
             """;
 
-    private static final int SOURCE_LIMIT = 30;
+    private static final int SEARCH_TOKEN_LIMIT = 6;
+    private static final int SEARCH_PAGE_SIZE = 24;
+    private static final int FALLBACK_SOURCE_LIMIT = 24;
     private static final int CONTEXT_LIMIT = 8;
     private static final int CONTENT_LIMIT = 1800;
+    private static final Set<String> RETRIEVAL_STOP_WORDS = Set.of(
+            "추천", "추천해줘", "알려줘", "여행", "코스", "일정",
+            "어디", "어디가", "좋아", "좋을까", "가고", "싶어");
 
     private final JourneyPostRepository posts;
     private final PostContentAnalysisReadService contentAnalysis;
@@ -122,19 +127,29 @@ public class JourneyAiService {
             JourneyAiDtos.ChatRequest request,
             JourneyPost currentPost,
             long viewerId) {
-        List<JourneyPost> pool = new ArrayList<>(posts
-                .findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
-                        "visible", PageRequest.of(0, SOURCE_LIMIT))
-                .getContent());
-        if (currentPost != null && pool.stream().noneMatch(post -> post.getId().equals(currentPost.getId()))) {
-            pool.add(0, currentPost);
-        }
+        LinkedHashMap<Long, JourneyPost> candidates = new LinkedHashMap<>();
+        PageRequest searchPage = PageRequest.of(0, SEARCH_PAGE_SIZE);
+        String requestedRegion = nullToEmpty(request.region()).trim();
 
-        String query = normalize(request.message() + " " + nullToEmpty(request.region()));
-        Map<Long, Integer> scores = new LinkedHashMap<>();
-        for (JourneyPost post : pool) {
-            scores.put(post.getId(), relevance(post, query, currentPost));
+        if (!requestedRegion.isBlank()) {
+            addCandidates(candidates, posts.explore("", requestedRegion, "", "", searchPage).getContent());
         }
+        for (String term : retrievalTerms(request.message())) {
+            addCandidates(candidates, posts.explore(term, requestedRegion, "", "", searchPage).getContent());
+        }
+        if (candidates.isEmpty()) {
+            addCandidates(
+                    candidates,
+                    posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+                                    "visible", PageRequest.of(0, FALLBACK_SOURCE_LIMIT))
+                            .getContent());
+        }
+        if (currentPost != null) candidates.putIfAbsent(currentPost.getId(), currentPost);
+
+        List<JourneyPost> pool = new ArrayList<>(candidates.values());
+        String query = normalize(request.message() + " " + requestedRegion);
+        Map<Long, Integer> scores = new LinkedHashMap<>();
+        for (JourneyPost post : pool) scores.put(post.getId(), relevance(post, query, currentPost));
         pool.sort(Comparator
                 .comparingInt((JourneyPost post) -> scores.getOrDefault(post.getId(), 0)).reversed()
                 .thenComparing(JourneyPost::getCreatedAt, Comparator.reverseOrder())
@@ -151,6 +166,33 @@ public class JourneyAiService {
             if (seen.add(post.getId())) result.add(toContext(post, viewerId));
         }
         return List.copyOf(result);
+    }
+
+    private void addCandidates(Map<Long, JourneyPost> candidates, List<JourneyPost> fetched) {
+        for (JourneyPost post : fetched) candidates.putIfAbsent(post.getId(), post);
+    }
+
+    private List<String> retrievalTerms(String message) {
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        for (String raw : normalize(message).split("[^\\p{L}\\p{N}-]+")) {
+            String term = stripKoreanParticle(raw);
+            if (term.length() < 2 || RETRIEVAL_STOP_WORDS.contains(term)) continue;
+            terms.add(term);
+            if (terms.size() >= SEARCH_TOKEN_LIMIT) break;
+        }
+        return List.copyOf(terms);
+    }
+
+    private String stripKoreanParticle(String value) {
+        if (value == null) return "";
+        for (String suffix : List.of(
+                "에서의", "에서만", "에서는", "으로", "에서", "에게", "한테",
+                "와", "과", "을", "를", "은", "는", "이", "가", "의", "도")) {
+            if (value.endsWith(suffix) && value.length() > suffix.length() + 1) {
+                return value.substring(0, value.length() - suffix.length());
+            }
+        }
+        return value;
     }
 
     private int relevance(JourneyPost post, String query, JourneyPost currentPost) {

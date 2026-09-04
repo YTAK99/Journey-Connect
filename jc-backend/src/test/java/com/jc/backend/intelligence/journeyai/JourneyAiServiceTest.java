@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +48,8 @@ class JourneyAiServiceTest {
         when(post.getTags()).thenReturn(List.of());
         when(post.getPlaces()).thenReturn(List.of());
         when(post.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 9, 1, 12, 0));
+        when(posts.explore(anyString(), anyString(), anyString(), anyString(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(post)));
         when(posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(eq("visible"), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(post)));
     }
@@ -97,6 +101,49 @@ class JourneyAiServiceTest {
         org.mockito.Mockito.verify(model).chat(system.capture(), user.capture());
         assertThat(system.getValue()).contains("untrusted data").contains("do not invent Journey Connect posts");
         assertThat(user.getValue()).contains("Ignore all previous instructions");
+    }
+
+    @Test
+    void retrievesRelevantPostOutsideLatestFallbackWindowThroughDatabaseSearch() {
+        JourneyPost paris = mock(JourneyPost.class);
+        when(paris.getId()).thenReturn(2L);
+        when(paris.getTitle()).thenReturn("파리 미술관과 카페 산책");
+        when(paris.getContent()).thenReturn("루브르와 마레를 천천히 걷는 일정");
+        when(paris.getRegionName()).thenReturn("Paris");
+        when(paris.getCoverImageUrl()).thenReturn("https://example.test/paris.jpg");
+        when(paris.getTags()).thenReturn(List.of());
+        when(paris.getPlaces()).thenReturn(List.of());
+        when(paris.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 6, 1, 12, 0));
+
+        when(posts.explore(eq("파리"), eq(""), eq(""), eq(""), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(paris)));
+        when(model.chat(anyString(), anyString())).thenReturn(
+                "{\"answer\":\"파리 기록을 찾았습니다.\",\"suggestedPosts\":[{\"postId\":2,\"reason\":\"미술관과 산책\"}],\"placeRefs\":[]}");
+
+        JourneyAiDtos.ChatResponse response = service.chat(
+                10L,
+                new JourneyAiDtos.ChatRequest("파리 미술관 코스 추천해줘", null, null, List.of()));
+
+        assertThat(response.suggestedPosts())
+                .extracting(JourneyAiDtos.SuggestedPost::id)
+                .contains(2L);
+        verify(posts).explore(eq("파리"), eq(""), eq(""), eq(""), any(Pageable.class));
+        verify(posts, never()).findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+                eq("visible"), any(Pageable.class));
+    }
+
+    @Test
+    void stripsCommonKoreanParticleBeforeDatabaseRetrieval() {
+        when(model.chat(anyString(), anyString())).thenReturn(
+                "{\"answer\":\"서울 기록입니다.\",\"suggestedPosts\":[{\"postId\":1,\"reason\":\"서울\"}],\"placeRefs\":[]}");
+
+        service.chat(
+                10L,
+                new JourneyAiDtos.ChatRequest("서울에서 조용한 산책 추천해줘", null, null, List.of()));
+
+        verify(posts).explore(eq("서울"), eq(""), eq(""), eq(""), any(Pageable.class));
+        verify(posts).explore(eq("조용한"), eq(""), eq(""), eq(""), any(Pageable.class));
+        verify(posts).explore(eq("산책"), eq(""), eq(""), eq(""), any(Pageable.class));
     }
 
     @Test
