@@ -1,6 +1,8 @@
 package com.jc.backend.google;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jc.backend.common.DomainException;
 import java.net.URI;
 import java.time.Instant;
@@ -9,6 +11,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,6 +25,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service // 비즈니스 로직 컴포넌트로 등록해 컨트롤러가 생성자 주입으로 사용합니다.
 public class GoogleLocationService {
 
+    private static final Logger log = LoggerFactory.getLogger(GoogleLocationService.class);
     private static final DateTimeFormatter LOCAL_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter LOCAL_TIME = DateTimeFormatter.ofPattern("HH:mm");
     private static final double INCHEON_AIRPORT_LATITUDE = 37.4602;
@@ -30,12 +35,15 @@ public class GoogleLocationService {
     private static final int AIRPORT_BUFFER_MINUTES = 45;
 
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
     private final String apiKey;
 
     public GoogleLocationService(
             RestClient.Builder restClientBuilder,
+            ObjectMapper objectMapper,
             @Value("${app.google.api-key:}") String apiKey) {
         this.restClient = restClientBuilder.build();
+        this.objectMapper = objectMapper;
         this.apiKey = apiKey;
     }
 
@@ -81,8 +89,8 @@ public class GoogleLocationService {
         URI uri = builder.build().toUri();
 
         JsonNode body = get(uri, "Places Autocomplete");
-        if (!"OK".equals(body.path("status").asText()) && !"ZERO_RESULTS".equals(body.path("status").asText())) {
-            throw new DomainException(HttpStatus.BAD_GATEWAY, "PLACE_SUGGESTION_FAILED", "Could not load location suggestions.");
+        if (!requireGoogleStatus(body, "Places Autocomplete", ZeroResultsHandling.EMPTY)) {
+            return List.of();
         }
 
         List<GoogleLocationDtos.LocationSuggestion> suggestions = new ArrayList<>();
@@ -112,9 +120,10 @@ public class GoogleLocationService {
                 .build()
                 .toUri();
         JsonNode body = get(uri, "Place Details");
+        requireGoogleStatus(body, "Place Details", ZeroResultsHandling.PLACE_NOT_FOUND);
         JsonNode result = body.path("result");
-        if (!"OK".equals(body.path("status").asText()) || result.isMissingNode()) {
-            throw new DomainException(HttpStatus.NOT_FOUND, "PLACE_NOT_FOUND", "지역을 찾을 수 없습니다.");
+        if (!result.isObject()) {
+            throw malformedGoogleResponse("Place Details", "result is missing");
         }
         String countryCode = "ZZ";
         List<String> addressComponentNames = new ArrayList<>();
@@ -166,12 +175,12 @@ public class GoogleLocationService {
                 .toUri();
 
         JsonNode body = get(uri, "Places");
-        String status = body.path("status").asText();
+        requireGoogleStatus(body, "Places Text Search", ZeroResultsHandling.PLACE_NOT_FOUND);
         JsonNode results = body.path("results");
         JsonNode first = results.isArray() && !results.isEmpty() ? results.get(0) : null;
 
-        if (!"OK".equals(status) || first == null) {
-            throw new DomainException(HttpStatus.NOT_FOUND, "PLACE_NOT_FOUND", "지역을 찾을 수 없습니다.");
+        if (first == null) {
+            throw malformedGoogleResponse("Places Text Search", "OK response has no results");
         }
 
         JsonNode location = first.path("geometry").path("location");
@@ -278,10 +287,7 @@ public class GoogleLocationService {
                 .toUri();
 
         JsonNode body = get(uri, "Time Zone");
-        String status = body.path("status").asText();
-        if (!"OK".equals(status)) {
-            throw new DomainException(HttpStatus.BAD_GATEWAY, "TIMEZONE_LOOKUP_FAILED", "현지 시간 정보를 가져오지 못했습니다.");
-        }
+        requireGoogleStatus(body, "Time Zone", ZeroResultsHandling.TIME_ZONE_NOT_FOUND);
 
         String timeZoneId = body.path("timeZoneId").asText("UTC");
         ZoneId zoneId = ZoneId.of(timeZoneId);
@@ -305,14 +311,153 @@ public class GoogleLocationService {
             if (body == null) {
                 throw new DomainException(HttpStatus.BAD_GATEWAY, "GOOGLE_API_EMPTY_RESPONSE", apiName + " API 응답이 비어 있습니다.");
             }
+            JsonNode error = body.path("error");
+            if (error.isObject()) {
+                throw googleApiException(
+                        apiName,
+                        error.path("status").asText("GOOGLE_API_ERROR"),
+                        error.path("message").asText(""),
+                        null);
+            }
             return body;
         } catch (HttpStatusCodeException exception) {
-            throw new DomainException(
-                    HttpStatus.BAD_GATEWAY,
-                    "GOOGLE_API_ERROR",
-                    apiName + " API 호출 실패: HTTP " + exception.getStatusCode().value());
+            JsonNode error = parseErrorBody(exception.getResponseBodyAsString()).path("error");
+            String googleStatus = error.path("status").asText("");
+            String upstreamMessage = error.path("message").asText("");
+            throw googleApiException(apiName, googleStatus, upstreamMessage, exception.getStatusCode().value());
         } catch (RestClientException exception) {
+            // RestClientException messages can contain the complete request URI, including its query string.
+            log.warn("{} API transport failure: {}", apiName, exception.getClass().getSimpleName());
             throw new DomainException(HttpStatus.BAD_GATEWAY, "GOOGLE_API_ERROR", apiName + " API 호출 중 오류가 발생했습니다.");
         }
+    }
+
+    /**
+     * Legacy Maps Platform APIs can report failures in a successful HTTP response.
+     * Returns false only when ZERO_RESULTS is an allowed empty result for this call.
+     */
+    private boolean requireGoogleStatus(
+            JsonNode body, String apiName, ZeroResultsHandling zeroResultsHandling) {
+        String status = body.path("status").asText("").trim().toUpperCase(Locale.ROOT);
+        if ("OK".equals(status)) {
+            return true;
+        }
+
+        String upstreamMessage = body.path("error_message").asText("");
+        if (upstreamMessage.isBlank()) {
+            upstreamMessage = body.path("errorMessage").asText("");
+        }
+        if ("ZERO_RESULTS".equals(status)
+                || "NOT_FOUND".equals(status) && zeroResultsHandling == ZeroResultsHandling.PLACE_NOT_FOUND) {
+            log.warn("{} API upstream failure: status={}, reason={}",
+                    apiName,
+                    status,
+                    sanitizeForLog(upstreamMessage.isBlank() ? "no upstream error message" : upstreamMessage));
+            return switch (zeroResultsHandling) {
+                case EMPTY -> false;
+                case PLACE_NOT_FOUND -> throw new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "PLACE_NOT_FOUND",
+                        "지역을 찾을 수 없습니다.");
+                case TIME_ZONE_NOT_FOUND -> throw new DomainException(
+                        HttpStatus.BAD_GATEWAY,
+                        "GOOGLE_TIME_ZONE_NOT_FOUND",
+                        "현지 시간 정보를 찾지 못했습니다.");
+            };
+        }
+        throw googleApiException(apiName, status, upstreamMessage, null);
+    }
+
+    private DomainException googleApiException(
+            String apiName, String googleStatus, String upstreamMessage, Integer httpStatus) {
+        String normalizedStatus = googleStatus == null
+                ? ""
+                : googleStatus.trim().toUpperCase(Locale.ROOT);
+        if (normalizedStatus.isBlank()) {
+            normalizedStatus = statusFromHttp(httpStatus);
+        }
+
+        String reason = upstreamMessage == null || upstreamMessage.isBlank()
+                ? httpStatus == null ? "no upstream error message" : "HTTP " + httpStatus
+                : upstreamMessage;
+        log.warn("{} API upstream failure: status={}, reason={}",
+                apiName, normalizedStatus, sanitizeForLog(reason));
+
+        return switch (normalizedStatus) {
+            case "ZERO_RESULTS" -> new DomainException(
+                    HttpStatus.NOT_FOUND,
+                    "PLACE_NOT_FOUND",
+                    "지역을 찾을 수 없습니다.");
+            case "REQUEST_DENIED", "PERMISSION_DENIED", "UNAUTHENTICATED" -> new DomainException(
+                    HttpStatus.BAD_GATEWAY,
+                    "GOOGLE_API_REQUEST_DENIED",
+                    apiName + " API 요청이 거부되었습니다.");
+            case "OVER_QUERY_LIMIT", "OVER_DAILY_LIMIT", "RESOURCE_EXHAUSTED" -> new DomainException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "GOOGLE_API_QUOTA_EXCEEDED",
+                    apiName + " API 사용량 한도를 초과했습니다.");
+            case "INVALID_REQUEST", "INVALID_ARGUMENT", "FAILED_PRECONDITION" -> new DomainException(
+                    HttpStatus.BAD_GATEWAY,
+                    "GOOGLE_API_INVALID_REQUEST",
+                    apiName + " API 요청 구성이 올바르지 않습니다.");
+            case "UNKNOWN_ERROR", "UNKNOWN", "INTERNAL", "UNAVAILABLE", "DEADLINE_EXCEEDED" -> new DomainException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "GOOGLE_API_TEMPORARY_ERROR",
+                    apiName + " API가 일시적으로 응답하지 않습니다.");
+            default -> new DomainException(
+                    HttpStatus.BAD_GATEWAY,
+                    "GOOGLE_API_ERROR",
+                    apiName + " API 호출에 실패했습니다.");
+        };
+    }
+
+    private String statusFromHttp(Integer httpStatus) {
+        if (httpStatus == null) {
+            return "GOOGLE_API_ERROR";
+        }
+        return switch (httpStatus) {
+            case 400 -> "INVALID_ARGUMENT";
+            case 401 -> "UNAUTHENTICATED";
+            case 403 -> "PERMISSION_DENIED";
+            case 429 -> "RESOURCE_EXHAUSTED";
+            case 500, 502, 503, 504 -> "UNAVAILABLE";
+            default -> "HTTP_" + httpStatus;
+        };
+    }
+
+    private JsonNode parseErrorBody(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return objectMapper.createObjectNode();
+        }
+        try {
+            return objectMapper.readTree(responseBody);
+        } catch (JsonProcessingException ignored) {
+            return objectMapper.createObjectNode();
+        }
+    }
+
+    private DomainException malformedGoogleResponse(String apiName, String reason) {
+        log.warn("{} API malformed response: {}", apiName, reason);
+        return new DomainException(
+                HttpStatus.BAD_GATEWAY,
+                "GOOGLE_API_ERROR",
+                apiName + " API 응답 형식이 올바르지 않습니다.");
+    }
+
+    private String sanitizeForLog(String message) {
+        if (message == null || message.isBlank()) {
+            return "no details";
+        }
+        String sanitized = message.replaceAll("[\\r\\n\\t]+", " ");
+        if (apiKey != null && !apiKey.isBlank()) {
+            sanitized = sanitized.replace(apiKey, "[REDACTED]");
+        }
+        return sanitized.length() <= 500 ? sanitized : sanitized.substring(0, 500) + "...";
+    }
+
+    private enum ZeroResultsHandling {
+        EMPTY,
+        PLACE_NOT_FOUND,
+        TIME_ZONE_NOT_FOUND
     }
 }
