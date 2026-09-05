@@ -3,6 +3,8 @@ import { Loader2, MapPinned } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
 
+const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim();
+
 // 위도/경도 값이 유효한 범위(-90~90, -180~180) 내에 있는지 검증하는 헬퍼 함수
 const validCoordinate = (place) => Number.isFinite(place?.latitude)
   && Number.isFinite(place?.longitude)
@@ -65,7 +67,7 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
         const map = new maps.Map(mapElementRef.current, {
           center: { lat: first.latitude, lng: first.longitude },
           zoom: 14,
-          mapId: "DEMO_MAP_ID",
+          ...(GOOGLE_MAPS_MAP_ID ? { mapId: GOOGLE_MAPS_MAP_ID } : {}),
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: !compact,
