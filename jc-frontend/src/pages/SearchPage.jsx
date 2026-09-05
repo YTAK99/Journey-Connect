@@ -22,6 +22,7 @@ export default function SearchPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [nextCursor, setNextCursor] = useState(null);
+  const [nextPage, setNextPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const requestKeyRef = useRef("");
   const rawKeyword = (searchParams.get("q") || "").trim();
@@ -38,16 +39,20 @@ export default function SearchPage() {
       setLoadingMore(false);
       setError("");
       setNextCursor(null);
+      setNextPage(1);
       setHasNext(false);
 
       try {
         const result = keyword
-          ? await getExplore({ keyword, size: 100 })
+          ? await getExplore({ keyword, page: 0, size: 20 })
           : await getExploreDiscovery({ size: 20 });
         if (!active || requestKeyRef.current !== requestKey) return;
 
         setPosts(getFeedItems(result));
-        if (!keyword) {
+        if (keyword) {
+          setNextPage((Number.isFinite(result?.page) ? result.page : 0) + 1);
+          setHasNext(result?.last === false);
+        } else {
           setNextCursor(result?.nextCursor || null);
           setHasNext(Boolean(result?.hasNext && result?.nextCursor));
         }
@@ -67,30 +72,60 @@ export default function SearchPage() {
     };
   }, [keyword, requestKey, t.loadFailed]);
 
-  const loadMoreDiscovery = async () => {
-    if (keyword || loadingMore || !hasNext || !nextCursor) return;
+  const loadMoreExplore = async () => {
+    if (loadingMore || !hasNext || (!keyword && !nextCursor)) return;
 
     const activeRequestKey = requestKeyRef.current;
+    const activeKeyword = keyword;
+    const activeNextPage = nextPage;
+    const activeCursor = nextCursor;
     setLoadingMore(true);
     setError("");
 
     try {
+      if (activeKeyword) {
+        const result = await getExplore({
+          keyword: activeKeyword,
+          page: activeNextPage,
+          size: 20,
+        });
+        if (requestKeyRef.current !== activeRequestKey) return;
+
+        const incoming = getFeedItems(result);
+        setPosts((current) => {
+          const seen = new Set(current.map((post) => String(post.id)));
+          return [
+            ...current,
+            ...incoming.filter((post) => !seen.has(String(post.id))),
+          ];
+        });
+        setNextPage(
+          (Number.isFinite(result?.page) ? result.page : activeNextPage) + 1,
+        );
+        setHasNext(result?.last === false);
+        return;
+      }
+
       const result = await getExploreDiscovery({
-        cursor: nextCursor,
+        cursor: activeCursor,
         size: 20,
       });
       if (requestKeyRef.current !== activeRequestKey) return;
 
       const incoming = getFeedItems(result);
       setPosts((current) => {
-        const seen = new Set(current.map((post) => post.id));
-        return [...current, ...incoming.filter((post) => !seen.has(post.id))];
+        const seen = new Set(current.map((post) => String(post.id)));
+        return [
+          ...current,
+          ...incoming.filter((post) => !seen.has(String(post.id))),
+        ];
       });
       setNextCursor(result?.nextCursor || null);
       setHasNext(Boolean(result?.hasNext && result?.nextCursor));
     } catch (requestError) {
       if (requestKeyRef.current !== activeRequestKey) return;
-      if (isExploreCursorError(requestError)) {
+
+      if (!activeKeyword && isExploreCursorError(requestError)) {
         try {
           const restarted = await getExploreDiscovery({
             size: 20,
@@ -111,14 +146,18 @@ export default function SearchPage() {
           return;
         }
       }
+
       setError(getApiErrorMessage(requestError, t.loadMoreFailed));
     } finally {
-      if (requestKeyRef.current === activeRequestKey) setLoadingMore(false);
+      if (requestKeyRef.current === activeRequestKey) {
+        setLoadingMore(false);
+      }
     }
   };
 
-  // 검색 eligibility는 서버가 authoritative하게 적용하므로 클라이언트에서 다시 거르지 않습니다.
   const filteredPosts = posts;
+
+  // Search eligibility and ordering are server-authoritative.  const filteredPosts = posts;
 
   const showEmptyState = !loading && !error && filteredPosts.length === 0;
   const recommendationKey = keyword;
@@ -176,11 +215,11 @@ export default function SearchPage() {
                 ))}
               </div>
 
-              {!keyword && hasNext && (
+              {hasNext && (
                 <div className="flex justify-center py-6">
                   <button
                     type="button"
-                    onClick={loadMoreDiscovery}
+                    onClick={loadMoreExplore}
                     disabled={loadingMore}
                     className="rounded-xl border border-teal-200 bg-white px-5 py-2.5 text-sm font-bold text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-teal-900 dark:bg-slate-900 dark:text-teal-200 dark:hover:bg-slate-800"
                   >
