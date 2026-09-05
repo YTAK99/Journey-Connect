@@ -91,3 +91,12 @@ dev-server-google.out.log
 start-local.ps1
 start-local.bat
 /jc-recommendation-core/bin/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# One-shot local correction helpers
+/apply_feed_region_hardening*.py
+/apply_backend_final_correction.py
+/apply_journey_backend_final_correction.py

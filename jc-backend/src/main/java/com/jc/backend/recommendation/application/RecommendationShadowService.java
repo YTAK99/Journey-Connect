@@ -35,6 +35,11 @@ public class RecommendationShadowService {
     }
 
     public ShadowOutcome observeHomeFeed(Long userId, String tokenId, boolean firstPage) {
+        return observeHomeFeed(userId, tokenId, firstPage, null);
+    }
+
+    public ShadowOutcome observeHomeFeed(
+            Long userId, String tokenId, boolean firstPage, String regionCode) {
         if (!modeDecider.shouldRunHomeShadow(userId, firstPage)) {
             return ShadowOutcome.skipped();
         }
@@ -42,7 +47,7 @@ public class RecommendationShadowService {
         try {
             RecommendationOrchestrationService.RunResult result = orchestrationService.runShadow(
                     new RecommendationOrchestrationService.ShadowRunRequest(
-                            userId.longValue(), sessionId));
+                            userId.longValue(), sessionId, regionCode));
             if (properties.isReplayAuditEnabled()) {
                 RecommendationReplayService.ReplayAuditResult replay = replayService.audit(result.runId());
                 if (!replay.exactMatch()) {
@@ -51,7 +56,8 @@ public class RecommendationShadowService {
                 }
             }
             if (p1RuntimeService != null) {
-                p1RuntimeService.observeShadow(result.runId(), userId.longValue(), sessionId);
+                p1RuntimeService.observeShadow(
+                        result.runId(), userId.longValue(), sessionId, regionCode);
             }
             return ShadowOutcome.succeeded(result.runId());
         } catch (RuntimeException exception) {

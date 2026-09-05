@@ -86,12 +86,58 @@ public interface JourneyPostRepository extends JpaRepository<JourneyPost, Long> 
     @Query("""
             select p
             from JourneyPost p
+            where p.published = true
+              and p.moderationStatus = 'visible'
+              and lower(p.region.code) = lower(:regionCode)
+            order by p.createdAt desc, p.id desc
+            """)
+    List<JourneyPost> findFeedByRegionCode(
+            @Param("regionCode") String regionCode,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"author", "region"})
+    @Query("""
+            select p
+            from JourneyPost p
+            where p.published = true
+              and p.moderationStatus = 'visible'
+              and lower(p.region.code) = lower(:regionCode)
+              and (
+                    p.createdAt < :cursorCreatedAt
+                    or (p.createdAt = :cursorCreatedAt and p.id < :cursorId)
+              )
+            order by p.createdAt desc, p.id desc
+            """)
+    List<JourneyPost> findFeedAfterByRegionCode(
+            @Param("regionCode") String regionCode,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"author", "region"})
+    @Query("""
+            select p
+            from JourneyPost p
             where p.id in :postIds
               and p.published = true
               and p.moderationStatus = 'visible'
               and p.author.accountStatus = 'active'
             """)
     List<JourneyPost> findVisiblePublishedActiveByIdIn(@Param("postIds") List<Long> postIds);
+
+    @EntityGraph(attributePaths = {"author", "region"})
+    @Query("""
+            select p
+            from JourneyPost p
+            where p.published = true
+              and p.moderationStatus = 'visible'
+              and p.author.accountStatus = 'active'
+              and p.author.email like :emailPattern
+            order by p.createdAt desc, p.id desc
+            """)
+    List<JourneyPost> findSyntheticContentAnalysisCandidates(
+            @Param("emailPattern") String emailPattern,
+            Pageable pageable);
 
     /** 상세 응답은 다중 이미지까지 사용하므로 한 번에 조회합니다. */
     @EntityGraph(attributePaths = {"author", "region", "images"})

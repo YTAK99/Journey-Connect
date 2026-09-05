@@ -14,11 +14,13 @@ export default function StoryList({ selectedRegion }) {
   const [stories, setStories] = useState([]);
   const [error, setError] = useState("");
 
+  const serverRegion = selectedRegion?.code || "";
+
   // 별도 스토리 데이터가 아니라 최신 게시글을 받아 현재 선택 지역의 원형 미리보기로 재사용합니다.
   useEffect(() => {
     let active = true;
 
-    getFeed({ size: 100 })
+    getFeed({ region: serverRegion || undefined, size: 20 })
       .then((feed) => {
         if (active) setStories(getFeedItems(feed));
       })
@@ -29,9 +31,11 @@ export default function StoryList({ selectedRegion }) {
     return () => {
       active = false;
     };
-  }, [t]);
+  }, [serverRegion, t]);
 
-  const visibleStories = stories.filter((story) => matchesSelectedRegion(story, selectedRegion));
+  const visibleStories = serverRegion
+    ? stories
+    : stories.filter((story) => matchesSelectedRegion(story, selectedRegion));
 
   return (
     // 원형 썸네일과 상하 간격을 함께 줄여 스토리 영역의 세로 비율을 가볍게 만듭니다.

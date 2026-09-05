@@ -72,6 +72,20 @@ jobs:
       - name: CI 애플리케이션 설정 준비
         run: cp src/main/resources/application.yml.sample src/main/resources/application.yml
 
+      - name: 외부 Provider 독립 검증
+        env:
+          GOOGLE_API_KEY: offline-placeholder
+          GOOGLE_AI_API_KEY: ""
+          JC_AI_CONTENT_ANALYSIS_ENABLED: "false"
+          JC_AI_CONTENT_ANALYSIS_WORKER_ENABLED: "false"
+        run: >
+          ./gradlew :test --no-daemon
+          --tests com.jc.backend.google.GoogleLocationServiceTest
+          --tests com.jc.backend.intelligence.contentanalysis.ContentAnalysisRuntimeConfigurationTest
+          --tests com.jc.backend.intelligence.contentanalysis.PostContentAnalysisJobWorkerTest
+          --tests com.jc.backend.intelligence.journeyai.JourneyAiRuntimeConfigurationTest
+          --tests com.jc.backend.intelligence.journeyai.JourneyAiServiceTest
+
       - name: 백엔드 소비자 테스트
         run: ./gradlew :test --no-daemon
 

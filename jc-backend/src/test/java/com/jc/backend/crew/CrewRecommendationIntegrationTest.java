@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -37,6 +38,11 @@ class CrewRecommendationIntegrationTest {
     @Autowired private CrewRecommendationService recommendationService;
     @Autowired private CrewRecommendationCandidateSource candidateSource;
     @Autowired private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void isolateRecommendationCandidatesFromPersistentTestDatabase() {
+        jdbcTemplate.update("update crew set recruiting = false where recruiting = true");
+    }
 
     @Test
     void authenticatedRecommendationUsesP1PreferencesAndAllowsUndecidedTravelDate() throws Exception {

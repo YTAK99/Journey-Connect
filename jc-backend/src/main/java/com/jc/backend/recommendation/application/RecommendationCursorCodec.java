@@ -25,6 +25,11 @@ public final class RecommendationCursorCodec {
     }
 
     public String encode(String runId, int offset, long userId, String sessionId) {
+        return encode(runId, offset, userId, sessionId, null);
+    }
+
+    public String encode(
+            String runId, int offset, long userId, String sessionId, String regionCode) {
         if (runId == null || !runId.matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")) {
             throw new IllegalArgumentException("runId format is invalid");
         }
@@ -33,13 +38,31 @@ public final class RecommendationCursorCodec {
             throw new IllegalArgumentException("cursor binding is invalid");
         }
         String body = runId + "|" + offset + "|" + userId + "|" + sessionId
-                + "|" + properties.getCanaryReleaseId();
+                + "|" + properties.getCanaryReleaseId()
+                + (regionCode == null ? "" : "|" + regionCode);
         String encoded = Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(body.getBytes(StandardCharsets.UTF_8));
         return PREFIX + encoded + "." + signature(encoded);
     }
 
     public Cursor decode(String cursor, long expectedUserId, String expectedSessionId) {
+        return decodeInternal(cursor, expectedUserId, expectedSessionId);
+    }
+
+    public Cursor decode(
+            String cursor,
+            long expectedUserId,
+            String expectedSessionId,
+            String expectedRegionCode) {
+        Cursor decoded = decodeInternal(cursor, expectedUserId, expectedSessionId);
+        String actual = decoded.regionCode();
+        if (expectedRegionCode == null ? actual != null : !expectedRegionCode.equalsIgnoreCase(actual)) {
+            throw invalid();
+        }
+        return decoded;
+    }
+
+    private Cursor decodeInternal(String cursor, long expectedUserId, String expectedSessionId) {
         try {
             if (!isRecommendationCursor(cursor) || cursor.length() > 512
                     || expectedUserId <= 0 || expectedSessionId == null) {
@@ -53,7 +76,7 @@ public final class RecommendationCursorCodec {
             }
             String raw = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
             String[] values = raw.split("\\|", -1);
-            if (values.length != 5
+            if ((values.length != 5 && values.length != 6)
                     || !values[0].matches("[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")) {
                 throw invalid();
             }
@@ -64,7 +87,7 @@ public final class RecommendationCursorCodec {
                     || !values[4].equals(properties.getCanaryReleaseId())) {
                 throw invalid();
             }
-            return new Cursor(values[0], offset);
+            return new Cursor(values[0], offset, values.length == 6 ? values[5] : null);
         } catch (DomainException exception) {
             throw exception;
         } catch (IllegalArgumentException exception) {
@@ -97,5 +120,9 @@ public final class RecommendationCursorCodec {
                 "추천 피드 커서가 유효하지 않습니다.");
     }
 
-    public record Cursor(String runId, int offset) {}
+    public record Cursor(String runId, int offset, String regionCode) {
+        public Cursor(String runId, int offset) {
+            this(runId, offset, null);
+        }
+    }
 }

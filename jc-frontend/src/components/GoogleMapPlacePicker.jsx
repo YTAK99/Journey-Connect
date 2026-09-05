@@ -3,6 +3,8 @@ import { Loader2, MapPin, X } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
 
+const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim();
+
 // 초기 지도가 표시될 기본 중심 좌표 (기본값: 서울 시청)
 const SEOUL = { lat: 37.5665, lng: 126.978 };
 
@@ -48,7 +50,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         map = new maps.Map(mapElementRef.current, {
           center: initialCenter,
           zoom: value?.latitude ? 16 : 12,
-          mapId: "DEMO_MAP_ID",
+          ...(GOOGLE_MAPS_MAP_ID ? { mapId: GOOGLE_MAPS_MAP_ID } : {}),
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,

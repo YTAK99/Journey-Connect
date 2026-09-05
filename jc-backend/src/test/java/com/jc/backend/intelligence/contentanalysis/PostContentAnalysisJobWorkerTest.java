@@ -15,10 +15,49 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class PostContentAnalysisJobWorkerTest {
+
+    @Test
+    void providerFailureLogsJobContextAndOriginalCause() {
+        MutableClock clock = new MutableClock(BASE_TIME);
+        InMemoryJobStore jobs = new InMemoryJobStore();
+        InMemoryInputStore inputs = new InMemoryInputStore();
+        InMemoryResultStore results = new InMemoryResultStore();
+        service(jobs, inputs, clock, RUN_ID_1).enqueue(input("post-content-v1"));
+        RuntimeException failure = new IllegalStateException("Spring AI invocation failed",
+                new IllegalArgumentException("400 INVALID_ARGUMENT: response schema rejected"));
+        ContentAnalysisProvider provider = new FakeContentAnalysisProvider(
+                source -> { throw failure; }, new PostContentAnalysisValidator());
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(
+                PostContentAnalysisWorker.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            assertTrue(worker(jobs, inputs, results, provider, clock).runOnce());
+            var event = appender.list.stream()
+                    .filter(value -> value.getFormattedMessage().contains("execution failed"))
+                    .findFirst().orElseThrow();
+            assertTrue(event.getFormattedMessage().contains(RUN_ID_1));
+            assertTrue(event.getFormattedMessage().contains("attempt=1"));
+            assertTrue(event.getFormattedMessage().contains("model=fake-model-v1"));
+            assertEquals("Spring AI invocation failed", event.getThrowableProxy().getMessage());
+            assertEquals("400 INVALID_ARGUMENT: response schema rejected",
+                    event.getThrowableProxy().getCause().getMessage());
+            assertEquals("provider_failure", jobs.findByRunId(RUN_ID_1).orElseThrow().lastErrorCode());
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
 
     private static final String RUN_ID_1 = "analysis:00000000-0000-0000-0000-000000000001";
     private static final String RUN_ID_2 = "analysis:00000000-0000-0000-0000-000000000002";
@@ -186,6 +225,104 @@ class PostContentAnalysisJobWorkerTest {
     }
 
     @Test
+    void providerTimeoutRetriesJobAndNextQueuedJobCanSucceed() {
+        MutableClock clock = new MutableClock(BASE_TIME);
+        InMemoryJobStore jobs = new InMemoryJobStore();
+        InMemoryInputStore inputs = new InMemoryInputStore();
+        InMemoryResultStore results = new InMemoryResultStore();
+        PostContentAnalysisJobService firstService = service(jobs, inputs, clock, RUN_ID_1);
+        PostContentAnalysisJobService secondService = service(jobs, inputs, clock, RUN_ID_2);
+        PostContentAnalysisJob first = firstService.enqueue(input("post-content-v1"));
+        PostContentAnalysisJob second = secondService.enqueue(input("post-content-v2"));
+        CountDownLatch providerStarted = new CountDownLatch(1);
+        AtomicInteger calls = new AtomicInteger();
+
+        ContentAnalysisProvider provider = new FakeContentAnalysisProvider(source -> {
+            if (calls.getAndIncrement() == 0) {
+                providerStarted.countDown();
+                try {
+                    Thread.sleep(Duration.ofSeconds(10));
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("provider interrupted", exception);
+                }
+            }
+            return validOutput();
+        }, new PostContentAnalysisValidator());
+
+        try (ExecutorService providerExecutor = Executors.newSingleThreadExecutor()) {
+            PostContentAnalysisWorker worker = new PostContentAnalysisWorker(
+                    jobs,
+                    inputs,
+                    results,
+                    provider,
+                    new PostContentAnalysisValidator(),
+                    clock,
+                    providerExecutor,
+                    Duration.ofMillis(50),
+                    Duration.ofSeconds(1),
+                    Duration.ofSeconds(1));
+
+            assertTrue(worker.runOnce());
+            assertEquals(0L, providerStarted.getCount());
+            PostContentAnalysisJob retry = jobs.findByRunId(first.analysisRunId()).orElseThrow();
+            assertEquals(AnalysisStatus.QUEUED, retry.status());
+            assertEquals("provider_timeout", retry.lastErrorCode());
+            assertEquals(BASE_TIME.plusSeconds(30), retry.nextAttemptAt());
+
+            assertTrue(worker.runOnce());
+            PostContentAnalysisJob succeeded = jobs.findByRunId(second.analysisRunId()).orElseThrow();
+            assertEquals(AnalysisStatus.SUCCEEDED, succeeded.status());
+            assertEquals(1, results.size());
+        }
+    }
+
+    @Test
+    void rateLimitPausesNewClaimsThenAllowsNextQueuedJob() {
+        MutableClock clock = new MutableClock(BASE_TIME);
+        InMemoryJobStore jobs = new InMemoryJobStore();
+        InMemoryInputStore inputs = new InMemoryInputStore();
+        InMemoryResultStore results = new InMemoryResultStore();
+        PostContentAnalysisJob first = service(jobs, inputs, clock, RUN_ID_1)
+                .enqueue(input("post-content-v1"));
+        PostContentAnalysisJob second = service(jobs, inputs, clock, RUN_ID_2)
+                .enqueue(input("post-content-v2"));
+        AtomicInteger calls = new AtomicInteger();
+        ContentAnalysisProvider provider = new FakeContentAnalysisProvider(source -> {
+            if (calls.getAndIncrement() == 0) {
+                throw new IllegalStateException("429 quota exceeded; rate limit reached");
+            }
+            return validOutput();
+        }, new PostContentAnalysisValidator());
+        PostContentAnalysisWorker worker = new PostContentAnalysisWorker(
+                jobs,
+                inputs,
+                results,
+                provider,
+                new PostContentAnalysisValidator(),
+                clock,
+                new DirectExecutorService(),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(60),
+                Duration.ofSeconds(2));
+
+        assertTrue(worker.runOnce());
+        PostContentAnalysisJob limited = jobs.findByRunId(first.analysisRunId()).orElseThrow();
+        assertEquals(AnalysisStatus.QUEUED, limited.status());
+        assertEquals("provider_rate_limited", limited.lastErrorCode());
+
+        assertFalse(worker.runOnce());
+        assertEquals(0, jobs.findByRunId(second.analysisRunId()).orElseThrow().attemptCount());
+        clock.advance(Duration.ofSeconds(60));
+
+        assertTrue(worker.runOnce());
+        assertEquals(
+                AnalysisStatus.SUCCEEDED,
+                jobs.findByRunId(second.analysisRunId()).orElseThrow().status());
+        assertEquals(1, results.size());
+    }
+
+    @Test
     void missingInputSnapshotQuarantinesClaimedJob() {
         MutableClock clock = new MutableClock(BASE_TIME);
         InMemoryJobStore jobs = new InMemoryJobStore();
@@ -229,7 +366,11 @@ class PostContentAnalysisJobWorkerTest {
                 results,
                 provider,
                 new PostContentAnalysisValidator(),
-                clock);
+                clock,
+                new DirectExecutorService(),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(2));
     }
 
     private static PostContentAnalysisInputV1 input(String version) {
@@ -308,12 +449,27 @@ class PostContentAnalysisJobWorkerTest {
             Optional<PostContentAnalysisJob> ready = jobs.values().stream()
                     .filter(job -> job.status() == AnalysisStatus.QUEUED)
                     .filter(job -> job.nextAttemptAt() != null && !job.nextAttemptAt().isAfter(now))
-                    .findFirst();
+                    .min(java.util.Comparator
+                            .comparing(PostContentAnalysisJob::nextAttemptAt)
+                            .thenComparing(PostContentAnalysisJob::createdAt)
+                            .thenComparing(PostContentAnalysisJob::analysisRunId));
             if (ready.isEmpty()) return Optional.empty();
 
             PostContentAnalysisJob running = ready.get().markRunning(now);
             save(running);
             return Optional.of(running);
+        }
+
+        @Override
+        public int recoverStaleRunning(Instant staleBefore, Instant retryAt, int maxAttempts) {
+            List<PostContentAnalysisJob> stale = jobs.values().stream()
+                    .filter(job -> job.status() == AnalysisStatus.RUNNING)
+                    .filter(job -> !job.updatedAt().isAfter(staleBefore))
+                    .toList();
+            stale.forEach(job -> save(job.attemptCount() >= maxAttempts
+                    ? job.markFailed("worker_lease_expired", retryAt)
+                    : job.scheduleRetry(retryAt, "worker_lease_expired", retryAt)));
+            return stale.size();
         }
 
         Optional<PostContentAnalysisJob> findByRunId(String runId) {
@@ -395,6 +551,36 @@ class PostContentAnalysisJobWorkerTest {
         @Override
         public Instant instant() {
             return instant;
+        }
+    }
+
+    private static final class DirectExecutorService extends AbstractExecutorService {
+        @Override
+        public void shutdown() {}
+
+        @Override
+        public List<Runnable> shutdownNow() {
+            return List.of();
+        }
+
+        @Override
+        public boolean isShutdown() {
+            return false;
+        }
+
+        @Override
+        public boolean isTerminated() {
+            return false;
+        }
+
+        @Override
+        public boolean awaitTermination(long timeout, TimeUnit unit) {
+            return true;
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            command.run();
         }
     }
 }

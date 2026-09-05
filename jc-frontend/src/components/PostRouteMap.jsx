@@ -3,6 +3,8 @@ import { Loader2, MapPinned } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
 
+const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim();
+
 // 위도/경도 값이 유효한 범위(-90~90, -180~180) 내에 있는지 검증하는 헬퍼 함수
 const validCoordinate = (place) => Number.isFinite(place?.latitude)
   && Number.isFinite(place?.longitude)
@@ -44,7 +46,7 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
   // 지도 생성 및 마커/폴리라인 렌더링 훅
   useEffect(() => {
     // 표시할 루트 좌표가 없으면 실행 중단
-    if (!route.length) {
+    if (compact || !route.length) {
       return undefined;
     }
 
@@ -65,7 +67,7 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
         const map = new maps.Map(mapElementRef.current, {
           center: { lat: first.latitude, lng: first.longitude },
           zoom: 14,
-          mapId: "DEMO_MAP_ID",
+          ...(GOOGLE_MAPS_MAP_ID ? { mapId: GOOGLE_MAPS_MAP_ID } : {}),
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: !compact,
@@ -151,10 +153,10 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
             </li>
           ))}
         </ol>
-        <div className="relative min-h-0 bg-slate-100 dark:bg-slate-800">
-          {route.length > 0 ? <div ref={mapElementRef} className="absolute inset-0" /> : <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-slate-500">{t("routeMap.empty")}</div>}
-          {loading && route.length > 0 && <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70"><Loader2 className="animate-spin text-teal-600" size={24} /></div>}
-          {error && <div className="absolute inset-x-2 top-2 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-lg">{error}</div>}
+        <div className="flex min-h-0 flex-col items-center justify-center bg-slate-100 px-5 text-center dark:bg-slate-800">
+          <MapPinned size={28} className="text-teal-600 dark:text-teal-300" />
+          <p className="mt-2 text-sm font-bold text-title">{orderedPlaces.length} stops</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{t("routeMap.viewGoogleMaps")}</p>
         </div>
       </section>
     );

@@ -25,6 +25,16 @@ public class RecommendationP1CandidateSource {
             Instant referenceTime,
             int retrievalLimit,
             int coreCandidateLimit) {
+        return findEligible(userId, referenceTime, null, retrievalLimit, coreCandidateLimit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RecommendationCandidateRow> findEligible(
+            long userId,
+            Instant referenceTime,
+            String regionCode,
+            int retrievalLimit,
+            int coreCandidateLimit) {
         int retrieval = Math.min(Math.max(retrievalLimit, coreCandidateLimit), 1_000);
         int core = Math.min(Math.max(coreCandidateLimit, 1), 100);
         return jdbcTemplate.query(
@@ -39,6 +49,7 @@ public class RecommendationP1CandidateSource {
                     and p.moderation_status = 'visible'
                     and p.created_at <= ?
                     and a.account_status = 'active'
+                    and (cast(? as text) is null or lower(r.code) = lower(cast(? as text)))
                   order by p.created_at desc, p.id desc
                   limit ?
                 ),
@@ -94,6 +105,8 @@ public class RecommendationP1CandidateSource {
                 """,
                 (resultSet, rowNumber) -> map(resultSet),
                 Timestamp.from(referenceTime),
+                regionCode,
+                regionCode,
                 retrieval,
                 userId,
                 Timestamp.from(referenceTime),
