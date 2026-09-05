@@ -122,6 +122,9 @@ public final class PostContentAnalysisWorker {
         } catch (ProviderTimeoutException exception) {
             handleProviderFailure(running, "provider_timeout");
         } catch (RuntimeException exception) {
+            log.warn("Content Analysis execution failed: postId={}, analysisRunId={}, attempt={}, provider={}, model={}",
+                    running.postId(), running.analysisRunId(), running.attemptCount(),
+                    provider.providerId(), provider.modelVersion(), exception);
             if (isRateLimited(exception)) {
                 providerBlockedUntil = clock.instant().plus(rateLimitCooldown);
                 log.warn("Content Analysis provider rate limited; pausing new calls for {}", rateLimitCooldown);

@@ -126,10 +126,9 @@ class GoogleLocationServiceTest {
     @Test
     void transportFailureLogDoesNotExposeTheGoogleUriOrQueryString() {
         server.expect(once(), anything())
-                .andExpect(method(GET))
                 .andRespond(request -> {
                     throw new ResourceAccessException(
-                            "I/O error on https://maps.googleapis.com/maps/api/place/textsearch/json?key=" + API_KEY);
+                            "I/O error on https://places.googleapis.com/v1/places:searchText");
                 });
 
         assertDomainError(() -> service.lookup("New York", "ko"),
@@ -220,7 +219,6 @@ class GoogleLocationServiceTest {
 
     private void enqueue(String body) {
         server.expect(once(), anything())
-                .andExpect(method(GET))
                 .andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
     }
 

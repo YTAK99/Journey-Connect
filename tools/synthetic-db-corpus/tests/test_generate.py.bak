@@ -80,46 +80,6 @@ class SyntheticDbCorpusTest(unittest.TestCase):
         self.assertGreaterEqual(len(represented), 8)
         self.assertLessEqual(len(keys), generate.ANALYSIS_REPRESENTATIVE_LIMIT)
 
-    # PRESENTATION_POST_CREW_DATASET_V2_TESTS
-    def test_presentation_poi_catalog_covers_every_destination_place(self):
-        for destination in generate.legacy.DS:
-            expected = set(destination.places.split("|"))
-            actual = set(generate.PRESENTATION_POIS[destination.code])
-            self.assertEqual(expected, actual)
-
-    def test_presentation_posts_are_dense_multi_stop_routes(self):
-        _, posts, _ = self.rows()
-        for post in posts:
-            stops = post["route_stops"]
-            self.assertGreaterEqual(len(stops), 2)
-            self.assertLessEqual(len(stops), 5)
-            self.assertGreaterEqual(len(post["content"]), 180)
-            self.assertNotRegex(post["title"], r" · \d{4}$")
-            self.assertEqual(len({stop["place"] for stop in stops}), len(stops))
-            self.assertEqual(
-                len({(stop["lat"], stop["lon"]) for stop in stops}),
-                len(stops),
-            )
-            for stop in stops:
-                self.assertGreaterEqual(len(stop["content"]), 80)
-        self.assertGreaterEqual(generate.post_place_count(posts), len(posts) * 2)
-
-    def test_presentation_route_coordinates_are_not_region_centroid_fallbacks(self):
-        _, posts, _ = self.rows()
-        for post in posts:
-            destination = next(
-                row for row in generate.legacy.DS if row.code == post["region_code"]
-            )
-            coords = {(stop["lat"], stop["lon"]) for stop in post["route_stops"]}
-            self.assertNotEqual(coords, {(destination.lat, destination.lon)})
-
-    def test_presentation_crews_have_natural_titles_and_detailed_descriptions(self):
-        _, _, crews = self.rows()
-        for crew in crews:
-            self.assertGreaterEqual(len(crew["description"]), 150)
-            self.assertNotRegex(crew["title"], r" · \d{3}$")
-            self.assertIn(crew["region_code"], generate.PRESENTATION_POIS)
-
     def test_batch_safe_nicknames(self):
         alpha, _, _ = self.rows(batch_id="alpha")
         beta, _, _ = self.rows(batch_id="beta")

@@ -25,6 +25,40 @@ import org.junit.jupiter.api.Test;
 
 class PostContentAnalysisJobWorkerTest {
 
+    @Test
+    void providerFailureLogsJobContextAndOriginalCause() {
+        MutableClock clock = new MutableClock(BASE_TIME);
+        InMemoryJobStore jobs = new InMemoryJobStore();
+        InMemoryInputStore inputs = new InMemoryInputStore();
+        InMemoryResultStore results = new InMemoryResultStore();
+        service(jobs, inputs, clock, RUN_ID_1).enqueue(input("post-content-v1"));
+        RuntimeException failure = new IllegalStateException("Spring AI invocation failed",
+                new IllegalArgumentException("400 INVALID_ARGUMENT: response schema rejected"));
+        ContentAnalysisProvider provider = new FakeContentAnalysisProvider(
+                source -> { throw failure; }, new PostContentAnalysisValidator());
+        var logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(
+                PostContentAnalysisWorker.class);
+        var appender = new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            assertTrue(worker(jobs, inputs, results, provider, clock).runOnce());
+            var event = appender.list.stream()
+                    .filter(value -> value.getFormattedMessage().contains("execution failed"))
+                    .findFirst().orElseThrow();
+            assertTrue(event.getFormattedMessage().contains(RUN_ID_1));
+            assertTrue(event.getFormattedMessage().contains("attempt=1"));
+            assertTrue(event.getFormattedMessage().contains("model=fake-model-v1"));
+            assertEquals("Spring AI invocation failed", event.getThrowableProxy().getMessage());
+            assertEquals("400 INVALID_ARGUMENT: response schema rejected",
+                    event.getThrowableProxy().getCause().getMessage());
+            assertEquals("provider_failure", jobs.findByRunId(RUN_ID_1).orElseThrow().lastErrorCode());
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
     private static final String RUN_ID_1 = "analysis:00000000-0000-0000-0000-000000000001";
     private static final String RUN_ID_2 = "analysis:00000000-0000-0000-0000-000000000002";
     private static final Instant BASE_TIME = Instant.parse("2026-08-07T02:00:00Z");
