@@ -16,6 +16,7 @@ import PostActionsMenu from "./PostActionsMenu";
 import UserAvatar from "./UserAvatar";
 
 const fallbackImage = "/ex_1.jpg";
+const FEED_PAGE_SIZE = 20;
 
 const syncCurrentUserAuthor = (author) => {
   const currentUser = getUser();
@@ -364,65 +365,180 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
   const trimmedKeyword = keyword.trim();
+  const normalizedKeyword = trimmedKeyword.toLowerCase();
+  const serverRegion = selectedRegion?.code || "";
+  const regionIdentity =
+    serverRegion ||
+    selectedRegion?.placeId ||
+    selectedRegion?.id ||
+    selectedRegion?.label?.en ||
+    selectedRegion?.label?.ko ||
+    "";
+  const requestKey = `${trimmedKeyword}::${regionIdentity}`;
+
   const [feedResult, setFeedResult] = useState({
     resultKey: null,
     posts: [],
     error: "",
+    nextCursor: null,
+    hasNext: false,
+    nextPage: 1,
   });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState("");
 
   useEffect(() => {
     let active = true;
+    
     const request = trimmedKeyword
-      ? getExplore({ keyword: trimmedKeyword, size: 100 })
-      : getFeed({ size: 100 });
+      ? getExplore({
+          keyword: trimmedKeyword,
+          region: serverRegion || undefined,
+          page: 0,
+          size: FEED_PAGE_SIZE,
+        })
+      : getFeed({
+          region: serverRegion || undefined,
+          size: FEED_PAGE_SIZE,
+        });
 
     request
       .then((feed) => {
         if (!active) return;
+        setLoadMoreError("");
+
+        const nextCursor = trimmedKeyword ? null : feed?.nextCursor || null;
+        const hasNext = trimmedKeyword
+          ? feed?.last === false ||
+            (Number.isFinite(feed?.page) &&
+              Number.isFinite(feed?.totalPages) &&
+              feed.page + 1 < feed.totalPages)
+          : Boolean(feed?.hasNext ?? nextCursor);
+
         setFeedResult({
-          resultKey: trimmedKeyword,
+          resultKey: requestKey,
           posts: getFeedItems(feed),
           error: "",
+          nextCursor,
+          hasNext,
+          nextPage: trimmedKeyword ? (feed?.page ?? 0) + 1 : 1,
         });
       })
       .catch((requestError) => {
         if (!active) return;
+        setLoadMoreError("");
         setFeedResult({
-          resultKey: trimmedKeyword,
+          resultKey: requestKey,
           posts: [],
           error: getApiErrorMessage(requestError, t("feed.loadFailed")),
+          nextCursor: null,
+          hasNext: false,
+          nextPage: 1,
         });
       });
 
     return () => {
       active = false;
     };
-  }, [trimmedKeyword, t]);
+  }, [requestKey, serverRegion, trimmedKeyword, t]);
 
-  // 요청 키가 현재 검색어와 다르면 새 결과를 기다리는 중입니다.
-  const loading = feedResult.resultKey !== trimmedKeyword;
+  const loading = feedResult.resultKey !== requestKey;
   const posts = loading ? [] : feedResult.posts;
   const error = loading ? "" : feedResult.error;
 
-  const regionName = selectedRegion?.label?.[currentLang] || selectedRegion?.label?.en || selectedRegion?.label?.ko;
-  const normalizedKeyword = trimmedKeyword.toLowerCase();
-  const visiblePosts = posts.filter((post) => {
-    const name = post.regionName || post.region?.name || "";
-    if (!matchesSelectedRegion(post, selectedRegion)) return false;
-    if (!normalizedKeyword) return true;
-    const searchable = `${post.title || ""} ${richTextToPlainText(post.content || "")} ${name} ${post.category || ""} ${(post.tags || []).join(" ")} ${post.author?.nickname || ""}`.toLowerCase();
-    return searchable.includes(normalizedKeyword);
-  });
-  const displayPosts = visiblePosts;
+  const regionName =
+    selectedRegion?.label?.[currentLang] ||
+    selectedRegion?.label?.en ||
+    selectedRegion?.label?.ko;
+
+  const displayPosts = serverRegion
+    ? posts
+    : posts.filter((post) => matchesSelectedRegion(post, selectedRegion));
+
+  const appendUniquePosts = (currentPosts, incomingPosts) => {
+    const seen = new Set(currentPosts.map((item) => String(item.id)));
+    return [
+      ...currentPosts,
+      ...incomingPosts.filter((item) => {
+        const id = String(item.id);
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      }),
+    ];
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !feedResult.hasNext) return;
+
+    const capturedKey = requestKey;
+    setLoadingMore(true);
+    setLoadMoreError("");
+
+    try {
+      const feed = trimmedKeyword
+        ? await getExplore({
+            keyword: trimmedKeyword,
+            region: serverRegion || undefined,
+            page: feedResult.nextPage,
+            size: FEED_PAGE_SIZE,
+          })
+        : await getFeed({
+            cursor: feedResult.nextCursor,
+            region: serverRegion || undefined,
+            size: FEED_PAGE_SIZE,
+          });
+
+      setFeedResult((current) => {
+        if (current.resultKey !== capturedKey) return current;
+
+        const nextCursor = trimmedKeyword ? null : feed?.nextCursor || null;
+        const hasNext = trimmedKeyword
+          ? feed?.last === false ||
+            (Number.isFinite(feed?.page) &&
+              Number.isFinite(feed?.totalPages) &&
+              feed.page + 1 < feed.totalPages)
+          : Boolean(feed?.hasNext ?? nextCursor);
+
+        return {
+          ...current,
+          posts: appendUniquePosts(current.posts, getFeedItems(feed)),
+          nextCursor,
+          hasNext,
+          nextPage: trimmedKeyword
+            ? (feed?.page ?? current.nextPage) + 1
+            : current.nextPage,
+        };
+      });
+    } catch (requestError) {
+      setLoadMoreError(
+        getApiErrorMessage(requestError, t("feed.loadFailed")),
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const handlePostDeleted = (postId) => {
     setFeedResult((current) => ({
       ...current,
-      posts: current.posts.filter((item) => String(item.id) !== String(postId)),
+      posts: current.posts.filter(
+        (item) => String(item.id) !== String(postId),
+      ),
     }));
   };
 
-  if (loading) return <div className="py-10 text-center text-gray-500 dark:text-slate-400">{t("feed.loading")}</div>;
-  if (error) return <div className="py-10 text-center text-red-500">{error}</div>;
+  if (loading) {
+    return (
+      <div className="py-10 text-center text-gray-500 dark:text-slate-400">
+        {t("feed.loading")}
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="py-10 text-center text-red-500">{error}</div>;
+  }
 
   if (displayPosts.length === 0) {
     return (
@@ -430,17 +546,33 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
         <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
           {normalizedKeyword
             ? t("feed.noSearchResults", { keyword })
-            : t("feed.noRegionResults", { region: regionName || t("feed.selectedRegion") })}
+            : t("feed.noRegionResults", {
+                region: regionName || t("feed.selectedRegion"),
+              })}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">{t("feed.emptyHelp")}</p>
+        <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">
+          {t("feed.emptyHelp")}
+        </p>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row sm:flex-wrap">
-          <button type="button" onClick={onChangeRegion} className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-teal-950/30">
+          <button
+            type="button"
+            onClick={onChangeRegion}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-teal-950/30"
+          >
             <MapPin size={17} /> {t("feed.changeRegion")}
           </button>
-          <button type="button" onClick={() => navigate("/explore")} className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-teal-950/30">
+          <button
+            type="button"
+            onClick={() => navigate("/explore")}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-primary bg-white px-5 py-3 text-sm font-semibold text-primary hover:bg-teal-50 dark:bg-slate-900 dark:hover:bg-teal-950/30"
+          >
             <Globe2 size={17} /> {t("feed.exploreWorld")}
           </button>
-          <button type="button" onClick={() => navigate("/write")} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white hover:bg-primaryHover">
+          <button
+            type="button"
+            onClick={() => navigate("/write")}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white hover:bg-primaryHover"
+          >
             <Plus size={17} /> {t("feed.writeFirst")}
           </button>
         </div>
@@ -453,7 +585,43 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
       {displayPosts.map((post) => (
         <FeedItem key={post.id} post={post} onDeleted={handlePostDeleted} />
       ))}
-      <div className="py-8 text-center text-sm text-gray-500 dark:text-slate-400">{t("feed.end")}</div>
+
+      {loadMoreError && (
+        <div className="text-center">
+          <p className="mb-3 text-sm text-red-500">{loadMoreError}</p>
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="rounded-full border border-primary px-5 py-2 text-sm font-semibold text-primary hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-teal-950/30"
+          >
+            {currentLang === "ko" ? "\uB2E4\uC2DC \uC2DC\uB3C4" : "Retry"}
+          </button>
+        </div>
+      )}
+
+      {!loadMoreError && feedResult.hasNext && (
+        <div className="py-4 text-center">
+          <button
+            type="button"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primaryHover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loadingMore
+              ? t("feed.loading")
+              : currentLang === "ko"
+                ? "\uAC8C\uC2DC\uBB3C \uB354 \uBCF4\uAE30"
+                : "Load more posts"}
+          </button>
+        </div>
+      )}
+
+      {!feedResult.hasNext && (
+        <div className="py-8 text-center text-sm text-gray-500 dark:text-slate-400">
+          {t("feed.end")}
+        </div>
+      )}
     </div>
   );
 }

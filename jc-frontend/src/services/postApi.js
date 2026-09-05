@@ -3,10 +3,11 @@ import apiClient, { unwrapApiResponse } from "./apiClient";
 const unwrap = unwrapApiResponse;
 
 // 피드는 createdAt/id 기반 커서로 다음 묶음을 조회해 중간 데이터가 추가돼도 중복을 줄입니다.
-export const getFeed = async ({ cursor, size = 20 } = {}) => {
+export const getFeed = async ({ cursor, region, size = 20 } = {}) => {
   const response = await apiClient.get("/feed", {
     params: {
       cursor: cursor || undefined,
+      region: region || undefined,
       size,
     },
   });
