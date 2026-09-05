@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 import useTranslation from "../i18n/useTranslation";
 import { getApiErrorMessage } from "../services/apiClient";
 import { chatWithJourneyAi } from "../services/journeyAiApi";
+import useRegionStore from "../store/useRegionStore";
 
 const COPY = {
   ko: {
@@ -19,6 +20,12 @@ const COPY = {
     places: "추천 장소 순서",
     grounded: "개의 Journey Connect 게시물을 참고했습니다.",
     prompts: ["서울 하루 코스 추천해줘", "조용한 로컬 여행 찾아줘", "사진 찍기 좋은 여행 추천", "혼자 걷기 좋은 서울 코스"],
+    currentPostPrompts: [
+      "\uC774 \uAC8C\uC2DC\uBB3C \uC5EC\uD589 \uB3D9\uC120 \uC815\uB9AC\uD574\uC918",
+      "\uC774 \uAC8C\uC2DC\uBB3C\uACFC \uBE44\uC2B7\uD55C \uC5EC\uD589 \uCD94\uCC9C\uD574\uC918",
+      "\uC774 \uC7A5\uC18C\uB4E4\uC744 \uC5B4\uB5A4 \uC21C\uC11C\uB85C \uAC00\uBA74 \uC88B\uC544?",
+      "\uC774 \uC5EC\uD589\uC5D0\uC11C \uB193\uCE58\uBA74 \uC544\uC26C\uC6B4 \uD3EC\uC778\uD2B8 \uC54C\uB824\uC918",
+    ],
   },
   en: {
     title: "Journey AI",
@@ -33,6 +40,12 @@ const COPY = {
     places: "Suggested place order",
     grounded: " Journey Connect posts were used as context.",
     prompts: ["Plan a one-day trip in Seoul", "Find a quiet local experience", "Recommend a photo-friendly trip", "Find a walking route in Seoul"],
+    currentPostPrompts: [
+      "Summarize the route in this post",
+      "Recommend trips similar to this post",
+      "What is the best order for these places?",
+      "What should I not miss from this trip?",
+    ],
   },
 };
 
@@ -45,8 +58,10 @@ function JourneyAiPanel() {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentLang } = useTranslation();
+  const { selectedRegion } = useRegionStore();
   const copy = COPY[currentLang === "ko" ? "ko" : "en"];
   const currentPostId = currentPostIdFromPath(location.pathname);
+  const prompts = currentPostId ? copy.currentPostPrompts : copy.prompts;
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -75,6 +90,7 @@ function JourneyAiPanel() {
       const response = await chatWithJourneyAi({
         message,
         currentPostId,
+        region: selectedRegion?.code || null,
         history,
       });
       setMessages((value) => [...value, {
@@ -135,7 +151,7 @@ function JourneyAiPanel() {
                   </div>
                   <p className="mt-4 font-bold text-title">{copy.welcome}</p>
                   <div className="mt-5 flex flex-wrap justify-center gap-2">
-                    {copy.prompts.map((prompt) => (
+                    {prompts.map((prompt) => (
                       <button key={prompt} type="button" onClick={() => submit(prompt)} className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-teal-300 hover:text-teal-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
                         {prompt}
                       </button>
