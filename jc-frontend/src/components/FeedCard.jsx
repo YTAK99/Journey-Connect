@@ -75,6 +75,8 @@ const getRelativeDate = (createdAt, language) => {
 function FeedItem({ post, onDeleted }) {
   const navigate = useNavigate();
   const { currentLang, t } = useTranslation();
+  const cardRef = useRef(null);
+  const [shouldLoadDetails, setShouldLoadDetails] = useState(false);
   // 기존 post 데이터를 유지하면서 상세 데이터를 덮어쓰도록 설정
   const [detailedPost, setDetailedPost] = useState(() => ({
     ...post,
@@ -103,6 +105,22 @@ function FeedItem({ post, onDeleted }) {
   }, []);
 
   useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return undefined;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setShouldLoadDetails(true);
+      observer.disconnect();
+    }, { rootMargin: "400px 0px" });
+
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [post.id]);
+
+  useEffect(() => {
+    if (!shouldLoadDetails) return undefined;
+
     let active = true;
     getPost(post.id)
       .then((detail) => {
@@ -126,7 +144,7 @@ function FeedItem({ post, onDeleted }) {
         if (import.meta.env.DEV) console.error("Failed to load feed item details:", error);
       });
     return () => { active = false; };
-  }, [post.id]);
+  }, [post.id, shouldLoadDetails]);
 
   // 현재 언어에 맞는 게시물 지역명
   const location = getLocalizedRegionName(detailedPost, currentLang);
@@ -231,7 +249,7 @@ function FeedItem({ post, onDeleted }) {
   };
 
   return (
-    <article className="mx-auto w-full max-w-4xl overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
+    <article ref={cardRef} className="mx-auto w-full max-w-4xl overflow-hidden rounded-lg border border-gray-100 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900">
       {/* 작성자 / 지역 / 작성 시간 */}
       <div className="px-5 pb-3 pt-5">
         <div className="flex items-center justify-between gap-3">
