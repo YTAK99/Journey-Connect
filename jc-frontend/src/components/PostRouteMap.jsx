@@ -191,7 +191,7 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Journey route</p>
           <h2 className="mt-1 text-xl font-bold text-title">{t("routeMap.title")}</h2>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-sm text-slate-400"><MapPinned size={16} /> {orderedPlaces.length} stops</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-slate-400"><MapPinned size={16} /> {orderedPlaces.length} {orderedPlaces.length === 1 ? "stop" : "stops"}</span>
       </div>
 
       {/* 좌측: 장소 타임라인 목록 / 우측: 구글 맵 루트 시각화 영역 */}
