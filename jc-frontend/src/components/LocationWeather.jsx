@@ -5,7 +5,7 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { getGoogleLocationSuggestions, getGoogleLocationSummary } from "../services/googleLocationApi";
 import useLangStore from "../store/useLangStore";
 import { getMessages } from "../i18n";
-import { toRegionPreference } from "../utils/region";
+import { getRegionLookupQuery, toRegionPreference } from "../utils/region";
 
 const getLocalDate = (timezone, lang) => {
   try {
@@ -19,11 +19,6 @@ const getLocalDate = (timezone, lang) => {
   } catch {
     return "--";
   }
-};
-
-const getRegionQuery = (region, lang) => {
-  const label = lang === "ko" ? region.label.ko : region.label.en;
-  return `${label} ${region.country}`;
 };
 
 const createCustomRegion = (name, summary = null) => ({
@@ -105,7 +100,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
 
   const selectRegion = (region) => {
     onSelect(region);
-    onSearch(getRegionQuery(region, currentLang), region);
+    onSearch(getRegionLookupQuery(region, currentLang), region);
     onClose();
   };
 
@@ -227,7 +222,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
   // 같은 검색어를 다시 선택해도 id를 증가시켜 요약 정보를 새로 조회할 수 있게 합니다.
   const [request, setRequest] = useState(() => ({
     id: 0,
-    query: getRegionQuery(selectedRegion, currentLang),
+    query: getRegionLookupQuery(selectedRegion, currentLang),
     persistDynamic: false,
   }));
   const [summary, setSummary] = useState(null);

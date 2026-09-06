@@ -50,6 +50,28 @@ export const getPostAnalysis = async (postId) => {
   return unwrap(response);
 };
 
+export const requestPostAnalysis = async (postId) => {
+  const response = await apiClient.post(`/posts/${postId}/analysis`);
+  return unwrap(response);
+};
+
+export const getOrRequestPostAnalysis = async (postId, {
+  pollIntervalMs = 750,
+  timeoutMs = 90000,
+} = {}) => {
+  let analysis = await getPostAnalysis(postId);
+  if (analysis?.status === "not_requested") {
+    analysis = await requestPostAnalysis(postId);
+  }
+  const deadline = Date.now() + timeoutMs;
+  while ((analysis?.status === "queued" || analysis?.status === "running")
+    && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    analysis = await getPostAnalysis(postId);
+  }
+  return analysis;
+};
+
 export const getPostComments = async (postId, { page = 0, size = 50 } = {}) => {
   const response = await apiClient.get(`/posts/${postId}/comments`, { params: { page, size } });
   return unwrap(response);

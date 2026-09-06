@@ -24,7 +24,7 @@ describe("journeyAiApi", () => {
       currentPostId: 123,
       region: null,
       history: history.slice(-6),
-    });
+    }, { timeout: 45_000 });
     expect(unwrapApiResponse).toHaveBeenCalledWith(response);
   });
 });

@@ -35,6 +35,7 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
   // 지도 로딩 상태 및 에러 상태 관리
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [compactMapVisible, setCompactMapVisible] = useState(false);
   // 장소들의 정렬 순서(sortOrder)를 기준으로 오름차순 정렬
   const orderedPlaces = useMemo(() => [...places]
     .sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0)), [places]);
@@ -43,20 +44,36 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
     .map((place, index) => ({ place, index }))
     .filter(({ place }) => validCoordinate(place)), [orderedPlaces]);
 
+  useEffect(() => {
+    if (!compact || !route.length || !mapElementRef.current) return undefined;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setCompactMapVisible(entry.isIntersecting);
+    }, { threshold: 0.05 });
+    observer.observe(mapElementRef.current);
+    return () => observer.disconnect();
+  }, [compact, route.length]);
+
   // 지도 생성 및 마커/폴리라인 렌더링 훅
   useEffect(() => {
     // 표시할 루트 좌표가 없으면 실행 중단
-    if (compact || !route.length) {
+    if (!route.length || (compact && !compactMapVisible)) {
       return undefined;
     }
 
+    const mapElement = mapElementRef.current;
+    if (!mapElement) return undefined;
+
     let active = true;
+    let map;
     let polyline;
     let markers = [];
     const markerClickHandlers = [];
 
     const initialize = async () => {
       try {
+        setLoading(true);
+        setError("");
         // 1. 구글 맵 API 및 마커 라이브러리 로드
         const maps = await loadGoogleMaps();
         const { AdvancedMarkerElement } = await maps.importLibrary("marker");
@@ -64,7 +81,7 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
 
         // 첫 번째 장소의 좌표를 지도의 초기 중심점으로 설정
         const first = route[0].place;
-        const map = new maps.Map(mapElementRef.current, {
+        map = new maps.Map(mapElement, {
           center: { lat: first.latitude, lng: first.longitude },
           zoom: 14,
           ...(GOOGLE_MAPS_MAP_ID ? { mapId: GOOGLE_MAPS_MAP_ID } : {}),
@@ -135,15 +152,17 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
       });
       markers.forEach((marker) => { marker.map = null; });
       if (polyline) polyline.setMap(null);
+      mapElement.replaceChildren();
+      map = null;
     };
-  }, [compact, lang, route]);
+  }, [compact, compactMapVisible, lang, route]);
 
   // 등록된 장소가 없으면 아무것도 렌더링하지 않음
   if (!orderedPlaces.length) return null;
 
   if (compact) {
     return (
-      <section className="grid h-80 min-h-0 grid-cols-[36%_64%] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <section className="grid h-[28rem] min-h-0 grid-rows-[9rem_minmax(0,1fr)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-80 sm:grid-cols-[36%_64%] sm:grid-rows-1 dark:border-slate-700 dark:bg-slate-900">
         <ol className="min-h-0 overflow-y-auto border-r border-slate-200 px-3 py-4 dark:border-slate-700">
           {orderedPlaces.map((place, index) => (
             <li key={place.id || `${place.placeName}-${index}`} className="relative flex min-h-14 gap-2.5 pb-3 last:min-h-0 last:pb-0">
@@ -153,10 +172,12 @@ export default function PostRouteMap({ places = [], lang = "ko", compact = false
             </li>
           ))}
         </ol>
-        <div className="flex min-h-0 flex-col items-center justify-center bg-slate-100 px-5 text-center dark:bg-slate-800">
-          <MapPinned size={28} className="text-teal-600 dark:text-teal-300" />
-          <p className="mt-2 text-sm font-bold text-title">{orderedPlaces.length} stops</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{t("routeMap.viewGoogleMaps")}</p>
+        <div className="relative min-h-0 border-t border-slate-200 bg-slate-100 sm:border-l sm:border-t-0 dark:border-slate-700 dark:bg-slate-800">
+          {route.length > 0 ? <div ref={mapElementRef} className="absolute inset-0" /> : (
+            <div className="absolute inset-0 flex items-center justify-center px-5 text-center text-xs text-slate-500">{t("routeMap.empty")}</div>
+          )}
+          {compactMapVisible && loading && route.length > 0 && <div className="absolute inset-0 flex items-center justify-center bg-white/70 dark:bg-slate-900/70"><Loader2 className="animate-spin text-teal-600" size={24} /></div>}
+          {error && <div className="absolute inset-x-2 top-2 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-lg">{error}</div>}
         </div>
       </section>
     );

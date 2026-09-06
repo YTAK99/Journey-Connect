@@ -6,6 +6,6 @@ export async function chatWithJourneyAi({ message, currentPostId, region, histor
     currentPostId: currentPostId || null,
     region: region || null,
     history: Array.isArray(history) ? history.slice(-6) : [],
-  });
+  }, { timeout: 45_000 });
   return unwrapApiResponse(response);
 }

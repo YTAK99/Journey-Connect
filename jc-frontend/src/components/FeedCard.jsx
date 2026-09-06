@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bookmark, Globe2, Heart, MapPin, MessageCircle, Plus, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
-import { bookmarkPost, deletePost, getExplore, getFeed, getFeedItems, getPost, getPostAnalysis, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
+import { bookmarkPost, deletePost, getExplore, getFeed, getFeedItems, getOrRequestPostAnalysis, getPost, likePost, unbookmarkPost, unlikePost } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
 import { getLocalizedRegionName, matchesSelectedRegion } from "../utils/region";
 import { parseApiDate } from "../utils/dateTime";
@@ -17,6 +17,19 @@ import UserAvatar from "./UserAvatar";
 
 const fallbackImage = "/ex_1.jpg";
 const FEED_PAGE_SIZE = 20;
+
+const appendUniquePosts = (currentPosts, incomingPosts) => {
+  const seen = new Set(currentPosts.map((item) => String(item.id)));
+  return [
+    ...currentPosts,
+    ...incomingPosts.filter((item) => {
+      const id = String(item.id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    }),
+  ];
+};
 
 const syncCurrentUserAuthor = (author) => {
   const currentUser = getUser();
@@ -206,7 +219,7 @@ function FeedItem({ post, onDeleted }) {
     setAnalysisLoading(true);
     setAnalysisError("");
     try {
-      setAnalysis(await getPostAnalysis(post.id));
+      setAnalysis(await getOrRequestPostAnalysis(post.id));
     } catch (error) {
       setAnalysisError(getApiErrorMessage(
         error,
@@ -386,6 +399,7 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
   });
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState("");
+  const loadMoreSentinelRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -455,20 +469,7 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
     ? posts
     : posts.filter((post) => matchesSelectedRegion(post, selectedRegion));
 
-  const appendUniquePosts = (currentPosts, incomingPosts) => {
-    const seen = new Set(currentPosts.map((item) => String(item.id)));
-    return [
-      ...currentPosts,
-      ...incomingPosts.filter((item) => {
-        const id = String(item.id);
-        if (seen.has(id)) return false;
-        seen.add(id);
-        return true;
-      }),
-    ];
-  };
-
-  const handleLoadMore = async () => {
+  const handleLoadMore = useCallback(async () => {
     if (loadingMore || !feedResult.hasNext) return;
 
     const capturedKey = requestKey;
@@ -517,7 +518,18 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
     } finally {
       setLoadingMore(false);
     }
-  };
+  }, [feedResult.hasNext, feedResult.nextCursor, feedResult.nextPage, loadingMore, requestKey, serverRegion, t, trimmedKeyword]);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || loading || loadingMore || loadMoreError || !feedResult.hasNext) return undefined;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) handleLoadMore();
+    }, { rootMargin: "0px 0px 400px 0px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [feedResult.hasNext, handleLoadMore, loadMoreError, loading, loadingMore]);
 
   const handlePostDeleted = (postId) => {
     setFeedResult((current) => ({
@@ -601,19 +613,13 @@ export default function FeedCard({ selectedRegion, keyword = "", onChangeRegion 
       )}
 
       {!loadMoreError && feedResult.hasNext && (
-        <div className="py-4 text-center">
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primaryHover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loadingMore
-              ? t("feed.loading")
-              : currentLang === "ko"
-                ? "\uAC8C\uC2DC\uBB3C \uB354 \uBCF4\uAE30"
-                : "Load more posts"}
-          </button>
+        <div
+          ref={loadMoreSentinelRef}
+          className="flex h-16 items-center justify-center text-sm font-semibold text-primary"
+          role="status"
+          aria-live="polite"
+        >
+          {loadingMore ? t("feed.loading") : ""}
         </div>
       )}
 

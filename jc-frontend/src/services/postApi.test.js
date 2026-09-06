@@ -3,12 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./apiClient", () => ({
   default: {
     get: vi.fn(),
+    post: vi.fn(),
   },
   unwrapApiResponse: vi.fn(),
 }));
 
 import apiClient, { unwrapApiResponse } from "./apiClient";
-import { getExplore, getFeed, getFeedItems } from "./postApi";
+import { getExplore, getFeed, getFeedItems, getOrRequestPostAnalysis } from "./postApi";
 
 describe("postApi read contracts", () => {
   beforeEach(() => {
@@ -66,6 +67,20 @@ describe("postApi read contracts", () => {
         size: 30,
       },
     });
+  });
+
+  it("requests and polls a missing analysis until it succeeds", async () => {
+    apiClient.get
+      .mockResolvedValueOnce({ data: { status: "not_requested" } })
+      .mockResolvedValueOnce({ data: { status: "succeeded", result: { summary: "완료" } } });
+    apiClient.post.mockResolvedValueOnce({ data: { status: "queued" } });
+    unwrapApiResponse.mockImplementation((response) => response.data);
+
+    await expect(getOrRequestPostAnalysis(7210, { pollIntervalMs: 0 }))
+      .resolves.toEqual({ status: "succeeded", result: { summary: "완료" } });
+
+    expect(apiClient.post).toHaveBeenCalledWith("/posts/7210/analysis");
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
   });
 });
 

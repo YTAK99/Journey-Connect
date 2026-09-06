@@ -3,6 +3,20 @@ export const getLocalizedRegionName = (item, lang = "ko", fallback = "지역 미
   return names[lang] || names.en || names.ko || item?.regionName || item?.region?.displayName || item?.region?.name || item?.location || fallback;
 };
 
+export const getRegionLookupQuery = (region, lang = "ko") => {
+  const label = region?.label?.[lang] || region?.label?.en || region?.label?.ko || "";
+  const countryCode = String(region?.country || "").trim().toUpperCase();
+  let country = countryCode;
+  if (/^[A-Z]{2}$/.test(countryCode)) {
+    try {
+      country = new Intl.DisplayNames([lang === "ko" ? "ko" : "en"], { type: "region" }).of(countryCode) || countryCode;
+    } catch {
+      country = countryCode;
+    }
+  }
+  return [label, country].filter(Boolean).join(" ");
+};
+
 export const getRegionSearchText = (item) => {
   // 도시명뿐 아니라 번역명·상위 행정구역·국가 코드를 한 문자열로 합쳐 지역 계층 검색에 사용합니다.
   const names = item?.regionNames || item?.region?.localizedNames || {};

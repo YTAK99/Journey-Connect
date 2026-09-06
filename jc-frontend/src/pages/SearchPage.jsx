@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, PenLine, RotateCcw } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import PostCard from "../components/PostCard";
@@ -25,6 +25,7 @@ export default function SearchPage() {
   const [nextPage, setNextPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const requestKeyRef = useRef("");
+  const loadMoreSentinelRef = useRef(null);
   const rawKeyword = (searchParams.get("q") || "").trim();
   const keyword = rawKeyword.toLowerCase();
   const requestKey = keyword;
@@ -72,7 +73,7 @@ export default function SearchPage() {
     };
   }, [keyword, requestKey, t.loadFailed]);
 
-  const loadMoreExplore = async () => {
+  const loadMoreExplore = useCallback(async () => {
     if (loadingMore || !hasNext || (!keyword && !nextCursor)) return;
 
     const activeRequestKey = requestKeyRef.current;
@@ -153,7 +154,18 @@ export default function SearchPage() {
         setLoadingMore(false);
       }
     }
-  };
+  }, [hasNext, keyword, loadingMore, nextCursor, nextPage, t.loadMoreFailed, t.restartFailed]);
+
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || loading || loadingMore || !hasNext) return undefined;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) loadMoreExplore();
+    }, { rootMargin: "0px 0px 400px 0px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNext, loadMoreExplore, loading, loadingMore]);
 
   const filteredPosts = posts;
 
@@ -211,20 +223,18 @@ export default function SearchPage() {
             <>
               <div className="grid grid-cols-1 gap-4 border-b border-gray-100 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredPosts.map((post) => (
-                  <PostCard key={post.id} post={post} setPosts={setPosts} titleOnly colorFallback />
+                  <PostCard key={post.id} post={post} setPosts={setPosts} titleOnly colorFallback showBookmark={false} />
                 ))}
               </div>
 
               {hasNext && (
-                <div className="flex justify-center py-6">
-                  <button
-                    type="button"
-                    onClick={loadMoreExplore}
-                    disabled={loadingMore}
-                    className="rounded-xl border border-teal-200 bg-white px-5 py-2.5 text-sm font-bold text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-teal-900 dark:bg-slate-900 dark:text-teal-200 dark:hover:bg-slate-800"
-                  >
-                    {loadingMore ? t.loadingMore : t.loadMore}
-                  </button>
+                <div
+                  ref={loadMoreSentinelRef}
+                  className="flex h-16 items-center justify-center text-sm font-semibold text-teal-700 dark:text-teal-200"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {loadingMore ? t.loadingMore : ""}
                 </div>
               )}
             </>
@@ -284,6 +294,7 @@ export default function SearchPage() {
                           }))}
                           titleOnly
                           colorFallback
+                          showBookmark={false}
                         />
                       ))}
                     </div>
