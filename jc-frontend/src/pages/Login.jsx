@@ -5,6 +5,9 @@ import { login, loginWithGoogle } from "../services/auth";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import useTranslation from "../i18n/useTranslation";
 
+let googleIdentityInitializedClientId = "";
+let googleCredentialHandler = null;
+
 export default function Login() {
   // 로그인 성공 시 토큰 저장은 auth 서비스에 맡기고 피드 화면으로 이동합니다.
   const navigate = useNavigate();
@@ -36,15 +39,20 @@ export default function Login() {
       }
     };
 
+    googleCredentialHandler = handleCredential;
+
     const initializeGoogleLogin = () => {
       if (cancelled || !window.google?.accounts?.id || !googleButtonRef.current) return;
 
       clearTimeout(loadTimeout);
       setGoogleUnavailable(false);
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: handleCredential,
-      });
+      if (googleIdentityInitializedClientId !== googleClientId) {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: (response) => googleCredentialHandler?.(response),
+        });
+        googleIdentityInitializedClientId = googleClientId;
+      }
       googleButtonRef.current.replaceChildren();
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         type: "standard",
@@ -72,6 +80,9 @@ export default function Login() {
 
     return () => {
       cancelled = true;
+      if (googleCredentialHandler === handleCredential) {
+        googleCredentialHandler = null;
+      }
       clearTimeout(loadTimeout);
       script?.removeEventListener("load", initializeGoogleLogin);
       script?.removeEventListener("error", handleLoadError);

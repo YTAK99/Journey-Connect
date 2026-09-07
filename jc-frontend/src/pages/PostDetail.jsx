@@ -12,12 +12,22 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
+import CommentSection from "../components/CommentSection";
 import PostRouteMap from "../components/PostRouteMap";
 import PostActionsMenu from "../components/PostActionsMenu";
 import UserAvatar from "../components/UserAvatar";
+import PostImageLightbox from "../components/PostImageLightbox";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
-import { deletePost, getPost, getPostAnalysis } from "../services/postApi";
+import {
+  bookmarkPost,
+  deletePost,
+  getPost,
+  getPostAnalysis,
+  likePost,
+  unlikePost,
+  unbookmarkPost,
+} from "../services/postApi";
 import useTranslation from "../i18n/useTranslation";
 import { getLocalizedRegionName } from "../utils/region";
 import { normalizeEditorContent } from "../utils/richText";
@@ -42,6 +52,8 @@ function PostDetail() {
   const [post, setPost] = useState(null);
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reactionPending, setReactionPending] = useState("");
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const isKorean = currentLang === "ko";
 
@@ -71,6 +83,78 @@ function PostDetail() {
     }
   };
 
+  const handleLike = async () => {
+    if (reactionPending || !post) return;
+
+    const actionPostId = String(post.id);
+    const previousLiked = Boolean(post.liked);
+    const previousCount = post.likeCount ?? 0;
+    const nextLiked = !previousLiked;
+
+    setReactionPending("like");
+    setPost((current) => (
+      current && String(current.id) === actionPostId
+        ? {
+            ...current,
+            liked: nextLiked,
+            likeCount: Math.max(0, previousCount + (nextLiked ? 1 : -1)),
+          }
+        : current
+    ));
+
+    try {
+      if (nextLiked) await likePost(post.id);
+      else await unlikePost(post.id);
+      window.dispatchEvent(new Event("likeChanged"));
+    } catch (error) {
+      setPost((current) => (
+        current && String(current.id) === actionPostId
+          ? { ...current, liked: previousLiked, likeCount: previousCount }
+          : current
+      ));
+      alert(getApiErrorMessage(error, t("post.likeFailed")));
+    } finally {
+      setReactionPending("");
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (reactionPending || !post) return;
+
+    const actionPostId = String(post.id);
+    const previousBookmarked = Boolean(post.bookmarked);
+    const previousCount = post.bookmarkCount ?? 0;
+    const nextBookmarked = !previousBookmarked;
+
+    setReactionPending("bookmark");
+    setPost((current) => (
+      current && String(current.id) === actionPostId
+        ? {
+            ...current,
+            bookmarked: nextBookmarked,
+            bookmarkCount: Math.max(0, previousCount + (nextBookmarked ? 1 : -1)),
+          }
+        : current
+    ));
+
+    try {
+      if (nextBookmarked) await bookmarkPost(post.id);
+      else await unbookmarkPost(post.id);
+    } catch (error) {
+      setPost((current) => (
+        current && String(current.id) === actionPostId
+          ? {
+              ...current,
+              bookmarked: previousBookmarked,
+              bookmarkCount: previousCount,
+            }
+          : current
+      ));
+      alert(getApiErrorMessage(error, t("post.bookmarkFailed")));
+    } finally {
+      setReactionPending("");
+    }
+  };
   if (loading) {
     return (
       <main className="min-h-screen bg-background px-4 pb-16 pt-28">
@@ -105,11 +189,20 @@ function PostDetail() {
   }
 
   const currentUser = getUser();
-  const isAuthor = String(currentUser?.id) === String(post.author?.id);
+  const isAuthor = currentUser?.id != null && post.author?.id != null && String(currentUser.id) === String(post.author.id);
   const location = getLocalizedRegionName(post, currentLang);
   // 대표 이미지는 상단 히어로에서 이미 사용하므로 본문 갤러리에서는 중복 노출하지 않습니다.
   const galleryImages = post.images || [];
   const routePlaces = Array.isArray(post.places) ? post.places : [];
+  const lightboxImages = [
+    ...(post.coverImageUrl ? [{ imageUrl: post.coverImageUrl, altText: post.title }] : []),
+    ...routePlaces.flatMap((place) => place.images || []),
+    ...galleryImages,
+  ].filter((image, index, images) => image?.imageUrl && images.findIndex((candidate) => candidate.imageUrl === image.imageUrl) === index);
+  const openLightbox = (imageUrl) => {
+    const index = lightboxImages.findIndex((image) => image.imageUrl === imageUrl);
+    if (index >= 0) setLightboxIndex(index);
+  };
   const hasTravelDates = post.travelStartDate || post.travelEndDate;
   const currentAnalysis =
     analysis?.postId === String(id)
@@ -135,8 +228,8 @@ function PostDetail() {
         <div className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white shadow-[0_24px_70px_-32px_rgba(15,118,110,0.35)] dark:border-slate-800 dark:bg-slate-900 sm:rounded-[2.25rem]">
           {post.coverImageUrl && (
             <div className="relative h-72 overflow-hidden sm:h-[30rem]">
-              <img src={post.coverImageUrl} alt={post.title} className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
+              <button type="button" onClick={() => openLightbox(post.coverImageUrl)} aria-label={`${post.title} 대표 사진 크게 보기`} className="h-full w-full cursor-zoom-in"><img src={post.coverImageUrl} alt={post.title} className="h-full w-full object-cover" /></button>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
               <div className="absolute bottom-5 left-5 sm:bottom-8 sm:left-9">
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/30 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
                   <MapPin size={16} />
@@ -188,10 +281,40 @@ function PostDetail() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                    <span className="inline-flex items-center gap-1.5"><Eye size={17} /> {post.viewCount ?? 0}</span>
-                    <span className="inline-flex items-center gap-1.5"><Heart size={17} /> {post.likeCount ?? 0}</span>
-                    <span className="inline-flex items-center gap-1.5"><Bookmark size={17} /> {post.bookmarkCount ?? 0}</span>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-2 text-slate-500 dark:text-slate-400">
+                      <Eye size={17} /> {post.viewCount ?? 0}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleLike}
+                      disabled={Boolean(reactionPending)}
+                      aria-pressed={Boolean(post.liked)}
+                      aria-label={t("post.likes", { count: post.likeCount ?? 0 })}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        post.liked
+                          ? "bg-rose-50 text-rose-500 dark:bg-rose-950/35 dark:text-rose-300"
+                          : "text-slate-500 hover:bg-rose-50 hover:text-rose-500 dark:text-slate-400 dark:hover:bg-rose-950/30"
+                      }`}
+                    >
+                      <Heart size={17} fill={post.liked ? "currentColor" : "none"} />
+                      {post.likeCount ?? 0}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBookmark}
+                      disabled={Boolean(reactionPending)}
+                      aria-pressed={Boolean(post.bookmarked)}
+                      aria-label={t("post.bookmark")}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        post.bookmarked
+                          ? "bg-amber-50 text-amber-500 dark:bg-amber-950/35 dark:text-amber-300"
+                          : "text-slate-500 hover:bg-amber-50 hover:text-amber-500 dark:text-slate-400 dark:hover:bg-amber-950/30"
+                      }`}
+                    >
+                      <Bookmark size={17} fill={post.bookmarked ? "currentColor" : "none"} />
+                      {post.bookmarkCount ?? 0}
+                    </button>
                   </div>
                   {isAuthor && (
                     <PostActionsMenu
@@ -248,7 +371,7 @@ function PostDetail() {
                     {(place.images || []).length > 0 && (
                       <div className="mb-6 grid grid-cols-2 gap-3">
                         {place.images.map((image, imageIndex) => (
-                          <img key={image.id || image.imageUrl} src={image.imageUrl} alt={image.altText || `${place.placeName} ${imageIndex + 1}`} className={`w-full rounded-2xl object-cover ${imageIndex === 0 && place.images.length > 1 ? "col-span-2 max-h-[32rem]" : "h-52 sm:h-64"}`} />
+                          <button key={image.id || image.imageUrl} type="button" onClick={() => openLightbox(image.imageUrl)} aria-label={`${image.altText || place.placeName || "장소"} 사진 크게 보기`} className={`cursor-zoom-in overflow-hidden rounded-2xl ${imageIndex === 0 && place.images.length > 1 ? "col-span-2 max-h-[32rem]" : "h-52 sm:h-64"}`}><img src={image.imageUrl} alt={image.altText || `${place.placeName} ${imageIndex + 1}`} className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]" /></button>
                         ))}
                       </div>
                     )}
@@ -273,18 +396,21 @@ function PostDetail() {
                 </div>
                 <div className="grid auto-rows-[11rem] grid-cols-2 gap-3 sm:auto-rows-[15rem] sm:grid-cols-3">
                   {galleryImages.map((image, index) => (
-                    <img
+                    <button
                       key={image.id || image.imageUrl}
-                      src={image.imageUrl}
-                      alt={image.altText || `${post.title} ${index + 1}`}
-                      className={`h-full w-full rounded-2xl object-cover transition-transform duration-300 hover:scale-[1.01] ${
+                      type="button"
+                      onClick={() => openLightbox(image.imageUrl)}
+                      aria-label={`${image.altText || post.title} 사진 크게 보기`}
+                      className={`h-full w-full cursor-zoom-in overflow-hidden rounded-2xl ${
                         index === 0 && galleryImages.length > 2 ? "col-span-2 sm:row-span-2" : ""
                       }`}
-                    />
+                    ><img src={image.imageUrl} alt={image.altText || `${post.title} ${index + 1}`} className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]" /></button>
                   ))}
                 </div>
               </section>
             )}
+
+            <CommentSection postId={post.id} />
 
             {isAuthor && (
               <footer className="mt-10 flex justify-end gap-2 border-t border-slate-100 pt-6 dark:border-slate-800">
@@ -309,6 +435,7 @@ function PostDetail() {
           </div>
         </div>
       </article>
+      {lightboxIndex !== null && <PostImageLightbox images={lightboxImages} index={lightboxIndex} onIndexChange={setLightboxIndex} onClose={() => setLightboxIndex(null)} />}
     </main>
   );
 }

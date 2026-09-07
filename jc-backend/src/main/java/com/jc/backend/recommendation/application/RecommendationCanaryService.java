@@ -75,6 +75,11 @@ public class RecommendationCanaryService {
 
     public Optional<CursorPageResponse<PostDtos.Summary>> firstPage(
             long userId, String tokenId, int size) {
+        return firstPage(userId, tokenId, size, null);
+    }
+
+    public Optional<CursorPageResponse<PostDtos.Summary>> firstPage(
+            long userId, String tokenId, int size, String regionCode) {
         if (!modeDecider.shouldServeHomeCanary(userId)) {
             return Optional.empty();
         }
@@ -84,7 +89,7 @@ public class RecommendationCanaryService {
         }
         String sessionId = RecommendationSessionIds.fromJwt(userId, tokenId);
         RecommendationOrchestrationService.RunResult run = orchestrationService.runCanary(
-                new RecommendationOrchestrationService.CanaryRunRequest(userId, sessionId));
+                new RecommendationOrchestrationService.CanaryRunRequest(userId, sessionId, regionCode));
         RecommendationReplayService.ReplayAuditResult replay = replayService.audit(run.runId());
         if (!replay.exactMatch()) {
             throw new IllegalStateException("CANARY exact replay gate failed: " + replay.status());
@@ -92,20 +97,27 @@ public class RecommendationCanaryService {
         String deliveryRunId = run.runId();
         if (p1RuntimeService != null) {
             try {
-                deliveryRunId = p1RuntimeService.selectCanaryRun(run.runId(), userId, sessionId);
+                deliveryRunId = p1RuntimeService.selectCanaryRun(
+                        run.runId(), userId, sessionId, regionCode);
             } catch (RuntimeException exception) {
                 // The P1 transaction has already rolled back; serve the exact-replay P0 baseline.
                 deliveryRunId = run.runId();
             }
         }
-        return Optional.of(page(deliveryRunId, 0, userId, sessionId, size));
+        return Optional.of(page(deliveryRunId, 0, userId, sessionId, size, regionCode));
     }
 
     public CursorPageResponse<PostDtos.Summary> nextPage(
             String cursor, long userId, String tokenId, int size) {
+        return nextPage(cursor, userId, tokenId, size, null);
+    }
+
+    public CursorPageResponse<PostDtos.Summary> nextPage(
+            String cursor, long userId, String tokenId, int size, String regionCode) {
         String sessionId = RecommendationSessionIds.fromJwt(userId, tokenId);
-        RecommendationCursorCodec.Cursor decoded = cursorCodec.decode(cursor, userId, sessionId);
-        return page(decoded.runId(), decoded.offset(), userId, sessionId, size);
+        RecommendationCursorCodec.Cursor decoded = cursorCodec.decode(
+                cursor, userId, sessionId, regionCode);
+        return page(decoded.runId(), decoded.offset(), userId, sessionId, size, regionCode);
     }
 
     public boolean isRecommendationCursor(String cursor) {
@@ -113,7 +125,12 @@ public class RecommendationCanaryService {
     }
 
     private CursorPageResponse<PostDtos.Summary> page(
-            String runId, int offset, long userId, String sessionId, int requestedSize) {
+            String runId,
+            int offset,
+            long userId,
+            String sessionId,
+            int requestedSize,
+            String regionCode) {
         DeliveryContext context = runStore.requireDeliveryContext(runId);
         requireCanaryBinding(context, userId, sessionId);
         List<PersistedRankedCandidate> ranked = runStore.findRanked(runId);
@@ -133,7 +150,7 @@ public class RecommendationCanaryService {
         }
         boolean hasNext = end < ranked.size();
         String nextCursor = hasNext
-                ? cursorCodec.encode(runId, end, userId, sessionId)
+                ? cursorCodec.encode(runId, end, userId, sessionId, regionCode)
                 : null;
         persistExposure(context, candidates, offset, hasNext, nextCursor);
         return CursorPageResponse.recommendation(

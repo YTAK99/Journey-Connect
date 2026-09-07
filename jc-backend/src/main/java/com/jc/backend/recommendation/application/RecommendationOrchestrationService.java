@@ -66,13 +66,13 @@ public class RecommendationOrchestrationService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RunResult runShadow(ShadowRunRequest request) {
         Objects.requireNonNull(request, "request");
-        return run(new RunRequest(request.userId(), request.sessionId()), RunMode.SHADOW);
+        return run(new RunRequest(request.userId(), request.sessionId(), request.regionCode()), RunMode.SHADOW);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RunResult runCanary(CanaryRunRequest request) {
         Objects.requireNonNull(request, "request");
-        return run(new RunRequest(request.userId(), request.sessionId()), RunMode.CANARY);
+        return run(new RunRequest(request.userId(), request.sessionId(), request.regionCode()), RunMode.CANARY);
     }
 
     private RunResult run(RunRequest request, RunMode runMode) {
@@ -88,7 +88,7 @@ public class RecommendationOrchestrationService {
         String explorationSeed = runId + ":seed";
 
         var candidates = inputMapper.mapAll(candidateSource.findEligible(
-                request.userId(), properties.getCandidateLimit()));
+                request.userId(), request.regionCode(), properties.getCandidateLimit()));
         var pipeline = executePipeline(
                 request,
                 contextId,
@@ -316,19 +316,27 @@ public class RecommendationOrchestrationService {
         return prefix + ":" + UUID.randomUUID().toString().replace("-", "");
     }
 
-    public record ShadowRunRequest(long userId, String sessionId) {
+    public record ShadowRunRequest(long userId, String sessionId, String regionCode) {
+        public ShadowRunRequest(long userId, String sessionId) {
+            this(userId, sessionId, null);
+        }
+
         public ShadowRunRequest {
             validateRequest(userId, sessionId);
         }
     }
 
-    public record CanaryRunRequest(long userId, String sessionId) {
+    public record CanaryRunRequest(long userId, String sessionId, String regionCode) {
+        public CanaryRunRequest(long userId, String sessionId) {
+            this(userId, sessionId, null);
+        }
+
         public CanaryRunRequest {
             validateRequest(userId, sessionId);
         }
     }
 
-    private record RunRequest(long userId, String sessionId) {}
+    private record RunRequest(long userId, String sessionId, String regionCode) {}
 
     private static void validateRequest(long userId, String sessionId) {
         if (userId <= 0) {

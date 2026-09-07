@@ -16,19 +16,22 @@ public class PostContentAnalysisReadService {
     private final JourneyPostRepository posts;
     private final PostContentAnalysisJobStore jobs;
     private final PostContentAnalysisResultStore results;
+    private final PostContentAnalysisJobService jobService;
 
     public PostContentAnalysisReadService(
             JourneyPostRepository posts,
             PostContentAnalysisJobStore jobs,
-            PostContentAnalysisResultStore results) {
+            PostContentAnalysisResultStore results,
+            PostContentAnalysisJobService jobService) {
         this.posts = posts;
         this.jobs = jobs;
         this.results = results;
+        this.jobService = jobService;
     }
 
     public PostContentAnalysisReadView current(long postId, Long viewerId) {
         JourneyPost post = readablePost(postId, viewerId);
-        List<String> sourceTags = post.getTags().stream().map(Tag::getName).toList();
+        List<String> sourceTags = sourceTags(post);
         String sourceContentVersion = PostContentAnalysisSourceVersion.from(
                 post.getTitle(),
                 post.getContent(),
@@ -59,6 +62,26 @@ public class PostContentAnalysisReadService {
         }
 
         return PostContentAnalysisReadView.from(job, result);
+    }
+
+    @Transactional
+    public PostContentAnalysisReadView request(long postId, Long viewerId) {
+        JourneyPost post = readablePost(postId, viewerId);
+        List<String> tags = sourceTags(post);
+        String sourceContentVersion = PostContentAnalysisSourceVersion.from(
+                post.getTitle(), post.getContent(), post.getRegionName(), tags);
+        jobService.enqueue(new PostContentAnalysisInputV1(
+                postId,
+                post.getTitle(),
+                post.getContent(),
+                post.getRegionName(),
+                tags,
+                sourceContentVersion));
+        return current(postId, viewerId);
+    }
+
+    private List<String> sourceTags(JourneyPost post) {
+        return post.getTags().stream().map(Tag::getName).toList();
     }
 
     private JourneyPost readablePost(long postId, Long viewerId) {

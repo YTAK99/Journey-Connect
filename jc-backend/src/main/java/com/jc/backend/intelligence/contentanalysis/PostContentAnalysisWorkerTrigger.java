@@ -12,7 +12,7 @@ public final class PostContentAnalysisWorkerTrigger {
     }
 
     @Scheduled(
-            fixedDelayString = "${app.intelligence.content-analysis.worker-poll-delay-ms:1000}",
+            fixedDelayString = "${app.intelligence.content-analysis.worker-poll-delay-ms:10000}",
             initialDelayString = "${app.intelligence.content-analysis.worker-initial-delay-ms:1000}")
     public void poll() {
         worker.runOnce();

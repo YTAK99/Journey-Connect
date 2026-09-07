@@ -2,14 +2,20 @@
 
 ## 1. Scope
 
-CA-4C exposes the current Content Analysis state for a post without changing the existing
-analysis write, worker, provider, or persistence contracts.
+CA-4C exposes the current Content Analysis state for a post and lets an authenticated viewer
+request analysis for one readable post without changing the worker, provider, or persistence
+contracts.
 
 Endpoint:
 
 ```text
 GET /api/v1/posts/{postId}/analysis
+POST /api/v1/posts/{postId}/analysis
 ```
+
+`POST` computes the same current-source identity as `GET` and enqueues it through the existing
+deduplicating job service. It never bootstraps other posts. The feed uses this endpoint only when
+`GET` returns `not_requested`, then polls the read endpoint until the job reaches a terminal state.
 
 ## 2. Current-source binding
 
@@ -95,6 +101,7 @@ Targeted integration verification covers:
 
 - create → queued read state
 - public HTTP analysis endpoint
+- authenticated single-post request → queued read state
 - successful result read
 - changed content → new queued state, old successful result not exposed
 - legacy post → `not_requested`
@@ -104,8 +111,6 @@ Targeted integration verification covers:
 ## 7. Explicitly deferred
 
 - embedding analysis into Post Detail
-- embedding analysis into Feed cards
-- frontend AI Summary replacement
 - batch read for feed performance
 - recommendation/search consumption
 - translation

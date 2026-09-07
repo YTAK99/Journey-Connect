@@ -167,6 +167,58 @@ class PostContentAnalysisPersistenceIntegrationTest {
         assertThat(attemptCount).isEqualTo(1);
     }
 
+    @Test
+    void staleRunningJobIsRecoveredWithAttemptHistoryAndCanBeClaimedAgain() {
+        long postId = randomPostId();
+        String version = "content-" + UUID.randomUUID();
+        String runId = "analysis:" + UUID.randomUUID();
+        PostContentAnalysisJobService service = new PostContentAnalysisJobService(
+                new PostContentAnalysisValidator(),
+                jobs,
+                inputs,
+                Clock.fixed(BASE_TIME, ZoneOffset.UTC),
+                () -> runId);
+        service.enqueue(input(postId, version, "Stale worker test"));
+        PostContentAnalysisJob running = jobs.claimNextReady(BASE_TIME).orElseThrow();
+
+        assertThat(jobs.recoverStaleRunning(
+                BASE_TIME.minusSeconds(1),
+                BASE_TIME.plusSeconds(120),
+                3)).isZero();
+        assertThat(jobs.recoverStaleRunning(
+                BASE_TIME,
+                BASE_TIME.plusSeconds(120),
+                3)).isEqualTo(1);
+
+        PostContentAnalysisJob recovered = jobs.findByDedupeKey(
+                        postId,
+                        version,
+                        running.schemaVersion(),
+                        running.promptVersion())
+                .orElseThrow();
+        assertThat(recovered.status()).isEqualTo(AnalysisStatus.QUEUED);
+        assertThat(recovered.attemptCount()).isEqualTo(1);
+        assertThat(recovered.nextAttemptAt()).isEqualTo(BASE_TIME.plusSeconds(120));
+        assertThat(recovered.lastErrorCode()).isEqualTo("worker_lease_expired");
+
+        Integer recoveredAttemptCount = jdbcTemplate.queryForObject(
+                """
+                select count(*)
+                from public.post_content_analysis_attempt
+                where analysis_run_id = ?
+                  and attempt_number = 1
+                  and outcome = 'retry'
+                  and error_code = 'worker_lease_expired'
+                """,
+                Integer.class,
+                runId);
+        assertThat(recoveredAttemptCount).isEqualTo(1);
+
+        PostContentAnalysisJob reclaimed = jobs.claimNextReady(BASE_TIME.plusSeconds(120)).orElseThrow();
+        assertThat(reclaimed.status()).isEqualTo(AnalysisStatus.RUNNING);
+        assertThat(reclaimed.attemptCount()).isEqualTo(2);
+    }
+
     private static PostContentAnalysisInputV1 input(
             long postId,
             String version,

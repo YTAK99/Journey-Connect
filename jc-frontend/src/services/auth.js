@@ -50,6 +50,15 @@ export const fetchCurrentUser = async () => {
   return user;
 };
 
+export const updateStoredUser = (changes) => {
+  const current = getUser();
+  if (!current) return null;
+  const updated = { ...current, ...changes };
+  localStorage.setItem("loginUser", JSON.stringify(updated));
+  window.dispatchEvent(new Event("jc:user-updated"));
+  return updated;
+};
+
 export const getUser = () => {
   try {
     const storedUser = localStorage.getItem("loginUser");

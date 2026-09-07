@@ -5,6 +5,7 @@ app:
   intelligence:
     content-analysis:
       enabled: false
+      worker-enabled: false
 
 spring:
   ai:

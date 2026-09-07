@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, PenLine, RotateCcw } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 import PostCard from "../components/PostCard";
@@ -22,8 +22,10 @@ export default function SearchPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [nextCursor, setNextCursor] = useState(null);
+  const [nextPage, setNextPage] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const requestKeyRef = useRef("");
+  const loadMoreSentinelRef = useRef(null);
   const rawKeyword = (searchParams.get("q") || "").trim();
   const keyword = rawKeyword.toLowerCase();
   const requestKey = keyword;
@@ -38,16 +40,20 @@ export default function SearchPage() {
       setLoadingMore(false);
       setError("");
       setNextCursor(null);
+      setNextPage(1);
       setHasNext(false);
 
       try {
         const result = keyword
-          ? await getExplore({ keyword, size: 100 })
+          ? await getExplore({ keyword, page: 0, size: 20 })
           : await getExploreDiscovery({ size: 20 });
         if (!active || requestKeyRef.current !== requestKey) return;
 
         setPosts(getFeedItems(result));
-        if (!keyword) {
+        if (keyword) {
+          setNextPage((Number.isFinite(result?.page) ? result.page : 0) + 1);
+          setHasNext(result?.last === false);
+        } else {
           setNextCursor(result?.nextCursor || null);
           setHasNext(Boolean(result?.hasNext && result?.nextCursor));
         }
@@ -67,30 +73,60 @@ export default function SearchPage() {
     };
   }, [keyword, requestKey, t.loadFailed]);
 
-  const loadMoreDiscovery = async () => {
-    if (keyword || loadingMore || !hasNext || !nextCursor) return;
+  const loadMoreExplore = useCallback(async () => {
+    if (loadingMore || !hasNext || (!keyword && !nextCursor)) return;
 
     const activeRequestKey = requestKeyRef.current;
+    const activeKeyword = keyword;
+    const activeNextPage = nextPage;
+    const activeCursor = nextCursor;
     setLoadingMore(true);
     setError("");
 
     try {
+      if (activeKeyword) {
+        const result = await getExplore({
+          keyword: activeKeyword,
+          page: activeNextPage,
+          size: 20,
+        });
+        if (requestKeyRef.current !== activeRequestKey) return;
+
+        const incoming = getFeedItems(result);
+        setPosts((current) => {
+          const seen = new Set(current.map((post) => String(post.id)));
+          return [
+            ...current,
+            ...incoming.filter((post) => !seen.has(String(post.id))),
+          ];
+        });
+        setNextPage(
+          (Number.isFinite(result?.page) ? result.page : activeNextPage) + 1,
+        );
+        setHasNext(result?.last === false);
+        return;
+      }
+
       const result = await getExploreDiscovery({
-        cursor: nextCursor,
+        cursor: activeCursor,
         size: 20,
       });
       if (requestKeyRef.current !== activeRequestKey) return;
 
       const incoming = getFeedItems(result);
       setPosts((current) => {
-        const seen = new Set(current.map((post) => post.id));
-        return [...current, ...incoming.filter((post) => !seen.has(post.id))];
+        const seen = new Set(current.map((post) => String(post.id)));
+        return [
+          ...current,
+          ...incoming.filter((post) => !seen.has(String(post.id))),
+        ];
       });
       setNextCursor(result?.nextCursor || null);
       setHasNext(Boolean(result?.hasNext && result?.nextCursor));
     } catch (requestError) {
       if (requestKeyRef.current !== activeRequestKey) return;
-      if (isExploreCursorError(requestError)) {
+
+      if (!activeKeyword && isExploreCursorError(requestError)) {
         try {
           const restarted = await getExploreDiscovery({
             size: 20,
@@ -111,14 +147,29 @@ export default function SearchPage() {
           return;
         }
       }
+
       setError(getApiErrorMessage(requestError, t.loadMoreFailed));
     } finally {
-      if (requestKeyRef.current === activeRequestKey) setLoadingMore(false);
+      if (requestKeyRef.current === activeRequestKey) {
+        setLoadingMore(false);
+      }
     }
-  };
+  }, [hasNext, keyword, loadingMore, nextCursor, nextPage, t.loadMoreFailed, t.restartFailed]);
 
-  // 검색 eligibility는 서버가 authoritative하게 적용하므로 클라이언트에서 다시 거르지 않습니다.
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || loading || loadingMore || !hasNext) return undefined;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) loadMoreExplore();
+    }, { rootMargin: "0px 0px 400px 0px" });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNext, loadMoreExplore, loading, loadingMore]);
+
   const filteredPosts = posts;
+
+  // Search eligibility and ordering are server-authoritative.  const filteredPosts = posts;
 
   const showEmptyState = !loading && !error && filteredPosts.length === 0;
   const recommendationKey = keyword;
@@ -172,20 +223,18 @@ export default function SearchPage() {
             <>
               <div className="grid grid-cols-1 gap-4 border-b border-gray-100 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredPosts.map((post) => (
-                  <PostCard key={post.id} post={post} setPosts={setPosts} titleOnly colorFallback />
+                  <PostCard key={post.id} post={post} setPosts={setPosts} titleOnly colorFallback showBookmark={false} />
                 ))}
               </div>
 
-              {!keyword && hasNext && (
-                <div className="flex justify-center py-6">
-                  <button
-                    type="button"
-                    onClick={loadMoreDiscovery}
-                    disabled={loadingMore}
-                    className="rounded-xl border border-teal-200 bg-white px-5 py-2.5 text-sm font-bold text-teal-700 transition hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-teal-900 dark:bg-slate-900 dark:text-teal-200 dark:hover:bg-slate-800"
-                  >
-                    {loadingMore ? t.loadingMore : t.loadMore}
-                  </button>
+              {hasNext && (
+                <div
+                  ref={loadMoreSentinelRef}
+                  className="flex h-16 items-center justify-center text-sm font-semibold text-teal-700 dark:text-teal-200"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {loadingMore ? t.loadingMore : ""}
                 </div>
               )}
             </>
@@ -245,6 +294,7 @@ export default function SearchPage() {
                           }))}
                           titleOnly
                           colorFallback
+                          showBookmark={false}
                         />
                       ))}
                     </div>

@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, MapPin, X } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
+import useDocumentDarkMode from "../hooks/useDocumentDarkMode";
+
+const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim();
 
 // 초기 지도가 표시될 기본 중심 좌표 (기본값: 서울 시청)
 const SEOUL = { lat: 37.5665, lng: 126.978 };
@@ -13,6 +16,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
   const mapElementRef = useRef(null);
   const autocompleteContainerRef = useRef(null);
   const markerRef = useRef(null);
+  const isDark = useDocumentDarkMode();
   // 현재 선택된 장소 상태 관리 (기존 전달된 값이 있다면 초기값으로 설정)
   const [selection, setSelection] = useState(value?.regionPlaceId ? value : null);
   // 로딩 및 API 요청 처리 상태 관리
@@ -38,19 +42,25 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         const initialCenter = Number.isFinite(value?.latitude) && Number.isFinite(value?.longitude)
           ? { lat: value.latitude, lng: value.longitude }
           : SEOUL;
-        // 2. 구글 장소 라이브러리 로드
-        const { Place, PlaceAutocompleteElement } = await maps.importLibrary("places");
+        // 2. 구글 맵 라이브러리(마커, 장소) 로드
+        const [{ AdvancedMarkerElement }, { Place, PlaceAutocompleteElement }, { ColorScheme }] = await Promise.all([
+          maps.importLibrary("marker"),
+          maps.importLibrary("places"),
+          maps.importLibrary("core"),
+        ]);
         if (!active) return;
         // 3. 맵 인스턴스 생성
         map = new maps.Map(mapElementRef.current, {
           center: initialCenter,
           zoom: value?.latitude ? 16 : 12,
+          ...(GOOGLE_MAPS_MAP_ID ? { mapId: GOOGLE_MAPS_MAP_ID } : {}),
+          colorScheme: isDark ? ColorScheme.DARK : ColorScheme.LIGHT,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
         });
         // 지도 위에 표시될 마커 생성
-        markerRef.current = new maps.Marker({
+        markerRef.current = new AdvancedMarkerElement({
           map,
           position: value?.latitude ? initialCenter : undefined,
         });
@@ -58,7 +68,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         // 4. 장소 선택 시 마커 위치 이동 및 상태 업데이트 함수
         const applySelection = (next) => {
           if (!active) return;
-          markerRef.current.setPosition({ lat: next.latitude, lng: next.longitude });
+          markerRef.current.position = { lat: next.latitude, lng: next.longitude };
           map.panTo({ lat: next.latitude, lng: next.longitude });
           map.setZoom(Math.max(map.getZoom() || 15, 16));
           setSelection(next);
@@ -94,10 +104,10 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         autocompleteElement.placeholder = translate(lang, "placePicker.searchPlaceholder");
         autocompleteElement.style.width = "100%";
         autocompleteElement.style.minHeight = "3rem";
-        autocompleteElement.style.colorScheme = "light";
-        autocompleteElement.style.backgroundColor = "#ffffff";
-        autocompleteElement.style.color = "#0f172a";
-        autocompleteElement.style.border = "1px solid #cbd5e1";
+        autocompleteElement.style.colorScheme = isDark ? "dark" : "light";
+        autocompleteElement.style.backgroundColor = isDark ? "#0f172a" : "#ffffff";
+        autocompleteElement.style.color = isDark ? "#f8fafc" : "#0f172a";
+        autocompleteElement.style.border = `1px solid ${isDark ? "#334155" : "#cbd5e1"}`;
         autocompleteElement.style.borderRadius = "0.75rem";
         autocompleteElement.style.fontSize = "0.875rem";
         // 자동완성 목록에서 특정 장소를 선택했을 때의 이벤트 핸들러
@@ -170,9 +180,9 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         autocompleteElement.removeEventListener("gmp-select", autocompleteSelectHandler);
       }
       if (autocompleteContainer) autocompleteContainer.replaceChildren();
-      if (markerRef.current) markerRef.current.setMap(null);
+      if (markerRef.current) markerRef.current.map = null;
     };
-  }, [lang, value]);
+  }, [isDark, lang, value]);
 
   return (
     // 배경을 클릭하면 닫히고, 모달 내부 클릭은 section에서 전파를 막습니다.
@@ -188,7 +198,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           <div ref={autocompleteContainerRef} className="min-h-12 w-full" />
         </div>
         {/* 지도 위에 로딩 상태와 장소 조회 오류를 겹쳐 표시합니다. */}
-        <div className="relative min-h-0 flex-1 bg-slate-100"><div ref={mapElementRef} className="h-full w-full" />{(loading || resolving) && <div className="absolute inset-0 flex items-center justify-center bg-white/65 backdrop-blur-[1px]"><Loader2 className="animate-spin text-teal-600" size={30} /></div>}{error && <div className="absolute left-4 right-4 top-4 rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">{error}</div>}</div>
+        <div className="relative min-h-0 flex-1 bg-slate-100 dark:bg-slate-800"><div ref={mapElementRef} className="h-full w-full" />{(loading || resolving) && <div className="absolute inset-0 flex items-center justify-center bg-white/65 backdrop-blur-[1px] dark:bg-slate-900/65"><Loader2 className="animate-spin text-teal-600" size={30} /></div>}{error && <div className="absolute left-4 right-4 top-4 rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-lg">{error}</div>}</div>
         {/* 선택한 장소를 확인하거나 취소하는 모달 푸터입니다. */}
         <footer className="flex flex-col gap-3 border-t border-slate-200 p-4 dark:border-slate-700 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">{selection ? <><p className="flex items-center gap-2 truncate font-bold text-slate-900 dark:text-white"><MapPin size={17} className="shrink-0 text-teal-500" />{selection.displayName}</p><p className="mt-1 truncate text-xs text-slate-500">{selection.address}</p></> : <p className="text-sm text-slate-500">{t("placePicker.selectPrompt")}</p>}</div>

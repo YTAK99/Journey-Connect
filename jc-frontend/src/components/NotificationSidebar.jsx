@@ -1,5 +1,5 @@
 import { Bell, Heart, MessageCircle, UserPlus, Users, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getNotifications, markAllNotificationsRead } from "../services/notificationApi";
@@ -34,6 +34,7 @@ const relativeTime = (createdAt, language) => {
 
 export default function NotificationSidebar({ isOpen, onClose, authenticated, onAllRead }) {
   const navigate = useNavigate();
+  const panelRef = useRef(null);
   const { currentLang, t } = useTranslation();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +70,17 @@ export default function NotificationSidebar({ isOpen, onClose, authenticated, on
     };
   }, [authenticated, isOpen, onAllRead, t]);
 
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const closeOnOutsidePointer = (event) => {
+      if (!panelRef.current?.contains(event.target)) onClose();
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
   const visibleNotifications = authenticated ? notifications : [];
 
@@ -86,7 +98,7 @@ export default function NotificationSidebar({ isOpen, onClose, authenticated, on
         onClick={onClose}
         className="fixed inset-0 z-40 cursor-default bg-slate-950/10 backdrop-blur-[1px] dark:bg-slate-950/35"
       />
-      <section className="fixed right-4 top-16 z-50 flex max-h-[min(34rem,calc(100vh-5rem))] w-[calc(100%-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-2xl shadow-teal-950/15 dark:border-slate-700 dark:bg-slate-900 sm:right-6">
+      <section ref={panelRef} className="fixed right-4 top-16 z-50 flex max-h-[min(34rem,calc(100vh-5rem))] w-[calc(100%-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-2xl shadow-teal-950/15 dark:border-slate-700 dark:bg-slate-900 sm:right-6">
         <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t("notifications.title")}</h2>
