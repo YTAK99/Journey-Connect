@@ -94,19 +94,32 @@ public class RecommendationP1RuntimeService {
 
     @Transactional
     public TreatmentOutcome observeShadow(String baselineRunId, long userId, String sessionId) {
+        return observeShadow(baselineRunId, userId, sessionId, null);
+    }
+
+    @Transactional
+    public TreatmentOutcome observeShadow(
+            String baselineRunId, long userId, String sessionId, String regionCode) {
         if (!modeDecider.shouldRunShadow()) {
             return TreatmentOutcome.skipped(baselineRunId);
         }
-        return executeTreatment(baselineRunId, userId, sessionId, RunMode.SHADOW);
+        return executeTreatment(baselineRunId, userId, sessionId, RunMode.SHADOW, regionCode);
     }
 
     @Transactional
     public String selectCanaryRun(String baselineRunId, long userId, String sessionId) {
+        return selectCanaryRun(baselineRunId, userId, sessionId, null);
+    }
+
+    @Transactional
+    public String selectCanaryRun(
+            String baselineRunId, long userId, String sessionId, String regionCode) {
         if (!p2AssignmentService.isEnabled()) {
             if (!modeDecider.shouldServeCanary(userId)) {
                 return baselineRunId;
             }
-            return executeTreatment(baselineRunId, userId, sessionId, RunMode.CANARY).treatmentRunId();
+            return executeTreatment(
+                    baselineRunId, userId, sessionId, RunMode.CANARY, regionCode).treatmentRunId();
         }
         RecommendationP1EvidenceStore.BaselineRun baseline = evidenceStore.requireBaselineRun(baselineRunId);
         Instant now = Instant.now();
@@ -116,7 +129,8 @@ public class RecommendationP1RuntimeService {
             p2AssignmentService.recordExposure(assignment, baselineRunId, userId, sessionId, exposedAt);
             return baselineRunId;
         }
-        String treatmentRunId = executeTreatment(baselineRunId, userId, sessionId, RunMode.CANARY).treatmentRunId();
+        String treatmentRunId = executeTreatment(
+                baselineRunId, userId, sessionId, RunMode.CANARY, regionCode).treatmentRunId();
         p2AssignmentService.recordExposure(assignment, treatmentRunId, userId, sessionId, exposedAt);
         return treatmentRunId;
     }
@@ -126,6 +140,15 @@ public class RecommendationP1RuntimeService {
             long userId,
             String sessionId,
             RunMode runMode) {
+        return executeTreatment(baselineRunId, userId, sessionId, runMode, null);
+    }
+
+    TreatmentOutcome executeTreatment(
+            String baselineRunId,
+            long userId,
+            String sessionId,
+            RunMode runMode,
+            String regionCode) {
         long started = System.nanoTime();
         RecommendationP1EvidenceStore.BaselineRun baseline = evidenceStore.requireBaselineRun(baselineRunId);
         requireBinding(baseline, userId, sessionId, runMode);
@@ -151,6 +174,7 @@ public class RecommendationP1RuntimeService {
         List<RecommendationCandidateRow> rows = candidateSource.findEligible(
                 userId,
                 referenceTime,
+                regionCode,
                 properties.getRetrievalLimit(),
                 properties.getCoreCandidateLimit());
         List<P1CandidateInput> candidates = candidateMapper.mapAll(rows);

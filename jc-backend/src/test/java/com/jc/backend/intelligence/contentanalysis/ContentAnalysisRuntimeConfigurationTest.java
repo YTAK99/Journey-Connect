@@ -14,6 +14,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class ContentAnalysisRuntimeConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withInitializer(context -> new ContentAnalysisEnvironmentPostProcessor()
+                    .postProcessEnvironment(context.getEnvironment(), null))
             .withUserConfiguration(ContentAnalysisRuntimeConfiguration.class)
             .withBean(ObjectMapper.class, ObjectMapper::new);
 
@@ -68,6 +70,24 @@ class ContentAnalysisRuntimeConfigurationTest {
                     assertTrue(provider instanceof GeminiContentAnalysisProvider);
                     assertEquals("google-genai", provider.providerId());
                     assertEquals("gemini-2.5-flash", provider.modelVersion());
+                });
+    }
+
+    @Test
+    void documentedEnvironmentAliasesCreateProviderAndResolveCanonicalProperties() {
+        contextRunner
+                .withBean(ChatModel.class, () -> mock(ChatModel.class))
+                .withPropertyValues(
+                        "JC_AI_CONTENT_ANALYSIS_ENABLED=true",
+                        "SPRING_AI_CHAT_MODEL=google-genai",
+                        "app.intelligence.content-analysis.model-version=gemini-2.5-flash")
+                .run(context -> {
+                    assertNull(context.getStartupFailure());
+                    assertEquals("true", context.getEnvironment().getProperty(
+                            "app.intelligence.content-analysis.enabled"));
+                    assertEquals("google-genai", context.getEnvironment().getProperty(
+                            "spring.ai.model.chat"));
+                    assertEquals(1, context.getBeanNamesForType(ContentAnalysisProvider.class).length);
                 });
     }
 

@@ -4,6 +4,7 @@ import static com.jc.backend.support.TestRegionFixtures.region;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -147,6 +148,15 @@ class PostContentAnalysisReadIntegrationTest {
         assertThat(legacyView.status()).isEqualTo("not_requested");
         assertThat(legacyView.analysisRunId()).isNull();
         assertThat(legacyView.result()).isNull();
+
+        mockMvc.perform(post("/api/v1/posts/{postId}/analysis", legacy.getId())
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()
+                                .jwt(jwt -> jwt.subject(fixture.author().getId().toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("queued"))
+                .andExpect(jsonPath("$.data.analysisRunId").isNotEmpty());
+
+        assertThat(readService.current(legacy.getId(), null).status()).isEqualTo("queued");
 
         PostDtos.Detail created = postService.create(
                 fixture.author().getId(),

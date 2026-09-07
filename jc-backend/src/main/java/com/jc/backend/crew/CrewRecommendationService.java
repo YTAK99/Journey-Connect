@@ -118,6 +118,7 @@ public class CrewRecommendationService {
                 true,
                 false,
                 false,
+                false,
                 false);
         return new CrewDtos.View(
                 candidate.id(),
@@ -128,6 +129,9 @@ public class CrewRecommendationService {
                 candidate.coverImageUrl(),
                 null,
                 tags,
+                CrewCategory.OTHER,
+                List.of(),
+                List.of(),
                 candidate.travelDate(),
                 candidate.capacity(),
                 candidate.memberCount(),
@@ -137,6 +141,7 @@ public class CrewRecommendationService {
                 candidate.ownerId(),
                 candidate.ownerNickname(),
                 candidate.createdAt(),
+                null,
                 viewer);
     }
 

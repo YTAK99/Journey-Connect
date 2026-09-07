@@ -48,6 +48,9 @@ public class CrewMember extends BaseTimeEntity {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
+    @Column(name = "application_message", length = 500)
+    private String applicationMessage;
+
     protected CrewMember() {}
 
     public CrewMember(Crew crew, UserAccount user, CrewMemberStatus status) {
@@ -57,12 +60,21 @@ public class CrewMember extends BaseTimeEntity {
     }
 
     public void reapply(CrewMemberStatus nextStatus) {
-        if (status == CrewMemberStatus.OWNER || status == CrewMemberStatus.APPROVED) {
+        if (status == CrewMemberStatus.OWNER
+                || status == CrewMemberStatus.APPROVED
+                || status == CrewMemberStatus.KICKED) {
             return;
         }
         status = nextStatus;
         reviewedBy = null;
         reviewedAt = null;
+    }
+
+    public void apply(CrewMemberStatus nextStatus, String message) {
+        reapply(nextStatus);
+        if (status != CrewMemberStatus.KICKED) {
+            applicationMessage = message;
+        }
     }
 
     public void approve(UserAccount reviewer) {
@@ -81,6 +93,14 @@ public class CrewMember extends BaseTimeEntity {
         if (status != CrewMemberStatus.OWNER) {
             status = CrewMemberStatus.CANCELLED;
             reviewedBy = null;
+            reviewedAt = LocalDateTime.now();
+        }
+    }
+
+    public void kick(UserAccount reviewer) {
+        if (status != CrewMemberStatus.OWNER) {
+            status = CrewMemberStatus.KICKED;
+            reviewedBy = reviewer;
             reviewedAt = LocalDateTime.now();
         }
     }
@@ -107,5 +127,9 @@ public class CrewMember extends BaseTimeEntity {
 
     public LocalDateTime getReviewedAt() {
         return reviewedAt;
+    }
+
+    public String getApplicationMessage() {
+        return applicationMessage;
     }
 }

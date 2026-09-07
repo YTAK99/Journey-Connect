@@ -5,6 +5,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +24,13 @@ public class PostContentAnalysisController {
             @PathVariable long postId,
             @AuthenticationPrincipal Jwt token) {
         return ApiResponse.ok(readService.current(postId, userIdOrNull(token)));
+    }
+
+    @PostMapping("/{postId}/analysis")
+    ApiResponse<PostContentAnalysisReadView> request(
+            @PathVariable long postId,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(readService.request(postId, userIdOrNull(token)));
     }
 
     private Long userIdOrNull(Jwt token) {

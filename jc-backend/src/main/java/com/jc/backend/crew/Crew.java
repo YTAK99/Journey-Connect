@@ -2,10 +2,13 @@ package com.jc.backend.crew;
 
 import com.jc.backend.common.BaseTimeEntity;
 import com.jc.backend.post.Tag;
+import com.jc.backend.post.JourneyPost;
 import com.jc.backend.region.Region;
 import com.jc.backend.user.UserAccount;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,11 +18,15 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderColumn;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.BatchSize;
 
 /**
  * 크루의 기본 정보와 모집 상태를 관리하는 엔티티입니다.
@@ -69,6 +76,13 @@ public class Crew extends BaseTimeEntity {
     @Column(name = "approval_required", nullable = false)
     private boolean approvalRequired = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private CrewCategory category = CrewCategory.OTHER;
+
+    @Column(name = "ended_at")
+    private LocalDateTime endedAt;
+
     protected Crew() {}
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -78,6 +92,19 @@ public class Crew extends BaseTimeEntity {
             inverseJoinColumns = @JoinColumn(name = "tag_id"))
     @OrderColumn(name = "sort_order")
     private List<Tag> tags = new ArrayList<>();
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "crew_route",
+            joinColumns = @JoinColumn(name = "crew_id"),
+            inverseJoinColumns = @JoinColumn(name = "post_id"))
+    @OrderColumn(name = "sort_order")
+    private List<JourneyPost> routes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "crew", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder asc, id asc")
+    @BatchSize(size = 100)
+    private List<CrewRoutePlace> routePlaces = new ArrayList<>();
 
     public Crew(
             UserAccount owner,
@@ -134,12 +161,29 @@ public class Crew extends BaseTimeEntity {
         this.openChatUrl = openChatUrl;
     }
 
+    public void updateCategoryAndRoutes(CrewCategory category, List<JourneyPost> routes) {
+        this.category = category == null ? CrewCategory.OTHER : category;
+        this.routes.clear();
+        if (routes != null) this.routes.addAll(routes);
+    }
+
+    public void replaceRoutePlaces(List<RoutePlaceData> places) {
+        routePlaces.clear();
+        if (places == null) return;
+        for (int index = 0; index < places.size(); index++) {
+            RoutePlaceData place = places.get(index);
+            routePlaces.add(new CrewRoutePlace(this, place.region(), place.content(), index, place.images()));
+        }
+    }
+
     public void closeRecruitment() {
         recruiting = false;
+        endedAt = LocalDateTime.now();
     }
 
     public void reopenRecruitment() {
         recruiting = true;
+        endedAt = null;
     }
 
     public void replaceTags(List<Tag> tags) {
@@ -198,4 +242,24 @@ public class Crew extends BaseTimeEntity {
     public boolean isApprovalRequired() {
         return approvalRequired;
     }
+
+    public CrewCategory getCategory() {
+        return category;
+    }
+
+    public List<JourneyPost> getRoutes() {
+        return List.copyOf(routes);
+    }
+
+    public List<CrewRoutePlace> getRoutePlaces() {
+        return List.copyOf(routePlaces);
+    }
+
+    public LocalDateTime getEndedAt() {
+        return endedAt;
+    }
+
+    public record RouteImageData(String imageUrl, String altText) {}
+
+    public record RoutePlaceData(Region region, String content, List<RouteImageData> images) {}
 }

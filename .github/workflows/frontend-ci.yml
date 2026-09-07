@@ -44,6 +44,12 @@ jobs:
       - name: ESLint 검사
         run: npm run lint
 
+      - name: 외부 API 독립 프론트엔드 경계 테스트
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ""
+          VITE_GOOGLE_OAUTH_CLIENT_ID: ""
+        run: npm run test -- src/services/journeyAiApi.test.js
+
       - name: 프론트엔드 테스트
         run: npm run test
 

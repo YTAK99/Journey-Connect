@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getLocalizedRegionName,
+  getRegionLookupQuery,
   getRegionSearchText,
   matchesSelectedRegion,
   toRegionPreference,
@@ -33,6 +34,13 @@ describe("region utilities", () => {
     expect(text).toContain("SEOUL");
     expect(text).toContain("South Korea Republic of Korea");
     expect(text).toContain("KR");
+  });
+
+  it("uses a readable country name for Google region lookup", () => {
+    expect(getRegionLookupQuery({
+      label: { ko: "서울", en: "Seoul" },
+      country: "KR",
+    }, "ko")).toBe("서울 대한민국");
   });
 
   it("prefers stable region code matching over localized labels", () => {

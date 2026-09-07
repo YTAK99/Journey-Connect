@@ -9,6 +9,8 @@ public final class AdminDtos {
 
     public record CommandRequest(String reason) {}
 
+    public record PermanentDeleteRequest(String reason, String confirmation) {}
+
     public record CommandResult(
             long targetId,
             String state,

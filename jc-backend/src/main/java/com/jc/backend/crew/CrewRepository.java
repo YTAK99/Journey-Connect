@@ -44,6 +44,7 @@ public interface CrewRepository extends JpaRepository<Crew, Long> {
                                 and lower(tag.name) like concat('%', :keyword, '%')
                           )
                       )
+                      and (:category is null or c.category = :category)
                     order by c.createdAt desc, c.id desc
                     """,
             countQuery = """
@@ -71,13 +72,15 @@ public interface CrewRepository extends JpaRepository<Crew, Long> {
                                 and lower(tag.name) like concat('%', :keyword, '%')
                           )
                       )
+                      and (:category is null or c.category = :category)
                     """)
     Page<Crew> searchRecruiting(
             @Param("keyword") String keyword,
             @Param("region") String region,
+            @Param("category") CrewCategory category,
             Pageable pageable);
 
-    @EntityGraph(attributePaths = {"owner", "region"})
+    @EntityGraph(attributePaths = {"owner", "region", "routePlaces", "routePlaces.region"})
     @Query("select c from Crew c where c.id = :crewId")
     Optional<Crew> findWithOwnerAndRegionById(@Param("crewId") Long crewId);
 

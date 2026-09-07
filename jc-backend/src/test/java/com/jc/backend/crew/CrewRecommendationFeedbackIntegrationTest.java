@@ -13,6 +13,7 @@ import com.jc.recommendation.p1.profile.BehaviorProfileEvent;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,6 +30,11 @@ class CrewRecommendationFeedbackIntegrationTest {
     @Autowired private CrewRecommendationService recommendationService;
     @Autowired private RecommendationP1ProfileSource profileSource;
     @Autowired private JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void isolateRecommendationCandidatesFromPersistentTestDatabase() {
+        jdbcTemplate.update("update crew set recruiting = false where recruiting = true");
+    }
 
     @Test
     void approvedJoinBecomesCrewPreferenceAndIsRecordedOnlyOnce() {

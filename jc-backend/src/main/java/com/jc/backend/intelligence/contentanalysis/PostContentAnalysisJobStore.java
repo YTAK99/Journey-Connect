@@ -15,5 +15,7 @@ public interface PostContentAnalysisJobStore {
 
     PostContentAnalysisJob save(PostContentAnalysisJob job);
 
+    int recoverStaleRunning(Instant staleBefore, Instant retryAt, int maxAttempts);
+
     Optional<PostContentAnalysisJob> claimNextReady(Instant now);
 }

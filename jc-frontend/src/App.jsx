@@ -1,10 +1,13 @@
 import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import Header from "./components/Header";
+import JourneyAiPanel from "./components/JourneyAiPanel";
 import BackendTestPage from "./pages/BackendTestPage";
 import Complete from "./pages/Complete";
 import CrewPage from "./pages/CrewPage";
 import CrewCreate from "./pages/CrewCreate";
+import CrewDetail from "./pages/CrewDetail";
+import CrewChat from "./pages/CrewChat";
 import FeedPage from "./pages/FeedPage";
 import FindPassword from "./pages/FindPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -27,8 +30,10 @@ import AdminPostsPage from "./pages/admin/AdminPostsPage";
 import AdminPostDetailPage from "./pages/admin/AdminPostDetailPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
+import AdminAccountPage from "./pages/admin/AdminAccountPage";
 import AdminNotFoundPage from "./pages/admin/AdminNotFoundPage";
 import { translate } from "./i18n";
+import { isLogin } from "./services/auth";
 import useLangStore from "./store/useLangStore";
 
 function SessionExpirationHandler() {
@@ -54,7 +59,8 @@ function Layout({ children }) {
   const location = useLocation();
   const hideHeaderPaths = ["/", "/login", "/signup", "/find-password", "/test"];
   const isHeaderHidden = hideHeaderPaths.includes(location.pathname) || location.pathname.startsWith("/admin");
-  return <>{!isHeaderHidden && <Header />}{children}</>;
+  const showJourneyAi = !isHeaderHidden && isLogin();
+  return <>{!isHeaderHidden && <Header />}{children}{showJourneyAi && <JourneyAiPanel />}</>;
 }
 
 export default function App() {
@@ -75,6 +81,8 @@ export default function App() {
           <Route path="/explore" element={<SearchPage />} />
           <Route path="/crew" element={<CrewPage />} />
           <Route path="/crew/create" element={<CrewCreate />} />
+          <Route path="/crew/:id" element={<CrewDetail />} />
+          <Route path="/crew/:id/chat" element={<CrewChat />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/my-posts" element={<MyPosts />} />
           <Route path="/write" element={<WritePost />} />
@@ -91,6 +99,7 @@ export default function App() {
             <Route path="posts/:postId" element={<AdminPostDetailPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="users/:userId" element={<AdminUserDetailPage />} />
+            <Route path="account" element={<AdminAccountPage />} />
             <Route path="*" element={<AdminNotFoundPage />} />
           </Route>
 

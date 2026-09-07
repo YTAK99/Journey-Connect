@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+.crew-category-scroll {
+  scrollbar-width: none;
+}
+
+.crew-category-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 :root {
   --background: #f0f8ff;
   --foreground: #23303b;

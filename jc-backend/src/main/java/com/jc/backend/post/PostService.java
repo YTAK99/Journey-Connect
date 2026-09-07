@@ -87,13 +87,30 @@ public class PostService {
 
     public CursorPageResponse<PostDtos.Summary> feed(
             String cursor, int size, Long viewerId) {
+        return feed(cursor, size, null, viewerId);
+    }
+
+    public CursorPageResponse<PostDtos.Summary> feed(
+            String cursor, int size, String regionCode, Long viewerId) {
         int safeSize = Math.min(Math.max(size, 1), 100);
-        CursorCodec.CursorPosition position = cursorCodec.decode(cursor);
+        String canonicalRegionCode = canonicalFeedRegionCode(regionCode);
+        CursorCodec.CursorPosition position = cursorCodec.decode(cursor, canonicalRegionCode);
 
         PageRequest request = PageRequest.of(0, safeSize + 1);
-        List<JourneyPost> fetched = position.createdAt() == null
-                ? posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", request).getContent()
-                : posts.findFeedAfter(position.createdAt(), position.id(), request);
+        List<JourneyPost> fetched;
+        if (canonicalRegionCode == null) {
+            fetched = position.createdAt() == null
+                    ? posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", request).getContent()
+                    : posts.findFeedAfter(position.createdAt(), position.id(), request);
+        } else {
+            fetched = position.createdAt() == null
+                    ? posts.findFeedByRegionCode(canonicalRegionCode, request)
+                    : posts.findFeedAfterByRegionCode(
+                            canonicalRegionCode,
+                            position.createdAt(),
+                            position.id(),
+                            request);
+        }
         boolean hasNext = fetched.size() > safeSize;
         List<JourneyPost> pageItems = hasNext
                 ? fetched.subList(0, safeSize)
@@ -103,9 +120,16 @@ public class PostService {
         String nextCursor = null;
         if (hasNext && !pageItems.isEmpty()) {
             JourneyPost last = pageItems.get(pageItems.size() - 1);
-            nextCursor = cursorCodec.encode(last.getCreatedAt(), last.getId());
+            nextCursor = cursorCodec.encode(last.getCreatedAt(), last.getId(), canonicalRegionCode);
         }
         return CursorPageResponse.of(summaries, nextCursor, hasNext);
+    }
+
+    private String canonicalFeedRegionCode(String regionCode) {
+        if (regionCode == null || regionCode.isBlank()) {
+            return null;
+        }
+        return regionService.requireByCode(regionCode).getCode();
     }
 
     /** 기존 페이지 번호 기반 호출을 사용하는 내부 화면·테스트용 호환 API입니다. */

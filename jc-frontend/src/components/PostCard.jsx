@@ -22,7 +22,7 @@ const getStableFallbackColor = (value) => {
   return `hsl(${hue} 62% 72%)`;
 };
 
-function PostCard({ post, setPosts, editable = false, titleOnly = false, colorFallback = false }) {
+function PostCard({ post, setPosts, editable = false, titleOnly = false, colorFallback = false, showBookmark = true }) {
   // 탐색 화면은 이미지와 제목만, 내 글 화면은 본문·태그와 편집 기능까지 표시합니다.
   const navigate = useNavigate();
   const { currentLang } = useLangStore();
@@ -93,16 +93,18 @@ function PostCard({ post, setPosts, editable = false, titleOnly = false, colorFa
           <MapPin size={12} />
           {location}
         </span>
-        <button
-          type="button"
-          onClick={toggleBookmark}
-          className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 ${
-            bookmarked ? "text-yellow-500" : "text-gray-700"
-          }`}
-          aria-label={t("post.bookmark")}
-        >
-          <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} />
-        </button>
+        {showBookmark && (
+          <button
+            type="button"
+            onClick={toggleBookmark}
+            className={`absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 ${
+              bookmarked ? "text-yellow-500" : "text-gray-700"
+            }`}
+            aria-label={t("post.bookmark")}
+          >
+            <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} />
+          </button>
+        )}
       </div>
 
       <div className="p-4">

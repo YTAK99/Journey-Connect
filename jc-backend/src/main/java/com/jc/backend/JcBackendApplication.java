@@ -11,3 +11,4 @@ public class JcBackendApplication {
         SpringApplication.run(JcBackendApplication.class, args);
     }
 }
+

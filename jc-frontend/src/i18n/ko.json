@@ -160,7 +160,7 @@
     "back": "돌아가기", "editProfile": "프로필 편집", "posts": "게시글", "likes": "좋아요", "comments": "댓글",
     "tabs": ["내가 쓴 글", "좋아요한 곳", "저장한 곳", "크루 활동"], "loading": "게시물을 불러오는 중입니다.",
     "loadError": "마이페이지 게시물을 불러오지 못했습니다.", "emptyPosts": "아직 작성한 글이 없습니다.", "emptyBookmarks": "아직 저장한 곳이 없습니다.",
-    "unavailableLikes": "아직 좋아요한 글이 없습니다.", "unavailableCrew": "참여한 크루 활동은 아직 준비 중입니다.",
+    "unavailableLikes": "아직 좋아요한 글이 없습니다.", "unavailableCrew": "아직 만들거나 참여한 크루가 없습니다.",
     "write": "첫 여행 기록 작성하기", "nickname": "닉네임", "email": "이메일", "cancel": "취소", "save": "저장", "close": "닫기",
     "editHint": "JPEG, PNG, WebP, GIF 형식의 5MB 이하 이미지를 사용할 수 있습니다.", "traveler": "여행자", "imageOnly": "이미지 파일만 선택할 수 있습니다.", "imageInvalid": "JPEG, PNG, WebP, GIF 형식의 5MB 이하 이미지를 선택해 주세요.", "nicknameAlreadyUsed": "이미 사용 중인 닉네임입니다.",
     "currentPassword": "현재 비밀번호", "currentPasswordPlaceholder": "현재 비밀번호를 입력하세요", "newPassword": "새 비밀번호", "newPasswordPlaceholder": "8자 이상의 새 비밀번호",
