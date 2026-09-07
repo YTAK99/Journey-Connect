@@ -290,13 +290,6 @@ public class CrewService {
     public CrewDtos.View reopenRecruitment(Long ownerId, Long crewId) {
         Crew crew = lockedCrew(crewId);
         ensureOwner(crew, ownerId);
-        if (crew.getEndedAt() != null) {
-            throw new DomainException(
-                    HttpStatus.CONFLICT,
-                    "CREW_ALREADY_ENDED",
-                    "종료된 크루는 다시 모집할 수 없습니다.");
-        }
-
         long memberCount = approvedMemberCount(crewId);
         if (memberCount >= crew.getCapacity()) {
             throw new DomainException(
@@ -304,6 +297,7 @@ public class CrewService {
                     "CREW_FULL",
                     "정원이 가득 찬 크루는 모집을 재개할 수 없습니다.");
         }
+        ensureTravelDateNotPassed(crew.getTravelDate());
         if (!crew.isRecruiting()) {
             lockedUser(ownerId);
             ensureOwnedRecruitingLimit(ownerId);
