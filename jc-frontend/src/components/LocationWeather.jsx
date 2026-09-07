@@ -69,7 +69,8 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searc
             const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
               input: trimmed,
               language: currentLang === "ko" ? "ko" : "en",
-              includedPrimaryTypes: ["locality", "administrative_area_level_1", "administrative_area_level_2"],
+              // Google의 지역 컬렉션에는 국가·도시·행정구역이 모두 포함됩니다.
+              includedPrimaryTypes: ["(regions)"],
             });
             if (!active) return;
             const predictions = (response.suggestions || [])
