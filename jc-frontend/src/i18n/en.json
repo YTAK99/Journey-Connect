@@ -99,6 +99,7 @@
     "loadFailed": "Unable to load this post.", "notFound": "Post not found.", "backToStories": "Back to travel stories",
     "journalLabel": "Travel journal", "travelDates": "Travel dates", "tbd": "TBD", "gallery": "Scenes from the journey", "deleted": "Post deleted."
   },
+  "likers": { "title": "Liked by", "open": "View people who liked this post", "close": "Close likes", "empty": "No likes yet.", "loadFailed": "Unable to load likes." },
   "feed": {
     "justNow": "Just now", "minutesAgo": "{{count}}m ago", "hoursAgo": "{{count}}h ago", "daysAgo": "{{count}}d ago",
     "monthsAgo": "{{count}}mo ago", "yearsAgo": "{{count}}y ago", "loadFailed": "Unable to load the feed.",

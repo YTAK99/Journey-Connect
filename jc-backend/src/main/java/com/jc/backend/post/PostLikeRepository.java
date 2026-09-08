@@ -36,4 +36,15 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
             """)
     Page<PostLike> findVisibleByUserId(
             @Param("userId") Long userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"user"})
+    @Query("""
+            select l
+            from PostLike l
+            where l.post.id = :postId
+              and l.user.accountStatus = 'active'
+            order by l.id desc
+            """)
+    List<PostLike> findRecentByPostId(
+            @Param("postId") Long postId, Pageable pageable);
 }

@@ -17,6 +17,7 @@ import PostRouteMap from "../components/PostRouteMap";
 import PostActionsMenu from "../components/PostActionsMenu";
 import UserAvatar from "../components/UserAvatar";
 import PostImageLightbox from "../components/PostImageLightbox";
+import PostLikersModal from "../components/PostLikersModal";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
 import {
@@ -54,6 +55,7 @@ function PostDetail() {
   const [loading, setLoading] = useState(true);
   const [reactionPending, setReactionPending] = useState("");
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [likersOpen, setLikersOpen] = useState(false);
 
   const isKorean = currentLang === "ko";
 
@@ -298,6 +300,8 @@ function PostDetail() {
                       }`}
                     >
                       <Heart size={17} fill={post.liked ? "currentColor" : "none"} />
+                    </button>
+                    <button type="button" onClick={() => setLikersOpen(true)} className="-ml-3 rounded-full px-2 py-2 font-semibold text-slate-500 hover:text-primary hover:underline dark:text-slate-400" aria-label={t("likers.open")}>
                       {post.likeCount ?? 0}
                     </button>
                     <button
@@ -436,6 +440,7 @@ function PostDetail() {
         </div>
       </article>
       {lightboxIndex !== null && <PostImageLightbox images={lightboxImages} index={lightboxIndex} onIndexChange={setLightboxIndex} onClose={() => setLightboxIndex(null)} />}
+      {likersOpen && <PostLikersModal postId={post.id} onClose={() => setLikersOpen(false)} />}
     </main>
   );
 }

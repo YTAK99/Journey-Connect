@@ -12,7 +12,7 @@ import { createPost, getPost, updatePost, uploadPostImagesIndividually } from ".
 import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
 import { normalizeEditorContent, richTextToPlainText } from "../utils/richText";
-import { toRegionPreference } from "../utils/region";
+import { hasValidRegionSelection, toRegionPreference } from "../utils/region";
 import { revokePlacePreviews } from "../utils/imagePreviews";
 import { getMessages } from "../i18n";
 
@@ -122,7 +122,7 @@ function WritePost() {
 
   const handleSubmit = async () => {
     if (!title.trim()) return alert(t.titleRequired);
-    if (!representativeRegion?.code && !representativeRegion?.placeId) return alert(t.regionRequired);
+    if (!hasValidRegionSelection(representativeRegion)) return alert(t.regionRequired);
     const missingLocation = places.find((place) => !place.regionPlaceId);
     if (missingLocation) {
       setActivePlaceId(missingLocation.localId);
@@ -223,7 +223,7 @@ function WritePost() {
         </section>
       </div>
       {regionPickerOpen && <RegionPicker currentRegion={representativeRegion || REGIONS[0]} onSelect={setRepresentativeRegion} onSearch={(_query, region) => setRepresentativeRegion(region)} onClose={() => setRegionPickerOpen(false)} searchMode="region" />}
-      {placePickerIndex !== null && <GoogleMapPlacePicker value={places[placePickerIndex]} lang={currentLang} onConfirm={confirmPlace} onClose={() => setPlacePickerIndex(null)} />}
+      {placePickerIndex !== null && <GoogleMapPlacePicker value={places[placePickerIndex]} region={representativeRegion} lang={currentLang} onConfirm={confirmPlace} onClose={() => setPlacePickerIndex(null)} />}
     </main>
   );
 }

@@ -93,6 +93,11 @@ public class PostController {
         return ApiResponse.ok(postService.detail(postId, userIdOrNull(token)));
     }
 
+    @GetMapping("/posts/{postId}/likes")
+    ApiResponse<java.util.List<PostDtos.Author>> likers(@PathVariable Long postId) {
+        return ApiResponse.ok(postService.likers(postId));
+    }
+
     @PostMapping("/posts")
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<PostDtos.Detail> create(

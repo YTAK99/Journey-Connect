@@ -41,12 +41,17 @@ export const toRegionPreference = (region, lang = "ko") => {
     placeId,
     label: { ko: names.ko || fallbackName, en: names.en || fallbackName },
     country: region.countryCode || region.country || "",
+    latitude: Number.isFinite(region.latitude) ? region.latitude : null,
+    longitude: Number.isFinite(region.longitude) ? region.longitude : null,
+    address: region.address || region.formattedAddress || "",
     timezone: region.timezone || "UTC",
     weather: region.weather || { temp: 0, conditionKo: "날씨 확인 중", conditionEn: "Checking weather" },
     flightTime: region.flightTime || { ko: "이동 시간 확인 중", en: "Checking travel time" },
     custom: true,
   };
 };
+
+export const hasValidRegionSelection = (region) => Boolean(region?.code || region?.placeId);
 
 export const matchesSelectedRegion = (item, selectedRegion) => {
   // 안정적인 코드·Place ID를 우선 비교하고, 이전 데이터만 다국어 이름과 계층 검색어로 보완합니다.

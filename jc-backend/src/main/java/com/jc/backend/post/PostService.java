@@ -319,6 +319,14 @@ public class PostService {
                         .map(this::commentView));
     }
 
+    public List<PostDtos.Author> likers(Long postId) {
+        publishedPost(postId);
+        return likes.findRecentByPostId(postId, PageRequest.of(0, 50)).stream()
+                .map(PostLike::getUser)
+                .map(this::author)
+                .toList();
+    }
+
     @Transactional
     public PostDtos.CommentView addComment(Long userId, Long postId, String content) {
         return addComment(userId, postId, content, null);

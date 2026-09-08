@@ -111,6 +111,11 @@ export const uploadPostImages = async (files) => {
   return unwrap(response);
 };
 
+export const getPostLikers = async (postId) => {
+  const response = await apiClient.get(`/posts/${postId}/likes`);
+  return unwrap(response);
+};
+
 // 요청당 한 파일만 전송해 여러 장소의 사진 합계가 프록시 요청 한도를 넘지 않게 합니다.
 export const uploadPostImagesIndividually = async (files) => {
   const uploaded = [];
