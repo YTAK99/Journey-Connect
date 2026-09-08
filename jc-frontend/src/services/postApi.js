@@ -111,6 +111,15 @@ export const uploadPostImages = async (files) => {
   return unwrap(response);
 };
 
+// 요청당 한 파일만 전송해 여러 장소의 사진 합계가 프록시 요청 한도를 넘지 않게 합니다.
+export const uploadPostImagesIndividually = async (files) => {
+  const uploaded = [];
+  for (const file of files) {
+    uploaded.push(...await uploadPostImages([file]));
+  }
+  return uploaded;
+};
+
 export const deletePost = async (postId) => {
   await apiClient.delete(`/posts/${postId}`);
 };
