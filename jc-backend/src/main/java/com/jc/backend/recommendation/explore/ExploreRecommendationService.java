@@ -35,7 +35,7 @@ public class ExploreRecommendationService {
 
     static final int RECENT_CANDIDATE_LIMIT = 75;
     static final int QUALITY_CANDIDATE_LIMIT = 75;
-    static final int SNAPSHOT_CANDIDATE_LIMIT = 100;
+    static final int SNAPSHOT_CANDIDATE_LIMIT = 99;
     static final Duration FRESHNESS_HALF_LIFE = Duration.ofDays(30);
     static final Duration CURSOR_TTL = Duration.ofMinutes(30);
 

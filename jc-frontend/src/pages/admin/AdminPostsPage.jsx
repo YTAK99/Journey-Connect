@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { EyeOff, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Link, useLocation } from "react-router";
-import { getAdminPosts, hideAdminPost, permanentlyDeleteAdminPost } from "../../services/adminApi";
+import { getAdminPosts, hideAdminPost, permanentlyDeleteAdminPost, restoreAdminPost } from "../../services/adminApi";
 import { normalizeAdminError } from "../../admin/adminErrors";
 import { POST_MODERATION_STATUSES, POST_VISIBILITIES, adminLabel } from "../../admin/adminPolicies";
 import { formatAdminDate, truncateText } from "../../admin/adminFormat";
@@ -30,6 +30,8 @@ export default function AdminPostsPage() {
   );
   const selectedItems = useMemo(() => items.filter((item) => selectedIds.has(item.postId)), [items, selectedIds]);
   const allSelected = items.length > 0 && selectedItems.length === items.length;
+  const canHideSelected = selectedItems.some((item) => item.moderationStatus !== "hidden");
+  const canRestoreSelected = selectedItems.some((item) => item.moderationStatus === "hidden");
   const canDeleteSelected = selectedItems.length > 0 && selectedItems.every((item) => item.moderationStatus === "hidden");
 
   const reset = () => {
@@ -49,18 +51,25 @@ export default function AdminPostsPage() {
   const executeBulkCommand = async (reason) => {
     if (pending || !command || selectedItems.length === 0) return;
     const activeCommand = command;
-    const targets = [...selectedItems];
+    const targets = activeCommand === "hide"
+      ? selectedItems.filter((item) => item.moderationStatus !== "hidden")
+      : activeCommand === "restore"
+        ? selectedItems.filter((item) => item.moderationStatus === "hidden")
+        : [...selectedItems];
     setPending(true);
     setNotice("");
-    const results = await Promise.allSettled(targets.map((item) => activeCommand === "hide"
-      ? hideAdminPost(item.postId, reason)
-      : permanentlyDeleteAdminPost(item.postId, reason)));
+    const results = await Promise.allSettled(targets.map((item) => {
+      if (activeCommand === "hide") return hideAdminPost(item.postId, reason);
+      if (activeCommand === "restore") return restoreAdminPost(item.postId, reason);
+      return permanentlyDeleteAdminPost(item.postId, reason);
+    }));
     const failed = results.filter((result) => result.status === "rejected");
     setCommand(null);
     setSelection({ key: selectionKey, ids: new Set() });
     await Promise.all([reload(), refreshDashboard()]);
     if (failed.length === 0) {
-      setNotice(`${targets.length}개 게시물을 ${activeCommand === "hide" ? "숨김 처리" : "영구 삭제"}했습니다.`);
+      const actionLabel = activeCommand === "hide" ? "숨김 처리" : activeCommand === "restore" ? "복원" : "영구 삭제";
+      setNotice(`${targets.length}개 게시물을 ${actionLabel}했습니다.`);
     } else {
       const firstError = normalizeAdminError(failed[0].reason);
       setNotice(`${targets.length - failed.length}개 처리 완료, ${failed.length}개 처리 실패: ${firstError.message}`);
@@ -83,7 +92,8 @@ export default function AdminPostsPage() {
 
       {selectedItems.length > 0 && <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-teal-50 px-5 py-3">
         <span className="mr-auto text-sm font-semibold text-teal-900">{selectedItems.length}개 선택됨</span>
-        <button type="button" disabled={pending} onClick={() => setCommand("hide")} className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><EyeOff size={16} />선택 숨기기</button>
+        <button type="button" disabled={pending || !canHideSelected} title={canHideSelected ? "" : "숨김 처리할 게시물을 선택해 주세요."} onClick={() => setCommand("hide")} className="inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><EyeOff size={16} />선택 숨기기</button>
+        <button type="button" disabled={pending || !canRestoreSelected} title={canRestoreSelected ? "" : "숨김 상태의 게시물을 선택해 주세요."} onClick={() => setCommand("restore")} className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><RotateCcw size={16} />선택 복원</button>
         <button type="button" disabled={pending || !canDeleteSelected} title={canDeleteSelected ? "" : "영구 삭제는 숨김 상태의 게시물만 가능합니다."} onClick={() => setCommand("delete")} className="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"><Trash2 size={16} />선택 영구 삭제</button>
       </div>}
 
@@ -99,6 +109,6 @@ export default function AdminPostsPage() {
       </div>}
       {!loading && !error && data && <AdminPagination page={page} totalPages={data.totalPages} totalElements={data.totalElements} onPage={(next) => update({ page: next })} />}
     </AdminPanel>
-    <AdminCommandDialog key={command || "closed"} open={Boolean(command)} title={command === "delete" ? "선택 게시물 영구 삭제" : "선택 게시물 숨김"} description={command === "delete" ? `선택한 ${selectedItems.length}개 게시물은 삭제 후 복구할 수 없습니다.` : `선택한 ${selectedItems.length}개 게시물을 숨김 처리합니다.`} confirmLabel={command === "delete" ? "영구 삭제" : "숨기기"} confirmationLabel={command === "delete" ? `확인을 위해 DELETE ${selectedItems.length} 입력` : undefined} expectedConfirmation={command === "delete" ? `DELETE ${selectedItems.length}` : undefined} pending={pending} onClose={() => !pending && setCommand(null)} onConfirm={executeBulkCommand} />
+    <AdminCommandDialog key={command || "closed"} open={Boolean(command)} title={command === "delete" ? "선택 게시물 영구 삭제" : command === "restore" ? "선택 게시물 복원" : "선택 게시물 숨김"} description={command === "delete" ? `선택한 ${selectedItems.length}개 게시물은 삭제 후 복구할 수 없습니다.` : command === "restore" ? `선택한 ${selectedItems.length}개 게시물을 복원합니다.` : `선택한 ${selectedItems.length}개 게시물을 숨김 처리합니다.`} confirmLabel={command === "delete" ? "영구 삭제" : command === "restore" ? "복원하기" : "숨기기"} confirmationLabel={command === "delete" ? `확인을 위해 DELETE ${selectedItems.length} 입력` : undefined} expectedConfirmation={command === "delete" ? `DELETE ${selectedItems.length}` : undefined} pending={pending} onClose={() => !pending && setCommand(null)} onConfirm={executeBulkCommand} />
   </>;
 }
