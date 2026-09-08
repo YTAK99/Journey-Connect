@@ -280,6 +280,13 @@ public class PostService {
         likes.deleteByPostIdAndUserId(postId, userId);
     }
 
+    /** 추천 상호작용 저장소에서 새 좋아요가 반영된 뒤 게시글 작성자 알림을 생성합니다. */
+    @Transactional
+    public void notifyPostLiked(Long userId, Long postId) {
+        JourneyPost post = publishedPost(postId);
+        notifications.postLiked(userId, post.getAuthor().getId(), postId);
+    }
+
     /**
      * 북마크도 좋아요와 동일한 멱등성 규칙을 유지해 중복 저장을 방지합니다.
      */

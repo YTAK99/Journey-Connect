@@ -128,6 +128,9 @@ export default function Header() {
     }
   }, []);
   const handleAllNotificationsRead = useCallback(() => setUnreadNotificationCount(0), []);
+  const handleNotificationDeleted = useCallback((wasUnread) => {
+    if (wasUnread) setUnreadNotificationCount((count) => Math.max(0, count - 1));
+  }, []);
 
   useEffect(() => {
     const handleProfileUpdate = () => setCurrentUser(getUser());
@@ -300,6 +303,7 @@ export default function Header() {
         onClose={() => setIsNotificationsOpen(false)}
         authenticated={isLogin()}
         onAllRead={handleAllNotificationsRead}
+        onNotificationDeleted={handleNotificationDeleted}
       />
     </nav>
   );

@@ -87,7 +87,9 @@
     "loginRequired": "Log in to view notifications.",
     "allRead": "All read",
     "count": "{{count}} notifications",
-    "close": "Close notifications"
+    "close": "Close notifications",
+    "delete": "Delete notification",
+    "deleteFailed": "Unable to delete the notification."
   },
   "post": {
     "traveler": "Traveler", "more": "More", "bookmark": "Bookmark", "likes": "{{count}} likes",

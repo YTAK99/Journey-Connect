@@ -87,7 +87,9 @@
     "loginRequired": "로그인하면 알림을 확인할 수 있습니다.",
     "allRead": "모두 읽음",
     "count": "{{count}}개의 알림",
-    "close": "알림 닫기"
+    "close": "알림 닫기",
+    "delete": "알림 삭제",
+    "deleteFailed": "알림을 삭제하지 못했습니다."
   },
   "post": {
     "traveler": "여행자", "more": "더보기", "bookmark": "북마크", "likes": "좋아요 {{count}}개",
