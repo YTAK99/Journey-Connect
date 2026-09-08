@@ -5,6 +5,8 @@ import com.jc.backend.google.GoogleLocationDtos;
 import com.jc.backend.google.GoogleLocationService;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -92,6 +94,32 @@ public class RegionService {
                 HttpStatus.BAD_REQUEST,
                 "REGION_REQUIRED",
                 "지역 코드는 필수입니다.");
+    }
+
+    @Transactional
+    public Region requireClientPlace(
+            String placeId, String displayName, double latitude, double longitude) {
+        validateCoordinates(latitude, longitude);
+        if (placeId == null || placeId.isBlank()) {
+            return require(null, displayName, null);
+        }
+        String normalizedPlaceId = placeId.trim();
+        return regions.findByGooglePlaceId(normalizedPlaceId).orElseGet(() -> {
+            String normalizedName = normalizeDisplayName(displayName);
+            regions.insertGoogleRegionIfMissing(
+                    googleCode(normalizedPlaceId),
+                    "ZZ",
+                    normalizedName,
+                    normalizedPlaceId,
+                    joinSearchText(normalizedName, normalizedPlaceId),
+                    latitude,
+                    longitude);
+            return regions.findByGooglePlaceId(normalizedPlaceId)
+                    .orElseThrow(() -> new DomainException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "REGION_REGISTRATION_FAILED",
+                            "지역을 등록하지 못했습니다."));
+        });
     }
 
     private Region registerGooglePlace(String placeId) {
@@ -262,6 +290,22 @@ public class RegionService {
                         RegionTranslationProjection::getLanguageCode,
                         RegionTranslationProjection::getDisplayName,
                         (first, ignored) -> first));
+    }
+
+    public Map<Long, Map<String, String>> localizedNamesByRegionIds(Collection<Long> regionIds) {
+        if (regionIds == null || regionIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, LinkedHashMap<String, String>> mutable = new LinkedHashMap<>();
+        for (RegionTranslationRowProjection row : regions.findTranslationsByRegionIds(regionIds)) {
+            mutable.computeIfAbsent(row.getRegionId(), ignored -> new LinkedHashMap<>())
+                    .putIfAbsent(row.getLanguageCode(), row.getDisplayName());
+        }
+
+        Map<Long, Map<String, String>> result = new LinkedHashMap<>();
+        mutable.forEach((regionId, names) -> result.put(regionId, Map.copyOf(names)));
+        return Map.copyOf(result);
     }
 
     private String googleSearchText(

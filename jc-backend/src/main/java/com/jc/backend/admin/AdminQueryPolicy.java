@@ -65,6 +65,14 @@ final class AdminQueryPolicy {
         return normalized;
     }
 
+    static String postSort(String value) {
+        String normalized = optionalValue(
+                value,
+                Set.of("created_desc", "created_asc", "updated_desc", "title_asc"),
+                "sort");
+        return normalized == null ? "created_desc" : normalized;
+    }
+
     static String reason(String value) {
         String normalized = value == null ? "" : normalize(value).strip();
         if (normalized.isEmpty() || normalized.length() > MAX_REASON_LENGTH) {

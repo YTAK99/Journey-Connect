@@ -1,5 +1,6 @@
 package com.jc.backend.region;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -76,6 +77,17 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
             where region_id = :regionId
             """, nativeQuery = true)
     List<RegionTranslationProjection> findTranslations(@Param("regionId") Long regionId);
+    @Query(value = """
+            select region_id as regionId,
+                   language_code as languageCode,
+                   display_name as displayName
+            from region_translation
+            where region_id in (:regionIds)
+            order by region_id, language_code
+            """, nativeQuery = true)
+    List<RegionTranslationRowProjection> findTranslationsByRegionIds(
+            @Param("regionIds") Collection<Long> regionIds);
+
 
     /**
      * PostGIS geography 거리 계산을 사용해 구면 거리를 미터 단위로 비교합니다.

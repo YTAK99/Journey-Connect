@@ -79,7 +79,8 @@ class CrewListQueryIntegrationTest {
                 .extracting(CrewDtos.View::ownerNickname)
                 .containsExactlyInAnyOrder("owner1", "owner2");
 
-        // 크루 페이지 + count + 승인 멤버 집계 + 대기 신청 집계로 크루 수와 무관하게 고정됩니다.
-        assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(4);
+        // 크루 페이지 + count + 승인 멤버/대기 신청 + 태그 bulk 조회로
+        // 크루 수와 무관한 고정 query budget을 유지합니다.
+        assertThat(statistics.getPrepareStatementCount()).isLessThanOrEqualTo(5);
     }
 }

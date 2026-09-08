@@ -69,6 +69,10 @@ public class JourneyPost extends BaseTimeEntity {
     @OrderBy("sortOrder asc, id asc")
     private List<PostImage> images = new ArrayList<>();
 
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder asc, id asc")
+    private List<PostPlace> places = new ArrayList<>();
+
     @ManyToMany
     @JoinTable(
             name = "post_tag",
@@ -139,6 +143,31 @@ public class JourneyPost extends BaseTimeEntity {
         coverImageUrl = images.isEmpty() ? null : images.get(0).getImageUrl();
     }
 
+    public void replacePlaces(List<PostPlaceData> newPlaces) {
+        images.clear();
+        places.clear();
+        int globalImageOrder = 0;
+        for (int placeIndex = 0; placeIndex < newPlaces.size(); placeIndex++) {
+            PostPlaceData data = newPlaces.get(placeIndex);
+            PostPlace place = new PostPlace(this, data.region(), data.content(), placeIndex);
+            places.add(place);
+            for (PostImageData image : data.images()) {
+                images.add(new PostImage(this, place, image.imageUrl(), globalImageOrder++, image.altText()));
+            }
+        }
+        coverImageUrl = images.isEmpty() ? null : images.get(0).getImageUrl();
+    }
+
+    public boolean selectCoverImage(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            coverImageUrl = images.isEmpty() ? null : images.get(0).getImageUrl();
+            return true;
+        }
+        boolean belongsToPost = images.stream().anyMatch(image -> image.getImageUrl().equals(imageUrl.trim()));
+        if (belongsToPost) coverImageUrl = imageUrl.trim();
+        return belongsToPost;
+    }
+
     public void updateTravelDates(LocalDate travelStartDate, LocalDate travelEndDate) {
         this.travelStartDate = travelStartDate;
         this.travelEndDate = travelEndDate;
@@ -185,6 +214,8 @@ public class JourneyPost extends BaseTimeEntity {
         return Collections.unmodifiableList(images);
     }
 
+    public List<PostPlace> getPlaces() { return Collections.unmodifiableList(places); }
+
     public LocalDate getTravelStartDate() {
         return travelStartDate;
     }
@@ -207,4 +238,5 @@ public class JourneyPost extends BaseTimeEntity {
     public boolean isModerationVisible() { return "visible".equals(moderationStatus); }
 
     public record PostImageData(String imageUrl, String altText) {}
+    public record PostPlaceData(Region region, String content, List<PostImageData> images) {}
 }

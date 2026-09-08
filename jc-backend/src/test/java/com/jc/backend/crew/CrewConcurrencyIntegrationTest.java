@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,9 +34,10 @@ class CrewConcurrencyIntegrationTest {
 
     @Test
     void simultaneousImmediateJoinRequestsCannotExceedCapacity() throws Exception {
-        UserAccount owner = users.save(new UserAccount("crew-owner@example.com", "hash", "owner"));
-        UserAccount first = users.save(new UserAccount("crew-first@example.com", "hash", "first"));
-        UserAccount second = users.save(new UserAccount("crew-second@example.com", "hash", "second"));
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        UserAccount owner = users.save(new UserAccount("crew-owner-" + suffix + "@example.com", "hash", "owner-" + suffix));
+        UserAccount first = users.save(new UserAccount("crew-first-" + suffix + "@example.com", "hash", "first-" + suffix));
+        UserAccount second = users.save(new UserAccount("crew-second-" + suffix + "@example.com", "hash", "second-" + suffix));
         Region jeju = region(regions, "KR-JEJU", "KR", "Jeju");
 
         Crew crew = crews.save(new Crew(

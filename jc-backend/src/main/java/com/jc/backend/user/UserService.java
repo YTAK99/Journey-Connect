@@ -8,6 +8,7 @@ import com.jc.backend.post.PostDtos;
 import com.jc.backend.post.PostService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +19,12 @@ public class UserService {
 
     private final UserRepository users;
     private final PostService posts;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository users, PostService posts) {
+    public UserService(UserRepository users, PostService posts, PasswordEncoder passwordEncoder) {
         this.users = users;
         this.posts = posts;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public AuthDtos.UserSummary me(long userId) {
@@ -48,8 +51,39 @@ public class UserService {
         return AuthService.summary(user);
     }
 
+    @Transactional
+    public void changePassword(long userId, UserDtos.ChangePasswordRequest request) {
+        UserAccount user = user(userId);
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "CURRENT_PASSWORD_MISMATCH",
+                    "현재 비밀번호가 일치하지 않습니다.");
+        }
+        user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
+    }
+
+    public UserDtos.PublicProfile publicProfile(long userId, Long viewerId) {
+        UserAccount target = publicUser(userId);
+        return new UserDtos.PublicProfile(
+                target.getId(),
+                target.getNickname(),
+                target.getBio(),
+                target.getProfileImageUrl(),
+                posts.publicPostCount(userId),
+                viewerId == null
+                        ? null
+                        : new UserDtos.PublicProfileViewer(target.getId().equals(viewerId)));
+    }
+
     public PageResponse<PostDtos.Summary> publicPosts(long userId, Pageable pageable) {
-        return posts.publicUserPosts(userId, pageable);
+        return publicPosts(userId, null, pageable);
+    }
+
+    public PageResponse<PostDtos.Summary> publicPosts(
+            long userId, Long viewerId, Pageable pageable) {
+        publicUser(userId);
+        return posts.publicUserPosts(userId, viewerId, pageable);
     }
 
     public PageResponse<PostDtos.Summary> myPosts(long userId, Pageable pageable) {
@@ -60,12 +94,28 @@ public class UserService {
         return posts.myBookmarks(userId, pageable);
     }
 
+    public PageResponse<PostDtos.Summary> myLikes(long userId, Pageable pageable) {
+        return posts.myLikes(userId, pageable);
+    }
+
+    private UserAccount publicUser(long userId) {
+        UserAccount target = user(userId);
+        if (!target.isActive()) {
+            throw userNotFound();
+        }
+        return target;
+    }
+
     private UserAccount user(long userId) {
         return users.findById(userId)
-                .orElseThrow(() -> new DomainException(
-                        HttpStatus.NOT_FOUND,
-                        "USER_NOT_FOUND",
-                        "사용자를 찾을 수 없습니다."));
+                .orElseThrow(this::userNotFound);
+    }
+
+    private DomainException userNotFound() {
+        return new DomainException(
+                HttpStatus.NOT_FOUND,
+                "USER_NOT_FOUND",
+                "사용자를 찾을 수 없습니다.");
     }
 
     private String normalizeNullableNickname(String nickname) {

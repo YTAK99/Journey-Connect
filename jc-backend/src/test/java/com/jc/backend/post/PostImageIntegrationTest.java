@@ -8,6 +8,9 @@ import com.jc.backend.user.UserAccount;
 import com.jc.backend.user.UserRepository;
 import java.util.List;
 import java.util.UUID;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -66,5 +69,56 @@ class PostImageIntegrationTest {
 
         assertThat(updated.images()).isEmpty();
         assertThat(updated.coverImageUrl()).isNull();
+    }
+
+    @Test
+    void postStoresOrderedPlacesWithTheirOwnContentAndImages() {
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        UserAccount author = users.save(new UserAccount(
+                "route-" + suffix + "@example.com", "hash", "route-user-" + suffix));
+        GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+        Region first = regions.save(new Region(
+                "RT-A-" + suffix.toUpperCase(),
+                "KR",
+                "First stop",
+                geometryFactory.createPoint(new Coordinate(126.9780, 37.5665))));
+        Region second = regions.save(new Region(
+                "RT-B-" + suffix.toUpperCase(),
+                "KR",
+                "Second stop",
+                geometryFactory.createPoint(new Coordinate(129.0756, 35.1796))));
+
+        PostDtos.Detail created = postService.create(author.getId(), new PostDtos.CreateRequest(
+                "route post",
+                null,
+                first.getCode(),
+                null,
+                "https://example.com/second.jpg",
+                null,
+                null,
+                null,
+                List.of("route"),
+                null,
+                List.of(
+                        new PostDtos.PlaceRequest(
+                                first.getCode(), null, null, "<p>first story</p>",
+                                List.of(new PostDtos.ImageRequest("https://example.com/first.jpg", "first"))),
+                        new PostDtos.PlaceRequest(
+                                second.getCode(), null, null, "<p>second story</p>",
+                                List.of(new PostDtos.ImageRequest("https://example.com/second.jpg", "second"))))));
+
+        assertThat(created.region().code()).isEqualTo(first.getCode());
+        assertThat(created.coverImageUrl()).isEqualTo("https://example.com/second.jpg");
+        assertThat(created.content()).contains("first story", "second story");
+        assertThat(created.places()).extracting(PostDtos.PlaceView::placeName)
+                .containsExactly("First stop", "Second stop");
+        assertThat(created.places()).extracting(PostDtos.PlaceView::latitude)
+                .containsExactly(37.5665, 35.1796);
+        assertThat(created.places().get(0).images()).extracting(PostDtos.ImageView::imageUrl)
+                .containsExactly("https://example.com/first.jpg");
+        assertThat(created.places().get(1).images()).extracting(PostDtos.ImageView::imageUrl)
+                .containsExactly("https://example.com/second.jpg");
+        assertThat(created.images()).extracting(PostDtos.ImageView::imageUrl)
+                .containsExactly("https://example.com/first.jpg", "https://example.com/second.jpg");
     }
 }

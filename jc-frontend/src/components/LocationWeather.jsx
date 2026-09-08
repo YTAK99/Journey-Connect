@@ -4,7 +4,9 @@ import { getLocalTime, REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getGoogleLocationSuggestions, getGoogleLocationSummary } from "../services/googleLocationApi";
 import useLangStore from "../store/useLangStore";
-import { toRegionPreference } from "../utils/region";
+import { getMessages } from "../i18n";
+import { loadGoogleMaps } from "../utils/googleMapsLoader";
+import { getRegionLookupQuery, toRegionPreference } from "../utils/region";
 
 const getLocalDate = (timezone, lang) => {
   try {
@@ -18,11 +20,6 @@ const getLocalDate = (timezone, lang) => {
   } catch {
     return "--";
   }
-};
-
-const getRegionQuery = (region, lang) => {
-  const label = lang === "ko" ? region.label.ko : region.label.en;
-  return `${label} ${region.country}`;
 };
 
 const createCustomRegion = (name, summary = null) => ({
@@ -42,14 +39,15 @@ const createCustomRegion = (name, summary = null) => ({
   custom: true,
 });
 
-export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
+export function RegionPicker({ currentRegion, onSelect, onSearch, onClose, searchMode = "region" }) {
   // 고정 지역 목록과 Google 자동완성 결과를 하나의 선택 UI로 합칩니다.
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [suggestionError, setSuggestionError] = useState("");
   const { currentLang } = useLangStore();
-  const filtered = REGIONS.filter((region) => {
+  const labels = getMessages(currentLang, "location");
+  const filtered = searchMode === "place" ? [] : REGIONS.filter((region) => {
     const q = query.toLowerCase();
     return region.label.ko.includes(query) || region.label.en.toLowerCase().includes(q);
   });
@@ -63,7 +61,42 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
 
     let active = true;
     const timer = setTimeout(() => {
-      getGoogleLocationSuggestions(trimmed, currentLang === "ko" ? "ko" : "en")
+      if (searchMode === "region") {
+        loadGoogleMaps()
+          .then(async (maps) => {
+            if (!active) return;
+            const { AutocompleteSuggestion } = await maps.importLibrary("places");
+            const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+              input: trimmed,
+              language: currentLang === "ko" ? "ko" : "en",
+              // Google의 지역 컬렉션에는 국가·도시·행정구역이 모두 포함됩니다.
+              includedPrimaryTypes: ["(regions)"],
+            });
+            if (!active) return;
+            const predictions = (response.suggestions || [])
+              .map((item) => item.placePrediction)
+              .filter(Boolean);
+            setSuggestions(predictions.slice(0, 6).map((prediction) => ({
+                placeId: prediction.placeId,
+                mainText: prediction.mainText?.toString() || prediction.text?.toString() || "",
+                secondaryText: prediction.secondaryText?.toString() || "",
+                description: prediction.text?.toString() || prediction.mainText?.toString() || "",
+                browserResult: true,
+                placePrediction: prediction,
+              })));
+            setSuggestionError("");
+            setSuggestionLoading(false);
+          })
+          .catch(() => {
+            if (active) {
+              setSuggestions([]);
+              setSuggestionError(labels.suggestionsFailed);
+              setSuggestionLoading(false);
+            }
+          });
+        return;
+      }
+      getGoogleLocationSuggestions(trimmed, currentLang, searchMode)
         .then((items) => {
           if (active) setSuggestions(Array.isArray(items) ? items : []);
         })
@@ -72,7 +105,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
             setSuggestions([]);
             setSuggestionError(getApiErrorMessage(
               error,
-              currentLang === "ko" ? "지역 추천을 불러오지 못했습니다." : "Could not load region suggestions.",
+              labels.suggestionsFailed,
             ));
           }
         })
@@ -85,11 +118,41 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
       active = false;
       clearTimeout(timer);
     };
-  }, [currentLang, query]);
+  }, [currentLang, labels.suggestionsFailed, query, searchMode]);
 
   const visibleSuggestions = query.trim().length >= 2 ? suggestions : [];
 
-  const selectSuggestion = (suggestion) => {
+  const selectSuggestion = async (suggestion) => {
+    if (suggestion.browserResult && suggestion.placePrediction) {
+      setSuggestionLoading(true);
+      setSuggestionError("");
+      try {
+        const place = suggestion.placePrediction.toPlace();
+        await place.fetchFields({ fields: ["id", "displayName", "formattedAddress", "location"] });
+        if (!place.location) throw new Error("Selected city has no coordinates.");
+        const name = place.displayName || suggestion.mainText;
+        onSearch(name, {
+          id: `google:${suggestion.placeId}`,
+          placeId: suggestion.placeId,
+          code: null,
+          label: { ko: name, en: name },
+          country: place.formattedAddress || suggestion.secondaryText,
+          timezone: "UTC",
+          weather: { temp: 0, conditionKo: "날씨 확인 중", conditionEn: "Checking weather" },
+          flightTime: { ko: "이동 시간 확인 중", en: "Checking travel time" },
+          latitude: place.location.lat(),
+          longitude: place.location.lng(),
+          address: place.formattedAddress || "",
+          custom: true,
+        });
+        onClose();
+      } catch {
+        setSuggestionError(labels.suggestionsFailed);
+      } finally {
+        setSuggestionLoading(false);
+      }
+      return;
+    }
     onSearch(suggestion.description, {
       id: `google:${suggestion.placeId}`,
       placeId: suggestion.placeId,
@@ -103,7 +166,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
 
   const selectRegion = (region) => {
     onSelect(region);
-    onSearch(getRegionQuery(region, currentLang), region);
+    onSearch(getRegionLookupQuery(region, currentLang), region);
     onClose();
   };
 
@@ -120,7 +183,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl dark:bg-slate-900" onClick={(event) => event.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 dark:text-slate-100">{currentLang === "ko" ? "지역 선택" : "Select Region"}</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-slate-100">{searchMode === "place" ? labels.searchPlace : labels.selectRegion}</h3>
           <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800">
             <X size={14} />
           </button>
@@ -128,7 +191,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
 
         <form onSubmit={submitSearch} className="mb-4 flex gap-2">
           <div className="relative min-w-0 flex-1">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400" />
             <input
               autoFocus
               value={query}
@@ -143,7 +206,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
                   setSuggestionLoading(true);
                 }
               }}
-              placeholder={currentLang === "ko" ? "도시명 검색..." : "Search city..."}
+              placeholder={searchMode === "place" ? labels.placePlaceholder : labels.cityPlaceholder}
               className="w-full rounded-lg border border-gray-300 bg-gray-50 py-2 pl-8 pr-3 text-sm focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
             />
           </div>
@@ -151,7 +214,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
             type="submit"
             className="inline-flex h-9 items-center justify-center rounded-lg bg-teal-600 px-3 text-sm font-medium text-white hover:bg-teal-700"
           >
-            {currentLang === "ko" ? "검색" : "Search"}
+            {labels.search}
           </button>
         </form>
 
@@ -172,11 +235,11 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
               </span>
             </button>
           ))}
-          {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500">{currentLang === "ko" ? "지역 추천을 찾는 중..." : "Finding suggestions..."}</p>}
+          {query.trim().length >= 2 && suggestionLoading && <p className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400">{labels.findingSuggestions}</p>}
           {query.trim().length >= 2 && suggestionError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950/30 dark:text-rose-300">{suggestionError}</p>}
           {query.trim().length >= 2 && !suggestionLoading && !suggestionError && visibleSuggestions.length === 0 && filtered.length === 0 && (
             <p className="px-3 py-2 text-xs text-gray-500 dark:text-slate-400">
-              {currentLang === "ko" ? "검색 결과가 없습니다. 다른 지역명을 입력해 주세요." : "No regions found. Try another name."}
+              {labels.noRegions}
             </p>
           )}
           {filtered.map((region) => {
@@ -195,7 +258,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
                 </span>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                    {currentLang === "ko" ? region.label.ko : region.label.en}
+                    {region.label[currentLang] || region.label.en}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-slate-400">
                     <span className="inline-flex items-center gap-1">
@@ -204,7 +267,7 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <Plane size={11} />
-                      {currentLang === "ko" ? region.flightTime.ko : region.flightTime.en}
+                      {region.flightTime[currentLang] || region.flightTime.en}
                     </span>
                   </div>
                 </div>
@@ -217,15 +280,15 @@ export function RegionPicker({ currentRegion, onSelect, onSearch, onClose }) {
   );
 }
 
-export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionChange = () => {} }) {
+export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionChange = () => {}, pickerOpen = false, onPickerOpenChange = () => {} }) {
   // 선택 지역이 바뀔 때 장소·날씨·현지 시각·예상 비행 정보를 백엔드에서 묶어 조회합니다.
   const { currentLang } = useLangStore();
+  const labels = getMessages(currentLang, "location");
   const [tick, setTick] = useState(0);
-  const [pickerOpen, setPickerOpen] = useState(false);
   // 같은 검색어를 다시 선택해도 id를 증가시켜 요약 정보를 새로 조회할 수 있게 합니다.
   const [request, setRequest] = useState(() => ({
     id: 0,
-    query: getRegionQuery(selectedRegion, currentLang),
+    query: getRegionLookupQuery(selectedRegion, currentLang),
     persistDynamic: false,
   }));
   const [summary, setSummary] = useState(null);
@@ -241,17 +304,20 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     let ignore = false;
 
     // 장소 조회가 성공한 동적 지역만 좌표·시간대가 포함된 값으로 전역 상태를 갱신합니다.
-    getGoogleLocationSummary(request.query, currentLang === "ko" ? "ko" : "en")
+    getGoogleLocationSummary(request.query, currentLang, request.location)
       .then((data) => {
         if (!ignore) {
           setSummary(data);
+          setErrorMessage("");
           if (request.persistDynamic) onRegionChange(createCustomRegion(request.query, data));
         }
       })
-      .catch((error) => {
+      .catch(() => {
         if (!ignore) {
           setSummary(null);
-          setErrorMessage(getApiErrorMessage(error, currentLang === "ko" ? "지역 정보를 가져오지 못했습니다." : "Could not load location data."));
+          setErrorMessage(currentLang === "ko"
+            ? "실시간 정보를 불러오지 못해 기본 지역 정보를 표시합니다."
+            : "Showing saved region information because live data is unavailable.");
         }
       })
       .finally(() => {
@@ -274,28 +340,33 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
     setRequest((value) => ({
       id: value.id + 1,
       query: nextQuery,
-      persistDynamic: !presetRegion,
+      persistDynamic: !presetRegion || Boolean(presetRegion?.custom),
+      location: presetRegion?.custom ? {
+        latitude: presetRegion.latitude,
+        longitude: presetRegion.longitude,
+        address: presetRegion.address,
+      } : null,
     }));
   };
 
   const fallbackDate = getLocalDate(selectedRegion.timezone, currentLang);
   const fallbackTime = getLocalTime(selectedRegion.timezone);
-  const fallbackFlightTime = currentLang === "ko" ? selectedRegion.flightTime.ko : selectedRegion.flightTime.en;
+  const fallbackFlightTime = selectedRegion.flightTime[currentLang] || selectedRegion.flightTime.en;
   const display = useMemo(() => {
     // 외부 응답에 일부 값이 없더라도 고정 지역의 기본 정보로 화면을 유지합니다.
     const temperature = summary?.weather?.temperatureDegrees;
 
     return {
-      title: summary?.place?.name || `${selectedRegion.country} ${currentLang === "ko" ? selectedRegion.label.ko : selectedRegion.label.en}`,
+      title: summary?.place?.name || `${selectedRegion.country} ${selectedRegion.label[currentLang] || selectedRegion.label.en}`,
       address: summary?.place?.formattedAddress || "",
       date: summary?.timeZone?.localDate || fallbackDate,
       time: summary?.timeZone?.localTime || fallbackTime,
       temperature: Number.isFinite(temperature) ? Math.round(temperature) : selectedRegion.weather.temp,
       condition: summary?.weather?.conditionText || (currentLang === "ko" ? selectedRegion.weather.conditionKo : selectedRegion.weather.conditionEn),
       flightTime: summary?.flight?.label || fallbackFlightTime,
-      flightOrigin: summary?.flight?.originName || (currentLang === "ko" ? "인천공항" : "Incheon Airport"),
+      flightOrigin: summary?.flight?.originName || labels.incheonAirport,
     };
-  }, [currentLang, fallbackDate, fallbackFlightTime, fallbackTime, selectedRegion, summary]);
+  }, [currentLang, fallbackDate, fallbackFlightTime, fallbackTime, labels.incheonAirport, selectedRegion, summary]);
 
   void tick;
 
@@ -313,7 +384,6 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
                   {loading && <Loader2 size={15} className="animate-spin text-teal-600" />}
                 </h2>
                 {display.address && <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{display.address}</p>}
-                {errorMessage && <p className="mt-1 text-xs text-red-500">{errorMessage}</p>}
               </div>
 
               <div className="flex items-center gap-3 rounded-full bg-gray-50 px-3 py-1.5 text-sm text-gray-600 dark:bg-slate-800 dark:text-slate-300">
@@ -338,19 +408,20 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
               <span className="inline-flex w-full items-center gap-1.5 rounded-md bg-sky-50 px-2.5 py-1 text-sky-700 dark:bg-sky-950/40 dark:text-sky-200 sm:w-auto">
                 <Plane size={15} className="shrink-0" />
                 <span className="font-medium">
-                  {currentLang === "ko" ? `${display.flightOrigin} 기준 ${display.flightTime}` : `${display.flightTime} from ${display.flightOrigin}`}
+                  {labels.flightFrom.replace("{{origin}}", display.flightOrigin).replace("{{time}}", display.flightTime)}
                 </span>
               </span>
             </div>
+            {errorMessage && <p className="mt-2 text-xs text-amber-600 dark:text-amber-300">{errorMessage}</p>}
           </div>
 
           <button
             type="button"
-            onClick={() => setPickerOpen(true)}
+            onClick={() => onPickerOpenChange(true)}
             className="inline-flex items-center justify-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
           >
-            <RefreshCw size={14} className="text-gray-500" />
-            {currentLang === "ko" ? "지역 변경" : "Change Region"}
+            <RefreshCw size={14} className="text-gray-500 dark:text-slate-400" />
+            {labels.changeRegion}
           </button>
         </div>
       </div>
@@ -360,7 +431,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
           currentRegion={selectedRegion}
           onSelect={onRegionChange}
           onSearch={runSearch}
-          onClose={() => setPickerOpen(false)}
+          onClose={() => onPickerOpenChange(false)}
         />
       )}
     </>

@@ -1,158 +1,132 @@
-import { useMemo, useState } from "react";
-import { CalendarDays, Plus, Users } from "lucide-react";
-import { useSearchParams } from "react-router";
-import LocationWeather from "../components/LocationWeather";
-import useRegionStore from "../store/useRegionStore";
+import { useEffect, useState } from "react";
+import { CalendarDays, ChevronRight, MapPin, Plus, Search, Users } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router";
+import { CREW_CATEGORIES, crewCategoryLabel, getStableCrewColor } from "../data/crewCategories";
+import useTranslation from "../i18n/useTranslation";
+import { isLogin } from "../services/auth";
+import { getApiErrorMessage } from "../services/apiClient";
+import { crewPageItems, getCrews } from "../services/crewApi";
 
-const sampleCrews = [
-  {
-    id: "sample-1",
-    title: "7월 서울 성수동 빈티지 투어 같이 해요",
-    regionName: "서울",
-    country: "🇰🇷",
-    tags: ["성수동", "빈티지"],
-    travelDate: "2026-08-08",
-    capacity: 8,
-    memberCount: 4,
-    image: "https://images.unsplash.com/photo-1517154421773-0529f29ea451?w=400&h=220&fit=crop",
-  },
-  {
-    id: "sample-2",
-    title: "도쿄 야키토리 골목 투어 하실 분?",
-    regionName: "도쿄",
-    country: "🇯🇵",
-    tags: ["도쿄", "야키토리"],
-    travelDate: "2026-08-15",
-    capacity: 10,
-    memberCount: 6,
-    image: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=220&fit=crop",
-  },
-  {
-    id: "sample-3",
-    title: "제주 올레길 1코스 - 외국인 친구와 같이!",
-    regionName: "제주",
-    country: "🇰🇷",
-    tags: ["올레길", "외국인환영"],
-    travelDate: "2026-08-22",
-    capacity: 6,
-    memberCount: 3,
-    image: "/jeju-olle-trail.png",
-  },
-];
-
-const crewImage = (crew) =>
-  crew.image ||
-  crew.coverImageUrl ||
-  "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&h=220&fit=crop";
+const formatDate = (value, lang) => {
+  if (!value) return lang === "ko" ? "날짜 협의" : "Date TBD";
+  return new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en-US", {
+    year: "numeric", month: "short", day: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
+};
 
 export default function CrewPage() {
-  // Figma 시안 확인용 샘플 크루 3개를 고정으로 표시합니다.
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { selectedRegion, setSelectedRegion } = useRegionStore();
-  const [joined, setJoined] = useState([]);
-  const keyword = (searchParams.get("q") || "").trim().toLowerCase();
+  const { currentLang } = useTranslation();
+  const ko = currentLang === "ko";
+  const [category, setCategory] = useState("");
+  const [crews, setCrews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const keyword = searchParams.get("q") || "";
 
-  const visibleCrews = useMemo(() => {
-    return sampleCrews.filter((crew) => {
-      if (!keyword) return true;
-      const searchable = `${crew.title} ${crew.regionName} ${crew.tags.join(" ")}`.toLowerCase();
-      return searchable.includes(keyword);
-    });
-  }, [keyword]);
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setError("");
+      getCrews({ keyword, category, size: 100 })
+        .then((page) => active && setCrews(crewPageItems(page)))
+        .catch((requestError) => active && setError(getApiErrorMessage(
+          requestError, ko ? "크루를 불러오지 못했습니다." : "Could not load crews.",
+        )))
+        .finally(() => active && setLoading(false));
+    }, 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [category, keyword, ko]);
 
-  const handleJoin = (crew) => {
-    setJoined((current) => (current.includes(crew.id) ? current.filter((id) => id !== crew.id) : [...current, crew.id]));
+  const handleCreate = () => {
+    if (!isLogin()) {
+      window.alert(ko ? "로그인 후 크루를 만들 수 있습니다." : "Please sign in to create a crew.");
+      navigate("/login");
+      return;
+    }
+    navigate("/crew/create");
   };
 
   return (
-    <main className="min-h-screen bg-sky-50">
-      <div className="pt-24 pb-6">
-        <section className="mx-auto max-w-screen-xl space-y-4 bg-white px-6 py-5">
-          <LocationWeather selectedRegion={selectedRegion} onRegionChange={setSelectedRegion} />
-        </section>
-
-        <section className="mx-auto max-w-5xl px-6 py-8">
-          <div className="mb-6 flex items-end justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-foreground">크루 · 모임</h1>
-              <p className="mt-0.5 text-sm text-muted">선택한 지역의 여행자들과 함께하세요.</p>
-            </div>
-            <button className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primaryHover">
-              <Plus size={14} />
-              크루 만들기
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleCrews.map((crew) => {
-                const memberCount = crew.memberCount ?? 1;
-                const capacity = crew.capacity ?? 2;
-                const percent = Math.min(100, Math.round((memberCount / capacity) * 100));
-                const isJoined = joined.includes(crew.id);
-
-                return (
-                  <article
-                    key={crew.id}
-                    className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    <div className="relative h-36 overflow-hidden">
-                      <img src={crewImage(crew)} alt={crew.title} className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                      <span className="absolute bottom-2 left-3 rounded-full bg-black/40 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
-                        {crew.country} {crew.regionName}
-                      </span>
-                    </div>
-
-                    <div className="p-4">
-                      <p className="mb-2 line-clamp-2 text-sm font-semibold text-foreground">{crew.title}</p>
-                      <div className="mb-3 flex flex-wrap gap-1">
-                        {crew.tags.map((tag) => (
-                          <span key={tag} className="rounded-full bg-secondary px-2 py-0.5 text-xs text-primary">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="mb-3">
-                        <div className="mb-1 flex justify-between text-xs text-muted">
-                          <span className="flex items-center gap-1">
-                            <Users size={10} />
-                            {memberCount}/{capacity}명
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <CalendarDays size={10} />
-                            {crew.travelDate || "상시"}
-                          </span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                          <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleJoin(crew)}
-                        className={`w-full rounded-xl py-2 text-sm font-medium transition-all ${
-                          isJoined
-                            ? "border border-primary/20 bg-secondary text-primary"
-                            : "bg-primary text-white hover:bg-primaryHover"
-                        }`}
-                      >
-                        {isJoined ? "참여중" : "참여하기"}
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-          </div>
-
-          {visibleCrews.length === 0 && (
-            <p className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
-              선택한 지역의 크루가 없습니다.
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-white px-4 pb-20 pt-24 text-foreground dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 sm:px-6 sm:pt-28">
+      <section className="mx-auto max-w-screen-xl">
+        <header className="mb-7 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">Journey crew</p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-title sm:text-4xl">
+              {ko ? "같이 떠날 크루를 찾아보세요" : "Find people to travel with"}
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              {ko ? "마음에 드는 여행 루트를 함께 경험할 새로운 동행을 만나보세요." : "Meet new companions for routes you want to experience."}
             </p>
-          )}
-        </section>
-      </div>
+          </div>
+          <button type="button" onClick={handleCreate} className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white shadow-lg shadow-teal-500/20 transition hover:-translate-y-0.5 hover:bg-primaryHover">
+            <Plus size={17} /> {ko ? "크루 만들기" : "Create crew"}
+          </button>
+        </header>
+
+        <div className="mb-7" aria-label={ko ? "카테고리 필터" : "Category filters"}>
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+            {[{ value: "", ko: "전체", en: "All" }, ...CREW_CATEGORIES].map((item) => (
+              <button key={item.value || "all"} type="button" onClick={() => setCategory(item.value)} className={`whitespace-nowrap rounded-xl border px-2 py-2.5 text-xs font-semibold transition sm:text-sm ${category === item.value ? "border-primary bg-primary text-white shadow-sm" : "border-border bg-card text-muted hover:border-primary/40 hover:text-primary"}`}>
+                {item[currentLang]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => <div key={item} className="h-72 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-900" />)}
+          </div>
+        )}
+
+        {!loading && error && <div className="rounded-3xl border border-rose-200 bg-rose-50 p-10 text-center text-sm text-rose-600 dark:border-rose-900 dark:bg-rose-950/20">{error}</div>}
+
+        {!loading && !error && crews.length === 0 && (
+          <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/60 px-6 py-16 text-center dark:border-teal-900 dark:bg-teal-950/20">
+            <Search className="mx-auto text-teal-500" size={32} />
+            <p className="mt-4 font-bold text-title">{ko ? "아직 조건에 맞는 크루가 없어요" : "No matching crews yet"}</p>
+            <p className="mt-1 text-sm text-muted">{ko ? "첫 번째 크루를 만들어 여행을 시작해보세요." : "Create the first crew and start your journey."}</p>
+          </div>
+        )}
+
+        {!loading && !error && crews.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {crews.map((crew) => {
+              const percent = Math.min(100, Math.round((crew.memberCount / crew.capacity) * 100));
+              const fallbackColor = getStableCrewColor(crew.id ?? crew.title);
+              return (
+                <article key={crew.id} onClick={() => navigate(`/crew/${crew.id}`)} className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-teal-950/10">
+                  <div className="relative h-40 overflow-hidden" style={{ backgroundColor: fallbackColor }}>
+                    {crew.coverImageUrl && <img src={crew.coverImageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
+                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-teal-700 backdrop-blur dark:bg-slate-900/90 dark:text-teal-300">
+                      {crewCategoryLabel(crew.category, currentLang)}
+                    </span>
+                    <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 text-xs font-semibold text-white"><MapPin size={14} /> {crew.regionName}</span>
+                  </div>
+                  <div className="p-4">
+                    <h2 className="truncate text-base font-extrabold text-title" title={crew.title}>{crew.title}</h2>
+                    <p className="mt-1.5 line-clamp-2 min-h-9 text-xs leading-[18px] text-muted">{crew.description}</p>
+                    <div className="mt-4 flex items-center justify-between gap-2 text-[11px] font-semibold text-muted">
+                      <span className="inline-flex min-w-0 items-center gap-1"><CalendarDays size={13} className="shrink-0 text-primary" /><span className="truncate">{formatDate(crew.travelDate, currentLang)}</span></span>
+                      <span className="inline-flex shrink-0 items-center gap-1"><Users size={13} className="text-primary" /> {crew.memberCount}/{crew.capacity}</span>
+                    </div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} /></div>
+                    <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
+                      <span className="font-medium text-muted">{crew.approvalRequired ? (ko ? "승인제" : "Approval") : (ko ? "바로 참여" : "Instant")}</span>
+                      <span className="inline-flex items-center gap-0.5 font-bold text-primary">{ko ? "자세히" : "Details"}<ChevronRight size={14} /></span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

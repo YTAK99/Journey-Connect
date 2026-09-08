@@ -38,4 +38,8 @@ public class PostLike {
         this.post = post;
         this.user = user;
     }
+
+    public JourneyPost getPost() {
+        return post;
+    }
 }

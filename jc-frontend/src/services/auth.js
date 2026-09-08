@@ -20,6 +20,20 @@ export const login = async (emailOrRequest, password) => {
   return saveAuth(unwrapApiResponse(response));
 };
 
+export const loginWithGoogle = async (idToken) => {
+  const response = await apiClient.post("/auth/google", { idToken });
+  return saveAuth(unwrapApiResponse(response));
+};
+
+export const requestPasswordReset = async (email) => {
+  const response = await apiClient.post("/auth/password-reset/requests", { email });
+  return unwrapApiResponse(response);
+};
+
+export const confirmPasswordReset = async ({ token, newPassword }) => {
+  await apiClient.post("/auth/password-reset/confirm", { token, newPassword });
+};
+
 export const logout = async () => {
   const refreshToken = localStorage.getItem("refreshToken");
   try {
@@ -36,6 +50,15 @@ export const fetchCurrentUser = async () => {
   return user;
 };
 
+export const updateStoredUser = (changes) => {
+  const current = getUser();
+  if (!current) return null;
+  const updated = { ...current, ...changes };
+  localStorage.setItem("loginUser", JSON.stringify(updated));
+  window.dispatchEvent(new Event("jc:user-updated"));
+  return updated;
+};
+
 export const getUser = () => {
   try {
     const storedUser = localStorage.getItem("loginUser");
@@ -47,5 +70,4 @@ export const getUser = () => {
 };
 
 export const isLogin = () => Boolean(localStorage.getItem("accessToken"));
-export const findId = () => null;
 export const findPassword = () => null;

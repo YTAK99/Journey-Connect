@@ -1,19 +1,25 @@
-import { useState } from "react";
-import { LayoutDashboard, LogOut, Menu, MessageSquareWarning, Newspaper, Users, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LayoutDashboard, LogOut, Menu, MessageSquareWarning, Newspaper, Settings, Users, X } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { getUser, logout } from "../services/auth";
 
 const navigation = [
-  { to: "/admin", end: true, label: "Dashboard", icon: LayoutDashboard },
-  { to: "/admin/reports", label: "Reports", icon: MessageSquareWarning },
-  { to: "/admin/posts", label: "Posts", icon: Newspaper },
-  { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin", end: true, label: "대시보드", icon: LayoutDashboard },
+  { to: "/admin/reports", label: "신고 관리", icon: MessageSquareWarning },
+  { to: "/admin/posts", label: "게시물 관리", icon: Newspaper },
+  { to: "/admin/users", label: "사용자 관리", icon: Users },
+  { to: "/admin/account", label: "계정 설정", icon: Settings },
 ];
 
 export default function AdminLayout() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const user = getUser();
+  const [user, setUser] = useState(getUser);
+  useEffect(() => {
+    const refreshUser = () => setUser(getUser());
+    window.addEventListener("jc:user-updated", refreshUser);
+    return () => window.removeEventListener("jc:user-updated", refreshUser);
+  }, []);
   const leave = async () => { await logout(); navigate("/admin/login", { replace: true }); };
 
   return <div className="min-h-screen bg-slate-50 text-slate-800">

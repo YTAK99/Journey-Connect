@@ -53,9 +53,13 @@ class SecurityConfig(
                     .requestMatchers(
                         "/api/v1/auth/signup",
                         "/api/v1/auth/login",
+                        "/api/v1/auth/google",
                         "/api/v1/auth/refresh",
                         "/api/v1/auth/logout",
+                        "/api/v1/auth/password-reset/**",
                         "/api/v1/test/**",
+                        "/ws",
+                        "/ws/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/api-docs/**",
@@ -63,6 +67,8 @@ class SecurityConfig(
                     ).permitAll()
                     // 공개 와일드카드보다 구체적인 보호 경로를 먼저 선언합니다.
                     .requestMatchers("/api/v1/users/me", "/api/v1/users/me/**").authenticated()
+                    .requestMatchers("/api/v1/notifications", "/api/v1/notifications/**").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/crews/recommended").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/crews/*/applications").authenticated()
                     .requestMatchers("/api/admin/**").authenticated()
                     .requestMatchers(HttpMethod.GET, "/api/v1/**").permitAll()
@@ -117,7 +123,15 @@ class SecurityConfig(
         val configuration = CorsConfiguration().apply {
             this.allowedOrigins = allowedOrigins
             allowedMethods = listOf("GET", "POST", "PATCH", "DELETE", "OPTIONS")
-            allowedHeaders = listOf("Authorization", "Content-Type")
+            allowedHeaders = listOf(
+                "Authorization",
+                "Content-Type",
+                "Idempotency-Key",
+                "X-Recommendation-Run-Id",
+                "X-Recommendation-Surface",
+                "X-Recommendation-Event-Id",
+                "X-Recommendation-Occurred-At",
+            )
             allowCredentials = true
         }
 

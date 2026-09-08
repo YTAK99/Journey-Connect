@@ -1,37 +1,19 @@
 import { useEffect, useRef } from "react";
 import { Camera, Check, ImagePlus, Star, X } from "lucide-react";
+import { getMessages, translate } from "../i18n";
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-const copy = {
-  ko: {
-    maxAlert: `이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있습니다.`,
-    invalidAlert: "JPEG, PNG, WebP, GIF 형식의 5MB 이하 이미지만 첨부해주세요.",
-    select: "여행 사진을 선택하세요",
-    limits: "JPEG · PNG · WebP · GIF / 장당 5MB / 최대 10장",
-    travelImage: "여행 이미지",
-    cover: "대표",
-    setCover: "대표 지정",
-    remove: "번째 이미지 선택 취소",
-    coverHelp: "첫 번째 사진이 피드의 대표 이미지로 표시됩니다.",
-  },
-  en: {
-    maxAlert: `You can attach up to ${MAX_IMAGES} images.`,
-    invalidAlert: "Please select JPEG, PNG, WebP, or GIF images up to 5MB each.",
-    select: "Choose your travel photos",
-    limits: "JPEG · PNG · WebP · GIF / 5MB each / up to 10",
-    travelImage: "Travel image",
-    cover: "Cover",
-    setCover: "Set as cover",
-    remove: "Remove image",
-    coverHelp: "The first photo will be used as the cover image in the feed.",
-  },
-};
-
-export default function MultipleImageUploader({ images, onChange, lang = "ko" }) {
-  const t = copy[lang] || copy.ko;
+export default function MultipleImageUploader({
+  images,
+  onChange,
+  lang = "ko",
+  selectedCoverKey,
+  onSelectCover,
+}) {
+  const t = getMessages(lang, "imageUploader");
   const inputRef = useRef(null);
   const previewUrlsRef = useRef(new Set());
 
@@ -80,6 +62,10 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
   };
 
   const makeCover = (index) => {
+    if (onSelectCover) {
+      onSelectCover(images[index]);
+      return;
+    }
     // 배열의 첫 항목을 대표 이미지로 사용하는 작성 요청 규칙에 맞춰 선택 이미지를 맨 앞으로 옮깁니다.
     if (index === 0) return;
     const next = [...images];
@@ -114,7 +100,10 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
 
       {images.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {images.map((image, index) => (
+          {images.map((image, index) => {
+            const imageKey = image.localId || image.imageUrl;
+            const isCover = onSelectCover ? selectedCoverKey === imageKey : index === 0;
+            return (
             <div key={image.localId || `${image.imageUrl}-${index}`} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <img src={image.previewUrl || image.imageUrl} alt={image.altText || `${t.travelImage} ${index + 1}`} className="h-28 w-full object-cover" />
               <button
@@ -126,7 +115,7 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
                 <X size={15} />
               </button>
               <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-8">
-                {index === 0 ? (
+                {isCover ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-teal-500 px-2 py-1 text-[11px] font-semibold text-white">
                     <Check size={11} /> {t.cover}
                   </span>
@@ -137,12 +126,13 @@ export default function MultipleImageUploader({ images, onChange, lang = "ko" })
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <Camera size={13} /> {t.coverHelp} ({images.length}/{MAX_IMAGES})
+        <Camera size={13} /> {onSelectCover ? translate(lang, "imageUploader.chooseCover") : t.coverHelp} ({images.length}/{MAX_IMAGES})
       </div>
     </div>
   );

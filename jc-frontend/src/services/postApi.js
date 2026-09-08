@@ -3,10 +3,11 @@ import apiClient, { unwrapApiResponse } from "./apiClient";
 const unwrap = unwrapApiResponse;
 
 // 피드는 createdAt/id 기반 커서로 다음 묶음을 조회해 중간 데이터가 추가돼도 중복을 줄입니다.
-export const getFeed = async ({ cursor, size = 20 } = {}) => {
+export const getFeed = async ({ cursor, region, size = 20 } = {}) => {
   const response = await apiClient.get("/feed", {
     params: {
       cursor: cursor || undefined,
+      region: region || undefined,
       size,
     },
   });
@@ -27,9 +28,67 @@ export const getExplore = async ({ keyword, region, page = 0, size = 20 } = {}) 
   return unwrap(response);
 };
 
+export const getExploreDiscovery = async ({ region, cursor, size = 20 } = {}) => {
+  const response = await apiClient.get("/explore/discovery", {
+    params: {
+      region: region || undefined,
+      cursor: cursor || undefined,
+      size,
+    },
+  });
+
+  return unwrap(response);
+};
+
 export const getPost = async (postId) => {
   const response = await apiClient.get(`/posts/${postId}`);
   return unwrap(response);
+};
+
+export const getPostAnalysis = async (postId) => {
+  const response = await apiClient.get(`/posts/${postId}/analysis`);
+  return unwrap(response);
+};
+
+export const requestPostAnalysis = async (postId) => {
+  const response = await apiClient.post(`/posts/${postId}/analysis`);
+  return unwrap(response);
+};
+
+export const getOrRequestPostAnalysis = async (postId, {
+  pollIntervalMs = 750,
+  timeoutMs = 90000,
+} = {}) => {
+  let analysis = await getPostAnalysis(postId);
+  if (analysis?.status === "not_requested") {
+    analysis = await requestPostAnalysis(postId);
+  }
+  const deadline = Date.now() + timeoutMs;
+  while ((analysis?.status === "queued" || analysis?.status === "running")
+    && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    analysis = await getPostAnalysis(postId);
+  }
+  return analysis;
+};
+
+export const getPostComments = async (postId, { page = 0, size = 50 } = {}) => {
+  const response = await apiClient.get(`/posts/${postId}/comments`, { params: { page, size } });
+  return unwrap(response);
+};
+
+export const addPostComment = async (postId, content) => {
+  const response = await apiClient.post(`/posts/${postId}/comments`, { content });
+  return unwrap(response);
+};
+
+export const updatePostComment = async (commentId, content) => {
+  const response = await apiClient.patch(`/comments/${commentId}`, { content });
+  return unwrap(response);
+};
+
+export const deletePostComment = async (commentId) => {
+  await apiClient.delete(`/comments/${commentId}`);
 };
 
 export const createPost = async (post) => {

@@ -21,14 +21,22 @@ public class GoogleLocationController {
     @GetMapping("/location-summary")
     ApiResponse<GoogleLocationDtos.LocationSummary> locationSummary(
             @RequestParam String query,
-            @RequestParam(defaultValue = "ko") String languageCode) {
+            @RequestParam(defaultValue = "ko") String languageCode,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) String address) {
+        if (latitude != null && longitude != null) {
+            return ApiResponse.ok(googleLocationService.lookupCoordinates(
+                    query, address, latitude, longitude, languageCode));
+        }
         return ApiResponse.ok(googleLocationService.lookup(query, languageCode));
     }
 
     @GetMapping("/location-suggestions")
     ApiResponse<List<GoogleLocationDtos.LocationSuggestion>> locationSuggestions(
             @RequestParam String query,
-            @RequestParam(defaultValue = "ko") String languageCode) {
-        return ApiResponse.ok(googleLocationService.suggest(query, languageCode));
+            @RequestParam(defaultValue = "ko") String languageCode,
+            @RequestParam(defaultValue = "region") String scope) {
+        return ApiResponse.ok(googleLocationService.suggest(query, languageCode, scope));
     }
 }

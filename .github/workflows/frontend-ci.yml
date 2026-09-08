@@ -3,17 +3,16 @@ name: Frontend CI
 on:
   push:
     branches:
+      - develop
       - youngtak
       - "integration/**"
     paths:
       - "jc-frontend/**"
       - ".github/workflows/frontend-ci.yml"
-  pull_request:
-    branches:
-      - youngtak
-    paths:
-      - "jc-frontend/**"
-      - ".github/workflows/frontend-ci.yml"
+  workflow_call:
+
+permissions:
+  contents: read
 
 concurrency:
   group: frontend-ci-${{ github.ref }}
@@ -22,6 +21,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
 
     defaults:
       run:
@@ -44,12 +44,14 @@ jobs:
       - name: ESLint 검사
         run: npm run lint
 
+      - name: 외부 API 독립 프론트엔드 경계 테스트
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ""
+          VITE_GOOGLE_OAUTH_CLIENT_ID: ""
+        run: npm run test -- src/services/journeyAiApi.test.js
+
+      - name: 프론트엔드 테스트
+        run: npm run test
+
       - name: 프론트엔드 빌드
         run: npm run build
-
-      - name: 빌드 결과 업로드
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: jc-frontend/dist
-          if-no-files-found: error

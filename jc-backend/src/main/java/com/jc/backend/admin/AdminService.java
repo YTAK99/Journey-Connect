@@ -2,6 +2,7 @@ package com.jc.backend.admin;
 
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.notification.NotificationService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -28,10 +30,15 @@ public class AdminService {
 
     private final JdbcTemplate jdbc;
     private final AdminGuard guard;
+    private final NotificationService notifications;
 
-    public AdminService(JdbcTemplate jdbc, AdminGuard guard) {
+    public AdminService(
+            JdbcTemplate jdbc,
+            AdminGuard guard,
+            NotificationService notifications) {
         this.jdbc = jdbc;
         this.guard = guard;
+        this.notifications = notifications;
     }
 
     public AdminDtos.Dashboard dashboard() {
@@ -113,19 +120,20 @@ public class AdminService {
         return new AdminDtos.CommandResult(userId, "active", true, Instant.now());
     }
 
-    public PageResponse<AdminDtos.PostSummary> posts(String moderation, String visibility, String search, int page, int size) {
+    public PageResponse<AdminDtos.PostSummary> posts(String moderation, String visibility, String search, String sort, int page, int size) {
         guard.requireAdmin();
         var bounds = AdminQueryPolicy.page(page, size);
         moderation = AdminQueryPolicy.optionalValue(moderation, MODERATION_STATUSES, "moderationStatus");
         visibility = AdminQueryPolicy.optionalValue(visibility, VISIBILITIES, "visibility");
         search = AdminQueryPolicy.search(search);
+        sort = AdminQueryPolicy.postSort(sort);
         QueryParts parts = postWhere(moderation, visibility, search);
         long total = queryCount("select count(*) from journey_post p join user_account u on u.id=p.author_id" + parts.where, parts.args);
         List<Object> args = new ArrayList<>(parts.args); args.add(bounds.size()); args.add(bounds.offset());
         List<AdminDtos.PostSummary> items = jdbc.query("""
                 select p.*, u.nickname author_display_name
                 from journey_post p join user_account u on u.id=p.author_id
-                """ + parts.where + " order by p.created_at desc, p.id desc limit ? offset ?", postSummaryMapper(), args.toArray());
+                """ + parts.where + postOrderBy(sort) + " limit ? offset ?", postSummaryMapper(), args.toArray());
         return page(items, bounds, total);
     }
 
@@ -140,7 +148,7 @@ public class AdminService {
                 String preview = plain(rs.getString("content"));
                 return new AdminDtos.PostDetail(
                         rs.getLong("id"), rs.getLong("author_id"), rs.getString("author_username"),
-                        rs.getString("author_display_name"), rs.getString("title"), truncate(preview, 2000), preview.length() > 2000,
+                        rs.getString("author_display_name"), rs.getString("title"), preview, false,
                         visibility(rs.getBoolean("published")), rs.getBoolean("published") ? "published" : "draft",
                         rs.getString("moderation_status"), instant(rs,"created_at"), instant(rs,"updated_at"),
                         instantNullable(rs,"hidden_at"), null, null);
@@ -170,6 +178,27 @@ public class AdminService {
         jdbc.update("update journey_post set moderation_status='visible', hidden_at=null, updated_at=current_timestamp where id=?", postId);
         audit(actor, "post_restore", "post", postId, reason);
         return new AdminDtos.CommandResult(postId, "visible", true, Instant.now());
+    }
+
+    @Transactional
+    public AdminDtos.CommandResult permanentDelete(long postId, AdminDtos.PermanentDeleteRequest request) {
+        AdminGuard.Actor actor = guard.requireAdmin();
+        AdminQueryPolicy.targetId(postId);
+        String reason = AdminQueryPolicy.reason(request == null ? null : request.reason());
+        if (request == null || !String.valueOf(postId).equals(request.confirmation())) {
+            throw AdminQueryPolicy.invalid("영구 삭제 확인 값이 게시물 ID와 일치하지 않습니다.");
+        }
+        String current = postStatusForUpdate(postId);
+        if (!"hidden".equals(current)) {
+            throw AdminQueryPolicy.conflict("숨김 상태인 게시물만 영구 삭제할 수 있습니다.");
+        }
+        try {
+            jdbc.update("delete from journey_post where id=?", postId);
+        } catch (DataIntegrityViolationException exception) {
+            throw AdminQueryPolicy.conflict("다른 기능에서 사용 중인 게시물은 영구 삭제할 수 없습니다. 연결된 크루 경로 등을 먼저 확인해 주세요.");
+        }
+        audit(actor, "post_permanent_delete", "post", postId, reason);
+        return new AdminDtos.CommandResult(postId, "deleted", true, Instant.now());
     }
 
     public PageResponse<AdminDtos.ReportSummary> reports(String status, String targetType, String search, int page, int size) {
@@ -230,6 +259,7 @@ public class AdminService {
         if (!("pending".equals(current)||"in_review".equals(current))) throw AdminQueryPolicy.conflict("이미 종료된 신고입니다.");
         jdbc.update("update admin_report set status=?, handled_by=?, handled_at=current_timestamp, resolution_note=? where id=?", targetState, actor.userId(), reason, reportId);
         audit(actor, action, "report", reportId, reason);
+        notifications.reportHandled(reportId, targetState);
         return new AdminDtos.CommandResult(reportId, targetState, true, Instant.now());
     }
 
@@ -245,6 +275,14 @@ public class AdminService {
         if(visibility!=null){ if("followers".equals(visibility)){clauses.add("1=0");} else {clauses.add("p.published=?");args.add("public".equals(visibility));} }
         if(search!=null){clauses.add("(cast(p.id as text)=? or p.title ilike ? or u.nickname ilike ? or u.email ilike ?)");args.add(search);args.add("%"+search+"%");args.add("%"+search+"%");args.add("%"+search+"%");}
         return parts(clauses,args);
+    }
+    private String postOrderBy(String sort) {
+        return switch (sort) {
+            case "created_asc" -> " order by p.created_at asc, p.id asc";
+            case "updated_desc" -> " order by p.updated_at desc, p.id desc";
+            case "title_asc" -> " order by lower(p.title) asc, p.id asc";
+            default -> " order by p.created_at desc, p.id desc";
+        };
     }
     private QueryParts reportWhere(String status, String targetType, String search) {
         List<String> clauses=new ArrayList<>(); List<Object> args=new ArrayList<>();

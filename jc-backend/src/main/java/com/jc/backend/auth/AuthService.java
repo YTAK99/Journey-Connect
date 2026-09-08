@@ -37,25 +37,44 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository users;
+    private final UserExternalIdentityRepository externalIdentities;
+    private final GoogleIdentityVerifier googleIdentityVerifier;
     private final RefreshTokenRepository refreshTokens;
     private final PasswordEncoder passwordEncoder;
     private final JwtEncoder jwtEncoder;
+    private final PasswordResetTokenRepository passwordResetTokens;
+    private final PasswordResetMailService passwordResetMailService;
     private final long accessTokenMinutes;
     private final long refreshTokenDays;
+    private final long passwordResetMinutes;
+    private final boolean exposePasswordResetToken;
 
     public AuthService(
             UserRepository users,
+            UserExternalIdentityRepository externalIdentities,
+            GoogleIdentityVerifier googleIdentityVerifier,
             RefreshTokenRepository refreshTokens,
             PasswordEncoder passwordEncoder,
             JwtEncoder jwtEncoder,
+            PasswordResetTokenRepository passwordResetTokens,
+            PasswordResetMailService passwordResetMailService,
             @Value("${app.security.access-token-minutes}") long accessTokenMinutes,
-            @Value("${app.security.refresh-token-days}") long refreshTokenDays) {
+            @Value("${app.security.refresh-token-days}") long refreshTokenDays,
+            @Value("${app.security.password-reset-minutes:30}") long passwordResetMinutes,
+            @Value("${app.security.password-reset-expose-token:false}")
+                    boolean exposePasswordResetToken) {
         this.users = users;
+        this.externalIdentities = externalIdentities;
+        this.googleIdentityVerifier = googleIdentityVerifier;
         this.refreshTokens = refreshTokens;
         this.passwordEncoder = passwordEncoder;
         this.jwtEncoder = jwtEncoder;
+        this.passwordResetTokens = passwordResetTokens;
+        this.passwordResetMailService = passwordResetMailService;
         this.accessTokenMinutes = accessTokenMinutes;
         this.refreshTokenDays = refreshTokenDays;
+        this.passwordResetMinutes = passwordResetMinutes;
+        this.exposePasswordResetToken = exposePasswordResetToken;
     }
 
     @Transactional
@@ -87,6 +106,98 @@ public class AuthService {
         return issueTokenPair(user);
     }
 
+
+    @Transactional
+    public AuthDtos.TokenResponse googleLogin(AuthDtos.GoogleLoginRequest request) {
+        GoogleIdentity identity = googleIdentityVerifier.verify(request.idToken());
+        UserExternalIdentity linked = externalIdentities
+                .findByProviderAndProviderSubject("google", identity.subject())
+                .orElse(null);
+        if (linked != null) {
+            requireActive(linked.getUser());
+            return issueTokenPair(linked.getUser());
+        }
+
+        String email = normalizeEmail(identity.email());
+        UserAccount user = users.findByEmail(email).orElse(null);
+        if (user != null) {
+            requireActive(user);
+            if (!googleCanAutoLink(identity)) {
+                throw new DomainException(
+                        HttpStatus.CONFLICT,
+                        "GOOGLE_ACCOUNT_LINK_REQUIRED",
+                        "기존 계정으로 로그인한 뒤 Google 계정을 연결해주세요.");
+            }
+            ensureGoogleProviderAvailable(user.getId(), identity.subject());
+        } else {
+            user = new UserAccount(
+                    email,
+                    passwordEncoder.encode(randomToken()),
+                    googleNickname(identity));
+            if (hasText(identity.pictureUrl())) {
+                user.updateProfile(null, null, identity.pictureUrl().trim());
+            }
+            user = users.save(user);
+        }
+
+        externalIdentities.save(new UserExternalIdentity(
+                user,
+                "google",
+                identity.subject(),
+                email));
+        return issueTokenPair(user);
+    }
+
+    @Transactional
+    public AuthDtos.UserSummary linkGoogle(
+            long userId,
+            AuthDtos.GoogleLoginRequest request) {
+        UserAccount user = users.findById(userId)
+                .orElseThrow(() -> new DomainException(
+                        HttpStatus.NOT_FOUND,
+                        "USER_NOT_FOUND",
+                        "사용자를 찾을 수 없습니다."));
+        requireActive(user);
+
+        GoogleIdentity identity = googleIdentityVerifier.verify(request.idToken());
+        UserExternalIdentity bySubject = externalIdentities
+                .findByProviderAndProviderSubject("google", identity.subject())
+                .orElse(null);
+        if (bySubject != null) {
+            if (!bySubject.getUser().getId().equals(userId)) {
+                throw new DomainException(
+                        HttpStatus.CONFLICT,
+                        "GOOGLE_ACCOUNT_ALREADY_LINKED",
+                        "이미 다른 계정에 연결된 Google 계정입니다.");
+            }
+            return summary(user);
+        }
+
+        UserExternalIdentity existingForUser = externalIdentities
+                .findByUserIdAndProvider(userId, "google")
+                .orElse(null);
+        if (existingForUser != null) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "GOOGLE_IDENTITY_ALREADY_LINKED",
+                    "이미 다른 Google 계정이 연결되어 있습니다.");
+        }
+
+        if (!normalizeEmail(user.getEmail()).equals(normalizeEmail(identity.email()))) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "GOOGLE_EMAIL_MISMATCH",
+                    "현재 계정과 Google 계정의 이메일이 일치하지 않습니다.");
+        }
+
+        externalIdentities.save(new UserExternalIdentity(
+                user,
+                "google",
+                identity.subject(),
+                normalizeEmail(identity.email())));
+        return summary(user);
+    }
+
     /**
      * Refresh Token 회전 정책에 따라 현재 토큰을 폐기하고 새 토큰 쌍을 발급합니다.
      * 같은 토큰의 동시 재사용은 행 잠금으로 막아 한 요청만 성공하도록 처리합니다.
@@ -103,6 +214,46 @@ public class AuthService {
         current.revoke(now);
         requireActive(current.getUser());
         return issueTokenPair(current.getUser());
+    }
+
+    @Transactional
+    public AuthDtos.PasswordResetRequestResponse requestPasswordReset(
+            AuthDtos.PasswordResetRequest request) {
+        UserAccount user = users.findByEmail(normalizeEmail(request.email())).orElse(null);
+        if (user == null || !user.isActive()) {
+            return new AuthDtos.PasswordResetRequestResponse(true, null);
+        }
+
+        Instant now = Instant.now();
+        passwordResetTokens.invalidateAllByUserId(user.getId(), now);
+        String rawToken = randomToken();
+        passwordResetTokens.save(new PasswordResetToken(
+                user,
+                hash(rawToken),
+                now.plus(Duration.ofMinutes(passwordResetMinutes)),
+                now));
+        passwordResetMailService.send(user.getEmail(), rawToken);
+        return new AuthDtos.PasswordResetRequestResponse(
+                true,
+                exposePasswordResetToken ? rawToken : null);
+    }
+
+    @Transactional
+    public void confirmPasswordReset(AuthDtos.PasswordResetConfirmRequest request) {
+        Instant now = Instant.now();
+        PasswordResetToken token = passwordResetTokens
+                .findByTokenHashForUpdate(hash(request.token()))
+                .orElseThrow(this::invalidPasswordResetToken);
+        if (!token.isUsableAt(now)) {
+            throw invalidPasswordResetToken();
+        }
+
+        UserAccount user = token.getUser();
+        requireActive(user);
+        user.changePasswordHash(passwordEncoder.encode(request.newPassword()));
+        token.consume(now);
+        passwordResetTokens.invalidateOthersByUserId(user.getId(), token.getId(), now);
+        refreshTokens.revokeAllByUserId(user.getId(), now);
     }
 
     /** 로그아웃은 이미 폐기되었거나 존재하지 않는 토큰도 성공으로 처리하는 멱등 연산입니다. */
@@ -145,7 +296,7 @@ public class AuthService {
         String accessToken = jwtEncoder
                 .encode(JwtEncoderParameters.from(headers, claims))
                 .getTokenValue();
-        String refreshToken = randomRefreshToken();
+        String refreshToken = randomToken();
         refreshTokens.save(new RefreshToken(user, hash(refreshToken), refreshExpiresAt));
 
         return new AuthDtos.TokenResponse(
@@ -168,7 +319,7 @@ public class AuthService {
                 user.getAccountStatus());
     }
 
-    private String randomRefreshToken() {
+    private String randomToken() {
         byte[] bytes = new byte[32];
         SECURE_RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -182,6 +333,56 @@ public class AuthService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
         }
+    }
+
+
+    private boolean googleCanAutoLink(GoogleIdentity identity) {
+        String email = normalizeEmail(identity.email());
+        return email.endsWith("@gmail.com") || hasText(identity.hostedDomain());
+    }
+
+    private void ensureGoogleProviderAvailable(long userId, String subject) {
+        UserExternalIdentity existing = externalIdentities
+                .findByUserIdAndProvider(userId, "google")
+                .orElse(null);
+        if (existing != null && !existing.getProviderSubject().equals(subject)) {
+            throw new DomainException(
+                    HttpStatus.CONFLICT,
+                    "GOOGLE_IDENTITY_ALREADY_LINKED",
+                    "이미 다른 Google 계정이 연결되어 있습니다.");
+        }
+    }
+
+    private String googleNickname(GoogleIdentity identity) {
+        String base = hasText(identity.name())
+                ? identity.name().trim().replaceAll("\\s+", " ")
+                : normalizeEmail(identity.email()).split("@", 2)[0];
+        if (base.isBlank()) {
+            base = "traveler";
+        }
+        if (base.length() > 30) {
+            base = base.substring(0, 30);
+        }
+
+        String candidate = base + "-" + hash(identity.subject()).substring(0, 8);
+        if (!users.existsByNickname(candidate)) {
+            return candidate;
+        }
+        for (int attempt = 0; attempt < 10; attempt++) {
+            String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            candidate = base + "-" + suffix;
+            if (!users.existsByNickname(candidate)) {
+                return candidate;
+            }
+        }
+        throw new DomainException(
+                HttpStatus.CONFLICT,
+                "NICKNAME_GENERATION_FAILED",
+                "Google 계정용 닉네임을 생성할 수 없습니다.");
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String normalizeEmail(String email) {
@@ -210,5 +411,12 @@ public class AuthService {
                 HttpStatus.UNAUTHORIZED,
                 "INVALID_REFRESH_TOKEN",
                 "리프레시 토큰이 유효하지 않습니다.");
+    }
+
+    private DomainException invalidPasswordResetToken() {
+        return new DomainException(
+                HttpStatus.UNAUTHORIZED,
+                "INVALID_PASSWORD_RESET_TOKEN",
+                "비밀번호 재설정 토큰이 유효하지 않습니다.");
     }
 }

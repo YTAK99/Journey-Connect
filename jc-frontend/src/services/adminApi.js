@@ -17,6 +17,10 @@ async function command(path, reason) {
   return unwrapApiResponse(await adminClient.post(path, { reason }));
 }
 
+async function destructiveCommand(path, reason, confirmation) {
+  return unwrapApiResponse(await adminClient.post(path, { reason, confirmation }));
+}
+
 export const getAdminDashboard = () => get("/dashboard");
 export const getAdminReports = (params) => get("/reports", params);
 export const getAdminReport = (reportId) => get(`/reports/${reportId}`);
@@ -26,6 +30,10 @@ export const getAdminPosts = (params) => get("/posts", params);
 export const getAdminPost = (postId) => get(`/posts/${postId}`);
 export const hideAdminPost = (postId, reason) => command(`/posts/${postId}/hide`, reason);
 export const restoreAdminPost = (postId, reason) => command(`/posts/${postId}/restore`, reason);
+export const permanentlyDeleteAdminPost = (postId, reason) => destructiveCommand(`/posts/${postId}/permanent-delete`, reason, String(postId));
+export const getAdminAccount = () => get("/account");
+export const changeAdminEmail = async (email) => unwrapApiResponse(await adminClient.patch("/account/email", { email }));
+export const changeAdminPassword = async (newPassword) => unwrapApiResponse(await adminClient.patch("/account/password", { newPassword }));
 export const getAdminUsers = (params) => get("/users", params);
 export const getAdminUser = (userId) => get(`/users/${userId}`);
 export const suspendAdminUser = (userId, reason) => command(`/users/${userId}/suspend`, reason);

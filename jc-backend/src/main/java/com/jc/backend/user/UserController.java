@@ -39,11 +39,26 @@ public class UserController {
         return ApiResponse.ok(userService.updateProfile(userId(token), request));
     }
 
+    @PatchMapping("/me/password")
+    void changePassword(
+            @AuthenticationPrincipal Jwt token,
+            @Valid @RequestBody UserDtos.ChangePasswordRequest request) {
+        userService.changePassword(userId(token), request);
+    }
+
+    @GetMapping("/{userId}")
+    ApiResponse<UserDtos.PublicProfile> publicProfile(
+            @PathVariable long userId,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(userService.publicProfile(userId, userIdOrNull(token)));
+    }
+
     @GetMapping("/{userId}/posts")
     ApiResponse<PageResponse<PostDtos.Summary>> userPosts(
             @PathVariable long userId,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(userService.publicPosts(userId, pageable));
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal Jwt token) {
+        return ApiResponse.ok(userService.publicPosts(userId, userIdOrNull(token), pageable));
     }
 
     @GetMapping("/me/posts")
@@ -60,7 +75,18 @@ public class UserController {
         return ApiResponse.ok(userService.myBookmarks(userId(token), pageable));
     }
 
+    @GetMapping("/me/likes")
+    ApiResponse<PageResponse<PostDtos.Summary>> likes(
+            @AuthenticationPrincipal Jwt token,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ApiResponse.ok(userService.myLikes(userId(token), pageable));
+    }
+
     private long userId(Jwt token) {
         return Long.parseLong(token.getSubject());
+    }
+
+    private Long userIdOrNull(Jwt token) {
+        return token == null ? null : userId(token);
     }
 }

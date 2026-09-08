@@ -4,6 +4,10 @@ import com.jc.backend.common.CursorCodec;
 import com.jc.backend.common.CursorPageResponse;
 import com.jc.backend.common.DomainException;
 import com.jc.backend.common.PageResponse;
+import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisInputV1;
+import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisJobService;
+import com.jc.backend.intelligence.contentanalysis.PostContentAnalysisSourceVersion;
+import com.jc.backend.notification.NotificationService;
 import com.jc.backend.region.Region;
 import com.jc.backend.region.RegionDtos;
 import com.jc.backend.region.RegionService;
@@ -43,6 +47,9 @@ public class PostService {
     private final CursorCodec cursorCodec;
     private final RichTextSanitizer richTextSanitizer;
     private final TagService tagService;
+    private final PostContentAnalysisJobService contentAnalysisJobs;
+    private final PostSummaryAssembler summaryAssembler;
+    private final NotificationService notifications;
 
     public PostService(
             JourneyPostRepository posts,
@@ -54,7 +61,10 @@ public class PostService {
             RegionService regionService,
             CursorCodec cursorCodec,
             RichTextSanitizer richTextSanitizer,
-            TagService tagService) {
+            TagService tagService,
+            PostContentAnalysisJobService contentAnalysisJobs,
+            PostSummaryAssembler summaryAssembler,
+            NotificationService notifications) {
         this.posts = posts;
         this.likes = likes;
         this.bookmarks = bookmarks;
@@ -65,40 +75,86 @@ public class PostService {
         this.cursorCodec = cursorCodec;
         this.richTextSanitizer = richTextSanitizer;
         this.tagService = tagService;
+        this.contentAnalysisJobs = contentAnalysisJobs;
+        this.summaryAssembler = summaryAssembler;
+        this.notifications = notifications;
     }
 
     /** 신규 피드 API: 전체 개수 쿼리 없이 size + 1 방식으로 다음 페이지 여부를 계산합니다. */
     public CursorPageResponse<PostDtos.Summary> feed(String cursor, int size) {
+        return feed(cursor, size, null);
+    }
+
+    public CursorPageResponse<PostDtos.Summary> feed(
+            String cursor, int size, Long viewerId) {
+        return feed(cursor, size, null, viewerId);
+    }
+
+    public CursorPageResponse<PostDtos.Summary> feed(
+            String cursor, int size, String regionCode, Long viewerId) {
         int safeSize = Math.min(Math.max(size, 1), 100);
-        CursorCodec.CursorPosition position = cursorCodec.decode(cursor);
+        String canonicalRegionCode = canonicalFeedRegionCode(regionCode);
+        CursorCodec.CursorPosition position = cursorCodec.decode(cursor, canonicalRegionCode);
 
         PageRequest request = PageRequest.of(0, safeSize + 1);
-        List<JourneyPost> fetched = position.createdAt() == null
-                ? posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", request).getContent()
-                : posts.findFeedAfter(position.createdAt(), position.id(), request);
+        List<JourneyPost> fetched;
+        if (canonicalRegionCode == null) {
+            fetched = position.createdAt() == null
+                    ? posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", request).getContent()
+                    : posts.findFeedAfter(position.createdAt(), position.id(), request);
+        } else {
+            fetched = position.createdAt() == null
+                    ? posts.findFeedByRegionCode(canonicalRegionCode, request)
+                    : posts.findFeedAfterByRegionCode(
+                            canonicalRegionCode,
+                            position.createdAt(),
+                            position.id(),
+                            request);
+        }
         boolean hasNext = fetched.size() > safeSize;
         List<JourneyPost> pageItems = hasNext
                 ? fetched.subList(0, safeSize)
                 : fetched;
-        List<PostDtos.Summary> summaries = summaries(pageItems);
+        List<PostDtos.Summary> summaries = summaries(pageItems, viewerId);
 
         String nextCursor = null;
         if (hasNext && !pageItems.isEmpty()) {
             JourneyPost last = pageItems.get(pageItems.size() - 1);
-            nextCursor = cursorCodec.encode(last.getCreatedAt(), last.getId());
+            nextCursor = cursorCodec.encode(last.getCreatedAt(), last.getId(), canonicalRegionCode);
         }
         return CursorPageResponse.of(summaries, nextCursor, hasNext);
     }
 
+    private String canonicalFeedRegionCode(String regionCode) {
+        if (regionCode == null || regionCode.isBlank()) {
+            return null;
+        }
+        return regionService.requireByCode(regionCode).getCode();
+    }
+
     /** 기존 페이지 번호 기반 호출을 사용하는 내부 화면·테스트용 호환 API입니다. */
     public PageResponse<PostDtos.Summary> feed(Pageable pageable) {
-        return summaries(posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", pageable));
+        return feed(pageable, null);
+    }
+
+    public PageResponse<PostDtos.Summary> feed(Pageable pageable, Long viewerId) {
+        return summaries(
+                posts.findByPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc("visible", pageable),
+                viewerId);
     }
 
     public PageResponse<PostDtos.Summary> explore(
             String keyword,
             String region,
             Pageable pageable) {
+        return explore(keyword, region, pageable, null);
+    }
+
+    public PageResponse<PostDtos.Summary> explore(
+            String keyword,
+            String region,
+            Pageable pageable,
+            Long viewerId) {
         String normalizedKeyword = blankToEmpty(keyword);
         String normalizedRegion = blankToEmpty(region);
         return summaries(posts.explore(
@@ -106,7 +162,8 @@ public class PostService {
                 normalizedRegion,
                 regionService.countryCodeForSearch(normalizedKeyword),
                 regionService.countryCodeForSearch(normalizedRegion),
-                pageable));
+                pageable),
+                viewerId);
     }
 
     /**
@@ -121,17 +178,31 @@ public class PostService {
 
     @Transactional
     public PostDtos.Detail create(Long userId, PostDtos.CreateRequest request) {
+        List<JourneyPost.PostPlaceData> placeData = placeData(request.places());
         Region region = regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId());
+        String content = placeData.isEmpty()
+                ? richTextSanitizer.sanitizeRequired(request.content())
+                : aggregateContent(placeData);
         JourneyPost post = new JourneyPost(
                 user(userId),
                 region,
                 request.title().trim(),
-                richTextSanitizer.sanitizeRequired(request.content()));
+                content);
         validateTravelDates(request.travelStartDate(), request.travelEndDate());
         post.updateTravelDates(request.travelStartDate(), request.travelEndDate());
         post.replaceTags(tagService.resolve(request.tags()));
-        post.replaceImages(imageData(request.images(), request.coverImageUrl()));
-        return detailView(posts.save(post), userId);
+        if (placeData.isEmpty()) {
+            post.replacePlaces(List.of(new JourneyPost.PostPlaceData(
+                    region,
+                    content,
+                    imageData(request.images(), request.coverImageUrl()))));
+        } else {
+            post.replacePlaces(placeData);
+        }
+        selectCover(post, request.coverImageUrl());
+        JourneyPost saved = posts.save(post);
+        enqueueContentAnalysis(saved);
+        return detailView(saved, userId);
     }
 
     @Transactional
@@ -140,10 +211,13 @@ public class PostService {
             Long postId,
             PostDtos.UpdateRequest request) {
         JourneyPost post = ownedPost(userId, postId);
+        List<JourneyPost.PostPlaceData> placeData = placeData(request.places());
         Region region = hasText(request.regionCode()) || hasText(request.regionName()) || hasText(request.regionPlaceId())
                 ? regionService.require(request.regionCode(), request.regionName(), request.regionPlaceId())
                 : null;
-        String sanitizedContent = request.content() == null
+        String sanitizedContent = !placeData.isEmpty()
+                ? aggregateContent(placeData)
+                : request.content() == null
                 ? null
                 : richTextSanitizer.sanitizeRequired(request.content());
         post.update(request.title(), sanitizedContent, region, request.published());
@@ -154,11 +228,22 @@ public class PostService {
         }
 
         // images가 전달되면 전체 교체합니다. 빈 배열은 이미지 전체 삭제를 의미합니다.
-        if (request.images() != null) {
-            post.replaceImages(imageData(request.images(), null));
-        } else if (request.coverImageUrl() != null) {
-            post.replaceImages(imageData(null, request.coverImageUrl()));
+        if (!placeData.isEmpty()) {
+            post.replacePlaces(placeData);
+            selectCover(post, request.coverImageUrl());
+        } else if (sanitizedContent != null || region != null
+                || request.images() != null || request.coverImageUrl() != null) {
+            List<JourneyPost.PostImageData> legacyImages = request.images() != null
+                    ? imageData(request.images(), null)
+                    : request.coverImageUrl() != null
+                    ? imageData(null, request.coverImageUrl())
+                    : currentImageData(post);
+            post.replacePlaces(List.of(new JourneyPost.PostPlaceData(
+                    post.getRegion(),
+                    post.getContent(),
+                    legacyImages)));
         }
+        enqueueContentAnalysis(post);
         return detailView(post, userId);
     }
 
@@ -173,10 +258,16 @@ public class PostService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void like(Long userId, Long postId) {
         // 중복 삽입 충돌만 독립 트랜잭션에서 처리하도록 바깥 트랜잭션을 만들지 않습니다.
-        publishedPost(postId);
+        JourneyPost post = publishedPost(postId);
         user(userId);
         try {
-            interactionWriter.addLike(postId, userId);
+            boolean created = interactionWriter.addLike(postId, userId);
+            if (created) {
+                notifications.postLiked(
+                        userId,
+                        post.getAuthor().getId(),
+                        postId);
+            }
         } catch (DataIntegrityViolationException exception) {
             if (!likes.existsByPostIdAndUserId(postId, userId)) {
                 throw exception;
@@ -223,8 +314,33 @@ public class PostService {
 
     @Transactional
     public PostDtos.CommentView addComment(Long userId, Long postId, String content) {
+        return addComment(userId, postId, content, null);
+    }
+
+    @Transactional
+    public PostDtos.CommentView addComment(
+            Long userId,
+            Long postId,
+            String content,
+            Long parentCommentId) {
         JourneyPost post = publishedPost(postId);
-        Comment comment = comments.save(new Comment(post, user(userId), content.trim()));
+        UserAccount author = user(userId);
+        Comment parent = parentComment(parentCommentId, postId);
+        Comment comment = comments.save(new Comment(post, author, content.trim(), parent));
+
+        if (parent == null) {
+            notifications.postCommented(
+                    userId,
+                    post.getAuthor().getId(),
+                    postId,
+                    comment.getId());
+        } else {
+            notifications.commentReplied(
+                    userId,
+                    parent.getAuthor().getId(),
+                    postId,
+                    comment.getId());
+        }
         return commentView(comment);
     }
 
@@ -241,19 +357,76 @@ public class PostService {
         comments.delete(comment);
     }
 
+    @Transactional
+    public PostDtos.CommentView updateComment(Long userId, Long commentId, String content) {
+        Comment comment = comments.findById(commentId)
+                .orElseThrow(() -> notFound("COMMENT_NOT_FOUND", "댓글"));
+        if (!comment.getAuthor().getId().equals(userId)) {
+            throw new DomainException(
+                    HttpStatus.FORBIDDEN,
+                    "COMMENT_FORBIDDEN",
+                    "본인 댓글만 수정할 수 있습니다.");
+        }
+        comment.updateContent(content.trim());
+        return commentView(comment);
+    }
+
     public PageResponse<PostDtos.Summary> publicUserPosts(Long userId, Pageable pageable) {
+        return publicUserPosts(userId, null, pageable);
+    }
+
+    public PageResponse<PostDtos.Summary> publicUserPosts(
+            Long userId, Long viewerId, Pageable pageable) {
         return summaries(
-                posts.findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(userId, "visible", pageable));
+                posts.findByAuthorIdAndPublishedTrueAndModerationStatusOrderByCreatedAtDescIdDesc(
+                        userId, "visible", pageable),
+                viewerId);
+    }
+
+    public long publicPostCount(Long userId) {
+        return posts.countByAuthorIdAndPublishedTrueAndModerationStatus(userId, "visible");
     }
 
     public PageResponse<PostDtos.Summary> myPosts(Long userId, Pageable pageable) {
-        return summaries(posts.findByAuthorIdOrderByCreatedAtDescIdDesc(userId, pageable));
+        return summaries(posts.findByAuthorIdOrderByCreatedAtDescIdDesc(userId, pageable), userId);
     }
 
     public PageResponse<PostDtos.Summary> myBookmarks(Long userId, Pageable pageable) {
         Page<JourneyPost> bookmarkedPosts =
                 bookmarks.findVisibleByUserId(userId, pageable).map(Bookmark::getPost);
-        return summaries(bookmarkedPosts);
+        return summaries(bookmarkedPosts, userId);
+    }
+
+    public PageResponse<PostDtos.Summary> myLikes(Long userId, Pageable pageable) {
+        Page<JourneyPost> likedPosts =
+                likes.findVisibleByUserId(userId, pageable).map(PostLike::getPost);
+        return summaries(likedPosts, userId);
+    }
+
+    /**
+     * Explore frozen ordering을 현재 visibility 기준으로 재검증하고 입력 ID 순서대로 Summary를 반환합니다.
+     * post별 exists 조회 대신 한 번의 bulk post query와 기존 bulk count 변환을 사용합니다.
+     */
+    public List<PostDtos.Summary> visibleSummariesByIds(List<Long> orderedPostIds) {
+        return visibleSummariesByIds(orderedPostIds, null);
+    }
+
+    public List<PostDtos.Summary> visibleSummariesByIds(
+            List<Long> orderedPostIds, Long viewerId) {
+        if (orderedPostIds == null || orderedPostIds.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, JourneyPost> visibleById = posts.findVisiblePublishedActiveByIdIn(orderedPostIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        JourneyPost::getId,
+                        post -> post,
+                        (left, right) -> left));
+        List<JourneyPost> orderedVisible = orderedPostIds.stream()
+                .map(visibleById::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return summaries(orderedVisible, viewerId);
     }
 
     private JourneyPost readablePost(Long postId, Long viewerId) {
@@ -299,6 +472,27 @@ public class PostService {
                 .orElseThrow(() -> notFound("USER_NOT_FOUND", "사용자"));
     }
 
+    private Comment parentComment(Long parentCommentId, Long postId) {
+        if (parentCommentId == null) {
+            return null;
+        }
+        Comment parent = comments.findById(parentCommentId)
+                .orElseThrow(() -> notFound("COMMENT_PARENT_NOT_FOUND", "원댓글"));
+        if (!parent.getPost().getId().equals(postId)) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "COMMENT_PARENT_POST_MISMATCH",
+                    "같은 게시물의 댓글에만 답글을 작성할 수 있습니다.");
+        }
+        if (parent.getParent() != null) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "COMMENT_REPLY_DEPTH_EXCEEDED",
+                    "대댓글에는 다시 답글을 작성할 수 없습니다.");
+        }
+        return parent;
+    }
+
     private DomainException notFound(String code, String target) {
         return new DomainException(
                 HttpStatus.NOT_FOUND,
@@ -307,7 +501,12 @@ public class PostService {
     }
 
     private PageResponse<PostDtos.Summary> summaries(Page<JourneyPost> page) {
-        List<PostDtos.Summary> items = summaries(page.getContent());
+        return summaries(page, null);
+    }
+
+    private PageResponse<PostDtos.Summary> summaries(
+            Page<JourneyPost> page, Long viewerId) {
+        List<PostDtos.Summary> items = summaries(page.getContent(), viewerId);
         return new PageResponse<>(
                 items,
                 page.getNumber(),
@@ -318,47 +517,12 @@ public class PostService {
     }
 
     private List<PostDtos.Summary> summaries(List<JourneyPost> postsPage) {
-        // 카드마다 집계 쿼리를 실행하지 않도록 현재 페이지의 좋아요·북마크 수를 한 번씩 묶어 조회합니다.
-        List<Long> postIds = postsPage.stream().map(JourneyPost::getId).toList();
-        if (postIds.isEmpty()) {
-            return List.of();
-        }
-        Map<Long, Long> likeCounts = countMap(likes.countByPostIds(postIds));
-        Map<Long, Long> bookmarkCounts = countMap(bookmarks.countByPostIds(postIds));
-        return postsPage.stream()
-                .map(post -> summary(post, likeCounts, bookmarkCounts))
-                .toList();
+        return summaries(postsPage, null);
     }
 
-    private Map<Long, Long> countMap(List<PostCountProjection> counts) {
-        if (counts.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return counts.stream().collect(Collectors.toUnmodifiableMap(
-                PostCountProjection::getPostId,
-                PostCountProjection::getTotal,
-                (existing, ignored) -> existing));
-    }
-
-    private PostDtos.Summary summary(
-            JourneyPost post,
-            Map<Long, Long> likeCounts,
-            Map<Long, Long> bookmarkCounts) {
-        return new PostDtos.Summary(
-                post.getId(),
-                post.getTitle(),
-                post.getRegion().getCode(),
-                post.getRegion().getGooglePlaceId(),
-                post.getRegionName(),
-                regionService.localizedNames(post.getRegion()),
-                regionService.searchText(post.getRegion()),
-                post.getCoverImageUrl(),
-                tagNames(post),
-                post.getViewCount(),
-                likeCounts.getOrDefault(post.getId(), 0L),
-                bookmarkCounts.getOrDefault(post.getId(), 0L),
-                author(post.getAuthor()),
-                post.getCreatedAt());
+    private List<PostDtos.Summary> summaries(
+            List<JourneyPost> postsPage, Long viewerId) {
+        return summaryAssembler.summaries(postsPage, viewerId);
     }
 
     private PostDtos.Detail detailView(JourneyPost post, Long viewerId) {
@@ -385,7 +549,29 @@ public class PostService {
                 bookmarked,
                 author(post.getAuthor()),
                 post.getCreatedAt(),
-                post.getUpdatedAt());
+                post.getUpdatedAt(),
+                post.getPlaces().stream().map(place -> placeView(post, place)).toList());
+    }
+
+    private PostDtos.PlaceView placeView(JourneyPost post, PostPlace place) {
+        List<PostImage> placeImages = post.getImages().stream()
+                .filter(image -> samePlace(image.getPlace(), place)
+                        || (image.getPlace() == null && place.getSortOrder() == 0))
+                .toList();
+        return new PostDtos.PlaceView(
+                place.getId(),
+                regionView(place.getRegion()),
+                place.getPlaceName(),
+                place.getLatitude(),
+                place.getLongitude(),
+                place.getContent(),
+                place.getSortOrder(),
+                placeImages.stream().map(this::imageView).toList());
+    }
+
+    private boolean samePlace(PostPlace left, PostPlace right) {
+        if (left == right) return true;
+        return left != null && right != null && left.getId() != null && left.getId().equals(right.getId());
     }
 
     private PostDtos.ImageView imageView(PostImage image) {
@@ -404,6 +590,7 @@ public class PostService {
         return new PostDtos.CommentView(
                 comment.getId(),
                 comment.getContent(),
+                comment.getParent() == null ? null : comment.getParent().getId(),
                 author(comment.getAuthor()),
                 comment.getCreatedAt());
     }
@@ -432,6 +619,49 @@ public class PostService {
         return List.of();
     }
 
+    private List<JourneyPost.PostImageData> currentImageData(JourneyPost post) {
+        return post.getImages().stream()
+                .map(image -> new JourneyPost.PostImageData(image.getImageUrl(), image.getAltText()))
+                .toList();
+    }
+
+    private void selectCover(JourneyPost post, String coverImageUrl) {
+        if (!post.selectCoverImage(coverImageUrl)) {
+            throw new DomainException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_COVER_IMAGE",
+                    "대표 사진은 게시글에 첨부된 사진 중에서 선택해야 합니다.");
+        }
+    }
+
+    private List<JourneyPost.PostPlaceData> placeData(List<PostDtos.PlaceRequest> places) {
+        if (places == null) {
+            return List.of();
+        }
+        return places.stream()
+                .map(place -> {
+                    Region placeRegion = regionService.require(
+                            place.regionCode(), place.regionName(), place.regionPlaceId());
+                    if (placeRegion.getCenter() == null) {
+                        throw new DomainException(
+                                HttpStatus.BAD_REQUEST,
+                                "PLACE_COORDINATES_REQUIRED",
+                                "장소의 지도 좌표를 확인할 수 없습니다.");
+                    }
+                    return new JourneyPost.PostPlaceData(
+                            placeRegion,
+                            richTextSanitizer.sanitizeRequired(place.content()),
+                            imageData(place.images(), null));
+                })
+                .toList();
+    }
+
+    private String aggregateContent(List<JourneyPost.PostPlaceData> places) {
+        return places.stream()
+                .map(JourneyPost.PostPlaceData::content)
+                .collect(Collectors.joining("\n"));
+    }
+
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
@@ -446,6 +676,22 @@ public class PostService {
 
     private List<String> tagNames(JourneyPost post) {
         return post.getTags().stream().map(Tag::getName).toList();
+    }
+
+    private void enqueueContentAnalysis(JourneyPost post) {
+        List<String> sourceTags = tagNames(post);
+        String sourceContentVersion = PostContentAnalysisSourceVersion.from(
+                post.getTitle(),
+                post.getContent(),
+                post.getRegionName(),
+                sourceTags);
+        contentAnalysisJobs.enqueue(new PostContentAnalysisInputV1(
+                post.getId(),
+                post.getTitle(),
+                post.getContent(),
+                post.getRegionName(),
+                sourceTags,
+                sourceContentVersion));
     }
 
     private void validateTravelDates(LocalDate startDate, LocalDate endDate) {

@@ -1,0 +1,155 @@
+name: PR Gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      backend: ${{ steps.scope.outputs.backend }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+      core: ${{ steps.scope.outputs.core }}
+
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Resolve affected CI scopes
+        id: scope
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          fi
+
+          if ! git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+            echo "Head SHA is not available from the pull-request checkout." >&2
+            exit 1
+          fi
+
+          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" > changed-files.txt
+          cat changed-files.txt
+
+          backend_candidate=false
+          frontend_candidate=false
+          core=false
+          validate_all=false
+
+          while IFS= read -r file; do
+            case "${file}" in
+              jc-recommendation-core/*)
+                backend_candidate=true
+                core=true
+                ;;
+              jc-backend/settings.gradle.kts|jc-backend/build.gradle.kts)
+                backend_candidate=true
+                core=true
+                ;;
+              jc-backend/*|.github/workflows/backend-ci.yml)
+                backend_candidate=true
+                ;;
+              jc-frontend/*|.github/workflows/frontend-ci.yml)
+                frontend_candidate=true
+                ;;
+              .github/workflows/recommendation-java-port-ci.yml)
+                core=true
+                ;;
+              .github/workflows/pr-gate.yml)
+                validate_all=true
+                ;;
+            esac
+          done < changed-files.txt
+
+          backend=false
+          frontend=false
+
+          if [[ "${BASE_REF}" == "develop" || "${BASE_REF}" == "youngtak" ]]; then
+            backend="${backend_candidate}"
+            frontend="${frontend_candidate}"
+          fi
+
+          if [[ "${validate_all}" == "true" ]]; then
+            backend=true
+            frontend=true
+            core=true
+          fi
+
+          echo "backend=${backend}" >> "${GITHUB_OUTPUT}"
+          echo "frontend=${frontend}" >> "${GITHUB_OUTPUT}"
+          echo "core=${core}" >> "${GITHUB_OUTPUT}"
+
+  backend:
+    name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend-ci.yml
+
+  frontend:
+    name: Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/frontend-ci.yml
+
+  recommendation-core:
+    name: Recommendation Core
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
+    uses: ./.github/workflows/recommendation-java-port-ci.yml
+
+  gate:
+    name: Merge Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    if: always()
+    needs:
+      - changes
+      - backend
+      - frontend
+      - recommendation-core
+
+    steps:
+      - name: Require all affected checks to pass
+        shell: bash
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          CORE_RESULT: ${{ needs.recommendation-core.result }}
+        run: |
+          set -euo pipefail
+
+          echo "changes=${CHANGES_RESULT}"
+          echo "backend=${BACKEND_RESULT}"
+          echo "frontend=${FRONTEND_RESULT}"
+          echo "recommendation-core=${CORE_RESULT}"
+
+          [[ "${CHANGES_RESULT}" == "success" ]]
+
+          for result in "${BACKEND_RESULT}" "${FRONTEND_RESULT}" "${CORE_RESULT}"; do
+            case "${result}" in
+              success|skipped)
+                ;;
+              *)
+                echo "Required CI scope finished with result: ${result}" >&2
+                exit 1
+                ;;
+            esac
+          done

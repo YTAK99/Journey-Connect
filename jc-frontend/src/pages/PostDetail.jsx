@@ -7,18 +7,31 @@ import {
   Heart,
   MapPin,
   PenLine,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import TagChips from "../components/TagChips";
+import CommentSection from "../components/CommentSection";
+import PostRouteMap from "../components/PostRouteMap";
+import PostActionsMenu from "../components/PostActionsMenu";
+import UserAvatar from "../components/UserAvatar";
+import PostImageLightbox from "../components/PostImageLightbox";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser } from "../services/auth";
-import { deletePost, getPost } from "../services/postApi";
-import useLangStore from "../store/useLangStore";
+import {
+  bookmarkPost,
+  deletePost,
+  getPost,
+  getPostAnalysis,
+  likePost,
+  unlikePost,
+  unbookmarkPost,
+} from "../services/postApi";
+import useTranslation from "../i18n/useTranslation";
 import { getLocalizedRegionName } from "../utils/region";
 import { normalizeEditorContent } from "../utils/richText";
 
-const fallbackAvatar = "/user_1.jpg";
 
 const formatDate = (value, language) => {
   if (!value) return "-";
@@ -35,9 +48,12 @@ const formatDate = (value, language) => {
 function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentLang } = useLangStore();
+  const { currentLang, t } = useTranslation();
   const [post, setPost] = useState(null);
+  const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reactionPending, setReactionPending] = useState("");
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const isKorean = currentLang === "ko";
 
@@ -46,23 +62,99 @@ function PostDetail() {
     getPost(id)
       .then(setPost)
       .catch((error) => {
-        alert(getApiErrorMessage(error, isKorean ? "게시글을 불러오지 못했습니다." : "Could not load this post."));
+        alert(getApiErrorMessage(error, t("post.loadFailed")));
       })
       .finally(() => setLoading(false));
-  }, [id, isKorean]);
+
+    getPostAnalysis(id)
+      .then((value) => setAnalysis({ postId: String(id), value }))
+      .catch(() => setAnalysis({ postId: String(id), value: null }));
+  }, [id, isKorean, t]);
 
   const handleDelete = async () => {
-    if (!window.confirm(isKorean ? "정말 삭제하시겠습니까?" : "Delete this post?")) return;
+    if (!window.confirm(t("post.deleteConfirm"))) return;
 
     try {
       await deletePost(id);
-      alert(isKorean ? "삭제되었습니다." : "Post deleted.");
+      alert(t("post.deleted"));
       navigate("/my-posts");
     } catch (error) {
-      alert(getApiErrorMessage(error, isKorean ? "게시글 삭제에 실패했습니다." : "Could not delete this post."));
+      alert(getApiErrorMessage(error, t("post.deleteFailed")));
     }
   };
 
+  const handleLike = async () => {
+    if (reactionPending || !post) return;
+
+    const actionPostId = String(post.id);
+    const previousLiked = Boolean(post.liked);
+    const previousCount = post.likeCount ?? 0;
+    const nextLiked = !previousLiked;
+
+    setReactionPending("like");
+    setPost((current) => (
+      current && String(current.id) === actionPostId
+        ? {
+            ...current,
+            liked: nextLiked,
+            likeCount: Math.max(0, previousCount + (nextLiked ? 1 : -1)),
+          }
+        : current
+    ));
+
+    try {
+      if (nextLiked) await likePost(post.id);
+      else await unlikePost(post.id);
+      window.dispatchEvent(new Event("likeChanged"));
+    } catch (error) {
+      setPost((current) => (
+        current && String(current.id) === actionPostId
+          ? { ...current, liked: previousLiked, likeCount: previousCount }
+          : current
+      ));
+      alert(getApiErrorMessage(error, t("post.likeFailed")));
+    } finally {
+      setReactionPending("");
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (reactionPending || !post) return;
+
+    const actionPostId = String(post.id);
+    const previousBookmarked = Boolean(post.bookmarked);
+    const previousCount = post.bookmarkCount ?? 0;
+    const nextBookmarked = !previousBookmarked;
+
+    setReactionPending("bookmark");
+    setPost((current) => (
+      current && String(current.id) === actionPostId
+        ? {
+            ...current,
+            bookmarked: nextBookmarked,
+            bookmarkCount: Math.max(0, previousCount + (nextBookmarked ? 1 : -1)),
+          }
+        : current
+    ));
+
+    try {
+      if (nextBookmarked) await bookmarkPost(post.id);
+      else await unbookmarkPost(post.id);
+    } catch (error) {
+      setPost((current) => (
+        current && String(current.id) === actionPostId
+          ? {
+              ...current,
+              bookmarked: previousBookmarked,
+              bookmarkCount: previousCount,
+            }
+          : current
+      ));
+      alert(getApiErrorMessage(error, t("post.bookmarkFailed")));
+    } finally {
+      setReactionPending("");
+    }
+  };
   if (loading) {
     return (
       <main className="min-h-screen bg-background px-4 pb-16 pt-28">
@@ -86,10 +178,10 @@ function PostDetail() {
       <main className="flex min-h-screen items-center justify-center bg-background px-4 pt-20">
         <div className="rounded-3xl bg-white px-10 py-14 text-center shadow-sm dark:bg-slate-900">
           <p className="text-lg font-semibold text-title">
-            {isKorean ? "게시글을 찾을 수 없습니다." : "Post not found."}
+            {t("post.notFound")}
           </p>
           <button type="button" onClick={() => navigate(-1)} className="mt-5 text-sm font-semibold text-primary hover:text-primaryHover">
-            {isKorean ? "이전 페이지로" : "Go back"}
+            {t("common.back")}
           </button>
         </div>
       </main>
@@ -97,11 +189,29 @@ function PostDetail() {
   }
 
   const currentUser = getUser();
-  const isAuthor = String(currentUser?.id) === String(post.author?.id);
+  const isAuthor = currentUser?.id != null && post.author?.id != null && String(currentUser.id) === String(post.author.id);
   const location = getLocalizedRegionName(post, currentLang);
   // 대표 이미지는 상단 히어로에서 이미 사용하므로 본문 갤러리에서는 중복 노출하지 않습니다.
-  const galleryImages = (post.images || []).filter((image) => image.imageUrl !== post.coverImageUrl);
+  const galleryImages = post.images || [];
+  const routePlaces = Array.isArray(post.places) ? post.places : [];
+  const lightboxImages = [
+    ...(post.coverImageUrl ? [{ imageUrl: post.coverImageUrl, altText: post.title }] : []),
+    ...routePlaces.flatMap((place) => place.images || []),
+    ...galleryImages,
+  ].filter((image, index, images) => image?.imageUrl && images.findIndex((candidate) => candidate.imageUrl === image.imageUrl) === index);
+  const openLightbox = (imageUrl) => {
+    const index = lightboxImages.findIndex((image) => image.imageUrl === imageUrl);
+    if (index >= 0) setLightboxIndex(index);
+  };
   const hasTravelDates = post.travelStartDate || post.travelEndDate;
+  const currentAnalysis =
+    analysis?.postId === String(id)
+      ? analysis.value
+      : null;
+  const aiSummary =
+    currentAnalysis?.status === "succeeded"
+      ? currentAnalysis.result?.summary?.trim() || ""
+      : "";
 
   return (
     <main className="min-h-screen bg-background px-4 pb-20 pt-24 sm:px-8 sm:pt-28">
@@ -112,14 +222,14 @@ function PostDetail() {
           className="mb-6 inline-flex items-center gap-2 rounded-full px-1 py-2 text-sm font-semibold text-slate-600 transition-colors hover:text-primary dark:text-slate-300"
         >
           <ArrowLeft size={18} />
-          {isKorean ? "여행 이야기로 돌아가기" : "Back to travel stories"}
+          {t("post.backToStories")}
         </button>
 
         <div className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white shadow-[0_24px_70px_-32px_rgba(15,118,110,0.35)] dark:border-slate-800 dark:bg-slate-900 sm:rounded-[2.25rem]">
           {post.coverImageUrl && (
             <div className="relative h-72 overflow-hidden sm:h-[30rem]">
-              <img src={post.coverImageUrl} alt={post.title} className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
+              <button type="button" onClick={() => openLightbox(post.coverImageUrl)} aria-label={`${post.title} 대표 사진 크게 보기`} className="h-full w-full cursor-zoom-in"><img src={post.coverImageUrl} alt={post.title} className="h-full w-full object-cover" /></button>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/55 via-transparent to-transparent" />
               <div className="absolute bottom-5 left-5 sm:bottom-8 sm:left-9">
                 <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-slate-950/30 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
                   <MapPin size={16} />
@@ -139,7 +249,7 @@ function PostDetail() {
 
             <header className="border-b border-slate-100 pb-8 dark:border-slate-800 sm:pb-10">
               <p className="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-primary">
-                {isKorean ? "Journey Story" : "Travel Journal"}
+                {t("post.journalLabel")}
               </p>
               <h1 className="max-w-4xl break-keep text-3xl font-extrabold leading-tight tracking-tight text-title sm:text-5xl sm:leading-[1.15]">
                 {post.title}
@@ -147,14 +257,22 @@ function PostDetail() {
 
               <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={post.author?.profileImageUrl || fallbackAvatar}
-                    alt=""
-                    className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-md dark:border-slate-800"
-                  />
+                  <button
+                    type="button"
+                    disabled={post.author?.id == null}
+                    onClick={() => navigate(isAuthor ? "/mypage" : `/users/${post.author.id}`)}
+                    aria-label={t("publicProfile.open", { nickname: post.author?.nickname || t("post.traveler") })}
+                    className="shrink-0 rounded-full transition hover:ring-2 hover:ring-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-500 disabled:pointer-events-none"
+                  >
+                    <UserAvatar
+                      src={post.author?.profileImageUrl}
+                      className="h-12 w-12 rounded-full border-2 border-white object-cover shadow-md dark:border-slate-800"
+                      iconClassName="h-6 w-6"
+                    />
+                  </button>
                   <div>
                     <p className="font-bold text-slate-900 dark:text-slate-100">
-                      {post.author?.nickname || (isKorean ? "여행자" : "Traveler")}
+                      {post.author?.nickname || t("post.traveler")}
                     </p>
                     <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                       {formatDate(post.createdAt, currentLang)}
@@ -162,10 +280,49 @@ function PostDetail() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                  <span className="inline-flex items-center gap-1.5"><Eye size={17} /> {post.viewCount ?? 0}</span>
-                  <span className="inline-flex items-center gap-1.5"><Heart size={17} /> {post.likeCount ?? 0}</span>
-                  <span className="inline-flex items-center gap-1.5"><Bookmark size={17} /> {post.bookmarkCount ?? 0}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-2 text-slate-500 dark:text-slate-400">
+                      <Eye size={17} /> {post.viewCount ?? 0}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleLike}
+                      disabled={Boolean(reactionPending)}
+                      aria-pressed={Boolean(post.liked)}
+                      aria-label={t("post.likes", { count: post.likeCount ?? 0 })}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        post.liked
+                          ? "bg-rose-50 text-rose-500 dark:bg-rose-950/35 dark:text-rose-300"
+                          : "text-slate-500 hover:bg-rose-50 hover:text-rose-500 dark:text-slate-400 dark:hover:bg-rose-950/30"
+                      }`}
+                    >
+                      <Heart size={17} fill={post.liked ? "currentColor" : "none"} />
+                      {post.likeCount ?? 0}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBookmark}
+                      disabled={Boolean(reactionPending)}
+                      aria-pressed={Boolean(post.bookmarked)}
+                      aria-label={t("post.bookmark")}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                        post.bookmarked
+                          ? "bg-amber-50 text-amber-500 dark:bg-amber-950/35 dark:text-amber-300"
+                          : "text-slate-500 hover:bg-amber-50 hover:text-amber-500 dark:text-slate-400 dark:hover:bg-amber-950/30"
+                      }`}
+                    >
+                      <Bookmark size={17} fill={post.bookmarked ? "currentColor" : "none"} />
+                      {post.bookmarkCount ?? 0}
+                    </button>
+                  </div>
+                  {isAuthor && (
+                    <PostActionsMenu
+                      onEdit={() => navigate(`/write/${post.id}`)}
+                      onDelete={handleDelete}
+                      labels={{ more: t("post.more"), edit: t("post.edit"), delete: t("post.delete") }}
+                    />
+                  )}
                 </div>
               </div>
             </header>
@@ -178,8 +335,8 @@ function PostDetail() {
                       <CalendarDays size={17} />
                     </span>
                     <span>
-                      <span className="mr-2 text-xs font-medium text-teal-600 dark:text-teal-400">{isKorean ? "여행 기간" : "Travel dates"}</span>
-                      {post.travelStartDate || (isKorean ? "미정" : "TBD")} — {post.travelEndDate || (isKorean ? "미정" : "TBD")}
+                      <span className="mr-2 text-xs font-medium text-teal-600 dark:text-teal-400">{t("post.travelDates")}</span>
+                      {post.travelStartDate || t("post.tbd")} — {post.travelEndDate || t("post.tbd")}
                     </span>
                   </div>
                 )}
@@ -187,35 +344,73 @@ function PostDetail() {
               </div>
             )}
 
+            {aiSummary && (
+              <section className="mt-8 rounded-2xl border border-teal-100 bg-teal-50/80 p-5 dark:border-teal-900/60 dark:bg-teal-950/30 sm:p-6">
+                <div className="flex items-center gap-2 text-teal-700 dark:text-teal-300">
+                  <Sparkles size={17} />
+                  <h2 className="text-sm font-bold">AI Summary</h2>
+                </div>
+                <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-200 sm:text-base">
+                  {aiSummary}
+                </p>
+              </section>
+            )}
+
             {/* 저장 시 백엔드에서 허용된 HTML만 남기므로 정제된 리치 텍스트를 그대로 렌더링합니다. */}
-            <div
-              className="rich-text-content mx-auto max-w-3xl py-10 text-[1.05rem] leading-8 text-slate-700 dark:text-slate-200 sm:py-14 sm:text-lg sm:leading-9"
-              dangerouslySetInnerHTML={{ __html: normalizeEditorContent(post.content || "") }}
-            />
+            {routePlaces.length > 0 ? (
+              <section className="space-y-10 py-10 sm:py-14">
+                {routePlaces.map((place, placeIndex) => (
+                  <article key={place.id || `${place.placeName}-${placeIndex}`} className="mx-auto max-w-3xl">
+                    <header className="mb-5 flex items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-500 text-sm font-extrabold text-white">{placeIndex + 1}</span>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Stop {placeIndex + 1}</p>
+                        <h2 className="text-xl font-extrabold text-title sm:text-2xl">{place.placeName || place.region?.displayName}</h2>
+                      </div>
+                    </header>
+                    {(place.images || []).length > 0 && (
+                      <div className="mb-6 grid grid-cols-2 gap-3">
+                        {place.images.map((image, imageIndex) => (
+                          <button key={image.id || image.imageUrl} type="button" onClick={() => openLightbox(image.imageUrl)} aria-label={`${image.altText || place.placeName || "장소"} 사진 크게 보기`} className={`cursor-zoom-in overflow-hidden rounded-2xl ${imageIndex === 0 && place.images.length > 1 ? "col-span-2 max-h-[32rem]" : "h-52 sm:h-64"}`}><img src={image.imageUrl} alt={image.altText || `${place.placeName} ${imageIndex + 1}`} className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]" /></button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="rich-text-content text-[1.05rem] leading-8 text-slate-700 dark:text-slate-200 sm:text-lg sm:leading-9" dangerouslySetInnerHTML={{ __html: normalizeEditorContent(place.content || "") }} />
+                  </article>
+                ))}
+              </section>
+            ) : (
+              <div className="rich-text-content mx-auto max-w-3xl py-10 text-[1.05rem] leading-8 text-slate-700 dark:text-slate-200 sm:py-14 sm:text-lg sm:leading-9" dangerouslySetInnerHTML={{ __html: normalizeEditorContent(post.content || "") }} />
+            )}
+
+            <PostRouteMap places={routePlaces} lang={currentLang} />
 
             {galleryImages.length > 0 && (
               <section className="border-t border-slate-100 pt-9 dark:border-slate-800">
                 <div className="mb-5 flex items-end justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Photo notes</p>
-                    <h2 className="mt-1 text-xl font-bold text-title">{isKorean ? "여행의 장면들" : "Scenes from the journey"}</h2>
+                    <h2 className="mt-1 text-xl font-bold text-title">{t("post.gallery")}</h2>
                   </div>
                   <span className="text-sm text-slate-400">{galleryImages.length} photos</span>
                 </div>
                 <div className="grid auto-rows-[11rem] grid-cols-2 gap-3 sm:auto-rows-[15rem] sm:grid-cols-3">
                   {galleryImages.map((image, index) => (
-                    <img
+                    <button
                       key={image.id || image.imageUrl}
-                      src={image.imageUrl}
-                      alt={image.altText || `${post.title} ${index + 1}`}
-                      className={`h-full w-full rounded-2xl object-cover transition-transform duration-300 hover:scale-[1.01] ${
+                      type="button"
+                      onClick={() => openLightbox(image.imageUrl)}
+                      aria-label={`${image.altText || post.title} 사진 크게 보기`}
+                      className={`h-full w-full cursor-zoom-in overflow-hidden rounded-2xl ${
                         index === 0 && galleryImages.length > 2 ? "col-span-2 sm:row-span-2" : ""
                       }`}
-                    />
+                    ><img src={image.imageUrl} alt={image.altText || `${post.title} ${index + 1}`} className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.02]" /></button>
                   ))}
                 </div>
               </section>
             )}
+
+            <CommentSection postId={post.id} />
 
             {isAuthor && (
               <footer className="mt-10 flex justify-end gap-2 border-t border-slate-100 pt-6 dark:border-slate-800">
@@ -225,7 +420,7 @@ function PostDetail() {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-teal-950/30"
                 >
                   <PenLine size={16} />
-                  {isKorean ? "수정" : "Edit"}
+                  {t("post.edit")}
                 </button>
                 <button
                   type="button"
@@ -233,13 +428,14 @@ function PostDetail() {
                   className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 >
                   <Trash2 size={16} />
-                  {isKorean ? "삭제" : "Delete"}
+                  {t("post.delete")}
                 </button>
               </footer>
             )}
           </div>
         </div>
       </article>
+      {lightboxIndex !== null && <PostImageLightbox images={lightboxImages} index={lightboxIndex} onIndexChange={setLightboxIndex} onClose={() => setLightboxIndex(null)} />}
     </main>
   );
 }

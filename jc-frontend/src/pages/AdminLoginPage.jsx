@@ -54,6 +54,7 @@ export default function AdminLoginPage() {
         <p className="mb-6 text-sm leading-6 text-slate-600">
           일반 계정 인증 후 관리자 API가 데이터베이스의 현재 권한을 다시 확인합니다.
         </p>
+        {location.state?.passwordChanged && <p role="status" className="mb-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.</p>}
 
         <form className="space-y-5" onSubmit={submit}>
           <div>

@@ -34,6 +34,19 @@ public class AuthController {
         return ApiResponse.ok(authService.login(request));
     }
 
+    @PostMapping("/google")
+    ApiResponse<AuthDtos.TokenResponse> googleLogin(
+            @Valid @RequestBody AuthDtos.GoogleLoginRequest request) {
+        return ApiResponse.ok(authService.googleLogin(request));
+    }
+
+    @PostMapping("/google/link")
+    ApiResponse<AuthDtos.UserSummary> linkGoogle(
+            @AuthenticationPrincipal Jwt token,
+            @Valid @RequestBody AuthDtos.GoogleLoginRequest request) {
+        return ApiResponse.ok(authService.linkGoogle(userId(token), request));
+    }
+
     @PostMapping("/refresh")
     ApiResponse<AuthDtos.TokenResponse> refresh(@Valid @RequestBody AuthDtos.RefreshRequest request) {
         return ApiResponse.ok(authService.refresh(request));
@@ -43,6 +56,20 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void logout(@Valid @RequestBody AuthDtos.LogoutRequest request) {
         authService.logout(request);
+    }
+
+    @PostMapping("/password-reset/requests")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    ApiResponse<AuthDtos.PasswordResetRequestResponse> requestPasswordReset(
+            @Valid @RequestBody AuthDtos.PasswordResetRequest request) {
+        return ApiResponse.ok(authService.requestPasswordReset(request));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void confirmPasswordReset(
+            @Valid @RequestBody AuthDtos.PasswordResetConfirmRequest request) {
+        authService.confirmPasswordReset(request);
     }
 
     @GetMapping("/me")
