@@ -8,6 +8,7 @@ import com.jc.backend.recommendation.application.RecommendationPostInteractionSe
 import com.jc.backend.recommendation.explore.ExploreRecommendationService;
 import com.jc.backend.recommendation.application.RecommendationPostInteractionService.TrackingContext;
 import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.Action;
+import com.jc.backend.recommendation.persistence.RecommendationPostInteractionStore.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -92,6 +93,11 @@ public class PostController {
         return ApiResponse.ok(postService.detail(postId, userIdOrNull(token)));
     }
 
+    @GetMapping("/posts/{postId}/likes")
+    ApiResponse<java.util.List<PostDtos.Author>> likers(@PathVariable Long postId) {
+        return ApiResponse.ok(postService.likers(postId));
+    }
+
     @PostMapping("/posts")
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<PostDtos.Detail> create(
@@ -124,8 +130,13 @@ public class PostController {
             @RequestHeader(name = "X-Recommendation-Event-Id", required = false) String eventId,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestHeader(name = "X-Recommendation-Occurred-At", required = false) Instant occurredAt) {
-        recommendationPostInteractionService.apply(userId(token), token.getId(), postId, Action.LIKE,
+        long userId = userId(token);
+        Result result = recommendationPostInteractionService.apply(
+                userId, token.getId(), postId, Action.LIKE,
                 new TrackingContext(runId, surface, eventId, idempotencyKey, occurredAt));
+        if (result == Result.APPLIED) {
+            postService.notifyPostLiked(userId, postId);
+        }
     }
 
     @DeleteMapping("/posts/{postId}/likes")

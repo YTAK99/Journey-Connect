@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /** 로그인 사용자의 여행 이미지를 받고 저장된 이미지는 공개 URL로 제공합니다. */
 @RestController
@@ -48,10 +47,8 @@ public class ImageUploadController {
         Long.parseLong(token.getSubject());
         List<ImageUploadView> uploaded = files.stream().map(file -> {
             ImageStorageService.StoredImage stored = storage.store(file);
-            String imageUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-                    .path("/api/v1/uploads/images/")
-                    .path(stored.storedName())
-                    .toUriString();
+            // 동일 출처 상대 URL을 저장해 HTTPS 프록시 뒤에서도 Mixed Content가 발생하지 않게 합니다.
+            String imageUrl = "/api/v1/uploads/images/" + stored.storedName();
             return new ImageUploadView(imageUrl, stored.originalName(), stored.size());
         }).toList();
         return ApiResponse.created(uploaded);

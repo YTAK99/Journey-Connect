@@ -11,6 +11,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class CrewChatService {
+
+    private static final Pattern LOCAL_UPLOAD_IMAGE = Pattern.compile(
+            "^/api/v1/uploads/images/[0-9a-f-]{36}\\.(?:jpg|png|webp|gif)$",
+            Pattern.CASE_INSENSITIVE);
 
     private final CrewRepository crews;
     private final CrewMemberRepository members;
@@ -80,9 +85,12 @@ public class CrewChatService {
         return crew;
     }
 
-    private String normalizeContent(CrewChatDtos.SendRequest request) {
+    static String normalizeContent(CrewChatDtos.SendRequest request) {
         String value = request.content().trim();
         if (request.type() == CrewChatMessageType.IMAGE) {
+            if (LOCAL_UPLOAD_IMAGE.matcher(value).matches()) {
+                return value;
+            }
             try {
                 URI uri = URI.create(value);
                 if (!("http".equalsIgnoreCase(uri.getScheme())

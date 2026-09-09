@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, MapPin, Plus, Sparkles } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import PostPlaceEditor from "../components/PostPlaceEditor";
@@ -8,23 +8,16 @@ import { RegionPicker } from "../components/LocationWeather";
 import { REGIONS } from "../data/regions";
 import { getApiErrorMessage } from "../services/apiClient";
 import { isLogin } from "../services/auth";
-import { createPost, getPost, updatePost, uploadPostImages } from "../services/postApi";
+import { createPost, getPost, updatePost, uploadPostImagesIndividually } from "../services/postApi";
 import useLangStore from "../store/useLangStore";
 import useRegionStore from "../store/useRegionStore";
 import { normalizeEditorContent, richTextToPlainText } from "../utils/richText";
-import { toRegionPreference } from "../utils/region";
+import { hasValidRegionSelection, toRegionPreference } from "../utils/region";
+import { revokePlacePreviews } from "../utils/imagePreviews";
 import { getMessages } from "../i18n";
 
 const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
 const imageKey = (image) => image.localId || image.imageUrl;
-
-const uploadInBatches = async (files) => {
-  const uploaded = [];
-  for (let index = 0; index < files.length; index += 10) {
-    uploaded.push(...await uploadPostImages(files.slice(index, index + 10)));
-  }
-  return uploaded;
-};
 
 const emptyPlace = () => ({
   localId: uid(), regionCode: null, regionPlaceId: null, regionNames: {},
@@ -50,6 +43,13 @@ function WritePost() {
   const [placePickerIndex, setPlacePickerIndex] = useState(null);
   const [loading, setLoading] = useState(Boolean(id));
   const [submitting, setSubmitting] = useState(false);
+  const placesRef = useRef(places);
+
+  useEffect(() => {
+    placesRef.current = places;
+  }, [places]);
+
+  useEffect(() => () => revokePlacePreviews(placesRef.current), []);
 
   useEffect(() => {
     if (!isLogin()) {
@@ -97,6 +97,7 @@ function WritePost() {
   const removePlace = (index) => setPlaces((current) => {
     if (current.length === 1) return current;
     const removedPlace = current[index];
+    revokePlacePreviews([removedPlace]);
     const next = current.filter((_, itemIndex) => itemIndex !== index);
     if (removedPlace.localId === activePlaceId) setActivePlaceId(next[Math.min(index, next.length - 1)].localId);
     return next;
@@ -121,7 +122,7 @@ function WritePost() {
 
   const handleSubmit = async () => {
     if (!title.trim()) return alert(t.titleRequired);
-    if (!representativeRegion?.code && !representativeRegion?.placeId) return alert(t.regionRequired);
+    if (!hasValidRegionSelection(representativeRegion)) return alert(t.regionRequired);
     const missingLocation = places.find((place) => !place.regionPlaceId);
     if (missingLocation) {
       setActivePlaceId(missingLocation.localId);
@@ -139,7 +140,7 @@ function WritePost() {
     try {
       setSubmitting(true);
       const pendingFiles = places.flatMap((place) => place.images.filter((image) => image.file).map((image) => image.file));
-      const uploaded = pendingFiles.length ? await uploadInBatches(pendingFiles) : [];
+      const uploaded = pendingFiles.length ? await uploadPostImagesIndividually(pendingFiles) : [];
       let uploadIndex = 0;
       let resolvedCoverUrl = null;
       const normalizedPlaces = places.map((place) => ({
@@ -157,6 +158,7 @@ function WritePost() {
       }));
       const allImages = normalizedPlaces.flatMap((place) => place.images);
       if (allImages.length > 0 && !resolvedCoverUrl) return alert(t.coverRequired);
+      revokePlacePreviews(places);
       setPlaces(normalizedPlaces);
       setCoverImageKey(resolvedCoverUrl);
 
@@ -221,7 +223,7 @@ function WritePost() {
         </section>
       </div>
       {regionPickerOpen && <RegionPicker currentRegion={representativeRegion || REGIONS[0]} onSelect={setRepresentativeRegion} onSearch={(_query, region) => setRepresentativeRegion(region)} onClose={() => setRegionPickerOpen(false)} searchMode="region" />}
-      {placePickerIndex !== null && <GoogleMapPlacePicker value={places[placePickerIndex]} lang={currentLang} onConfirm={confirmPlace} onClose={() => setPlacePickerIndex(null)} />}
+      {placePickerIndex !== null && <GoogleMapPlacePicker value={places[placePickerIndex]} region={representativeRegion} lang={currentLang} onConfirm={confirmPlace} onClose={() => setPlacePickerIndex(null)} />}
     </main>
   );
 }

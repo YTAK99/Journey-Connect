@@ -42,4 +42,8 @@ public class PostLike {
     public JourneyPost getPost() {
         return post;
     }
+
+    public UserAccount getUser() {
+        return user;
+    }
 }

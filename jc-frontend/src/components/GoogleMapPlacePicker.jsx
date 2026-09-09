@@ -9,7 +9,7 @@ const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim();
 // 초기 지도가 표시될 기본 중심 좌표 (기본값: 서울 시청)
 const SEOUL = { lat: 37.5665, lng: 126.978 };
 
-export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, onClose }) {
+export default function GoogleMapPlacePicker({ value, region, lang = "ko", onConfirm, onClose }) {
   // 언어 설정이 한국어('ko')인지 여부 확인
   const t = (key) => translate(lang, key);
   // DOM 및 구글 맵 객체 레퍼런스 관리
@@ -38,10 +38,6 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         // 1. 구글 맵 API 로드
         const maps = await loadGoogleMaps();
         if (!active) return;
-        // 초기 지도 중심 좌표 결정 (전달받은 위치가 있으면 해당 좌표, 없으면 서울)
-        const initialCenter = Number.isFinite(value?.latitude) && Number.isFinite(value?.longitude)
-          ? { lat: value.latitude, lng: value.longitude }
-          : SEOUL;
         // 2. 구글 맵 라이브러리(마커, 장소) 로드
         const [{ AdvancedMarkerElement }, { Place, PlaceAutocompleteElement }, { ColorScheme }] = await Promise.all([
           maps.importLibrary("marker"),
@@ -49,10 +45,29 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
           maps.importLibrary("core"),
         ]);
         if (!active) return;
+        const hasValueLocation = Number.isFinite(value?.latitude) && Number.isFinite(value?.longitude);
+        const hasRegionLocation = Number.isFinite(region?.latitude) && Number.isFinite(region?.longitude);
+        let initialCenter = hasValueLocation
+          ? { lat: value.latitude, lng: value.longitude }
+          : hasRegionLocation
+            ? { lat: region.latitude, lng: region.longitude }
+            : SEOUL;
+        if (!hasValueLocation && !hasRegionLocation && region?.placeId) {
+          try {
+            const regionPlace = new Place({ id: region.placeId });
+            await regionPlace.fetchFields({ fields: ["location"] });
+            if (regionPlace.location) {
+              initialCenter = { lat: regionPlace.location.lat(), lng: regionPlace.location.lng() };
+            }
+          } catch {
+            // 지역 좌표 조회가 실패해도 장소 선택 기능은 서울 기본값으로 계속 제공합니다.
+          }
+        }
+        if (!active) return;
         // 3. 맵 인스턴스 생성
         map = new maps.Map(mapElementRef.current, {
           center: initialCenter,
-          zoom: value?.latitude ? 16 : 12,
+          zoom: hasValueLocation ? 16 : 12,
           ...(GOOGLE_MAPS_MAP_ID ? { mapId: GOOGLE_MAPS_MAP_ID } : {}),
           colorScheme: isDark ? ColorScheme.DARK : ColorScheme.LIGHT,
           mapTypeControl: false,
@@ -110,6 +125,10 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
         autocompleteElement.style.border = `1px solid ${isDark ? "#334155" : "#cbd5e1"}`;
         autocompleteElement.style.borderRadius = "0.75rem";
         autocompleteElement.style.fontSize = "0.875rem";
+        autocompleteElement.locationBias = {
+          center: initialCenter,
+          radius: 50000,
+        };
         // 자동완성 목록에서 특정 장소를 선택했을 때의 이벤트 핸들러
         autocompleteSelectHandler = async ({ placePrediction }) => {
           if (!placePrediction) return;
@@ -182,7 +201,7 @@ export default function GoogleMapPlacePicker({ value, lang = "ko", onConfirm, on
       if (autocompleteContainer) autocompleteContainer.replaceChildren();
       if (markerRef.current) markerRef.current.map = null;
     };
-  }, [isDark, lang, value]);
+  }, [isDark, lang, region, value]);
 
   return (
     // 배경을 클릭하면 닫히고, 모달 내부 클릭은 section에서 전파를 막습니다.

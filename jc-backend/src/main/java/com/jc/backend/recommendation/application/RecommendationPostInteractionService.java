@@ -42,7 +42,7 @@ public final class RecommendationPostInteractionService {
         this.runStore = runStore;
     }
 
-    public void apply(
+    public Result apply(
             long userId,
             String tokenId,
             long postId,
@@ -107,6 +107,7 @@ public final class RecommendationPostInteractionService {
                         "IDEMPOTENCY_CONFLICT",
                         "같은 멱등키가 다른 게시물 행동에 이미 사용되었습니다.");
             }
+            return result;
         } catch (InteractionBindingException exception) {
             throw new DomainException(
                     HttpStatus.FORBIDDEN,

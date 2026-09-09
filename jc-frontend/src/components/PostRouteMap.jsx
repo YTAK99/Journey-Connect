@@ -3,6 +3,7 @@ import { Loader2, MapPinned } from "lucide-react";
 import { loadGoogleMaps } from "../utils/googleMapsLoader";
 import { translate } from "../i18n";
 import useDocumentDarkMode from "../hooks/useDocumentDarkMode";
+import { getPlaceName } from "../utils/placeName";
 
 const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID?.trim();
 
@@ -11,12 +12,6 @@ const validCoordinate = (place) => Number.isFinite(place?.latitude)
   && Number.isFinite(place?.longitude)
   && place.latitude >= -90 && place.latitude <= 90
   && place.longitude >= -180 && place.longitude <= 180;
-
-// 장소 이름을 가져오는 함수 (이름이 없으면 언어 설정에 맞춰 '장소 N' 또는 'Stop N' 반환)
-const getPlaceName = (place, index, lang) => place.region?.localizedNames?.[lang]
-  || place.placeName
-  || place.region?.displayName
-  || translate(lang, "routeMap.stop", { count: index + 1 });
 
 // 개별 장소를 클릭했을 때 새 창으로 열릴 구글 지도 검색 URL을 생성하는 함수
 const getGoogleMapsUrl = (place, index, lang) => {

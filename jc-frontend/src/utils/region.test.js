@@ -3,6 +3,7 @@ import {
   getLocalizedRegionName,
   getRegionLookupQuery,
   getRegionSearchText,
+  hasValidRegionSelection,
   matchesSelectedRegion,
   toRegionPreference,
 } from "./region";
@@ -63,6 +64,9 @@ describe("region utilities", () => {
       },
       countryCode: "KR",
       timezone: "Asia/Seoul",
+      latitude: 37.5,
+      longitude: 127,
+      formattedAddress: "대한민국 테스트 도시",
     })).toMatchObject({
       id: "google:place-123",
       placeId: "place-123",
@@ -72,7 +76,16 @@ describe("region utilities", () => {
       },
       country: "KR",
       timezone: "Asia/Seoul",
+      latitude: 37.5,
+      longitude: 127,
+      address: "대한민국 테스트 도시",
       custom: true,
     });
+  });
+
+  it("does not accept a displayed label without a postable region identifier", () => {
+    expect(hasValidRegionSelection({ id: "custom:test", label: { ko: "테스트" } })).toBe(false);
+    expect(hasValidRegionSelection({ code: "KR-SEOUL" })).toBe(true);
+    expect(hasValidRegionSelection({ placeId: "place-123" })).toBe(true);
   });
 });
