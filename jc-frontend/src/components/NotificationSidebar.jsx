@@ -2,7 +2,7 @@ import { Bell, Heart, MessageCircle, UserPlus, Users, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
-import { getNotifications, markAllNotificationsRead } from "../services/notificationApi";
+import { deleteNotification, getNotifications, markAllNotificationsRead } from "../services/notificationApi";
 import useTranslation from "../i18n/useTranslation";
 import UserAvatar from "./UserAvatar";
 
@@ -32,13 +32,14 @@ const relativeTime = (createdAt, language) => {
   return formatter.format(-Math.floor(hours / 24), "day");
 };
 
-export default function NotificationSidebar({ isOpen, onClose, authenticated, onAllRead }) {
+export default function NotificationSidebar({ isOpen, onClose, authenticated, onAllRead, onNotificationDeleted }) {
   const navigate = useNavigate();
   const panelRef = useRef(null);
   const { currentLang, t } = useTranslation();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [deletingIds, setDeletingIds] = useState(() => new Set());
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -90,6 +91,24 @@ export default function NotificationSidebar({ isOpen, onClose, authenticated, on
     else if (item.targetType === "crew") navigate("/crew");
   };
 
+  const removeNotification = async (event, item) => {
+    event.stopPropagation();
+    setDeletingIds((current) => new Set(current).add(item.id));
+    try {
+      await deleteNotification(item.id);
+      setNotifications((current) => current.filter((notification) => notification.id !== item.id));
+      onNotificationDeleted?.(!item.read);
+    } catch (requestError) {
+      window.alert(getApiErrorMessage(requestError, t("notifications.deleteFailed")));
+    } finally {
+      setDeletingIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  };
+
   return (
     <>
       <button
@@ -122,16 +141,21 @@ export default function NotificationSidebar({ isOpen, onClose, authenticated, on
             const Icon = presentation.icon;
             const actorName = item.actor?.nickname || t("notifications.someone");
             return (
-              <button key={item.id} type="button" onClick={() => openNotification(item)} className="flex w-full items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition hover:border-teal-100 hover:bg-teal-50/70 dark:hover:border-teal-900/60 dark:hover:bg-teal-950/25">
-                <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
-                  <UserAvatar src={item.actor?.profileImageUrl} alt={actorName} className="h-full w-full object-cover" iconClassName="h-5 w-5" />
-                  <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-white ring-2 ring-white dark:ring-slate-900"><Icon size={9} /></span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium leading-5 text-slate-700 dark:text-slate-200">{t(presentation.key, { actor: actorName })}</span>
-                  <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">{relativeTime(item.createdAt, currentLang)}</span>
-                </span>
-              </button>
+              <div key={item.id} className="flex items-start rounded-xl border border-transparent transition hover:border-teal-100 hover:bg-teal-50/70 dark:hover:border-teal-900/60 dark:hover:bg-teal-950/25">
+                <button type="button" onClick={() => openNotification(item)} className="flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left">
+                  <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full">
+                    <UserAvatar src={item.actor?.profileImageUrl} alt={actorName} className="h-full w-full object-cover" iconClassName="h-5 w-5" />
+                    <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-teal-500 text-white ring-2 ring-white dark:ring-slate-900"><Icon size={9} /></span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium leading-5 text-slate-700 dark:text-slate-200">{t(presentation.key, { actor: actorName })}</span>
+                    <span className="mt-1 block text-xs text-slate-400 dark:text-slate-500">{relativeTime(item.createdAt, currentLang)}</span>
+                  </span>
+                </button>
+                <button type="button" disabled={deletingIds.has(item.id)} onClick={(event) => removeNotification(event, item)} aria-label={t("notifications.delete")} className="m-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 disabled:opacity-40 dark:hover:bg-rose-950/30">
+                  <X size={14} />
+                </button>
+              </div>
             );
           })}
         </div>

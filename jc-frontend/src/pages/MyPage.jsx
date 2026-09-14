@@ -21,14 +21,17 @@ import { getMessages } from "../i18n";
 import UserAvatar from "../components/UserAvatar";
 import { crewStatusLabel, getStableCrewColor } from "../data/crewCategories";
 import { crewPageItems, getMyCrews } from "../services/crewApi";
+import { getStablePostFallbackColor } from "../utils/postVisuals";
 
-const fallbackPostImage = "/ex_1.jpg";
 const profileImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const maxProfileImageSize = 5 * 1024 * 1024;
 
 function PostTile({ post }) {
   const navigate = useNavigate();
-  const image = post.coverImageUrl || post.image || fallbackPostImage;
+  const [imageFailed, setImageFailed] = useState(false);
+  const image = post.coverImageUrl || post.image;
+  const showColorFallback = !image || imageFailed;
+  const fallbackColor = getStablePostFallbackColor(post.id ?? post.title);
 
   return (
     <button
@@ -37,14 +40,14 @@ function PostTile({ post }) {
       className="group overflow-hidden rounded-2xl border border-border bg-card text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/40"
     >
       <div className="aspect-[16/10] overflow-hidden bg-secondary">
-        <img
-          src={image}
-          alt=""
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-          onError={(event) => {
-            event.currentTarget.src = fallbackPostImage;
-          }}
-        />
+        {showColorFallback
+          ? <div className="h-full w-full" style={{ backgroundColor: fallbackColor }} aria-hidden="true" />
+          : <img
+              src={image}
+              alt=""
+              className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+              onError={() => setImageFailed(true)}
+            />}
       </div>
       <div className="p-3 sm:p-4">
         <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-foreground">{post.title}</h3>

@@ -5,6 +5,7 @@ import com.jc.backend.common.PageResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,6 +44,13 @@ public class NotificationController {
     @PatchMapping("/read-all")
     ApiResponse<NotificationDtos.UpdateResult> markAllRead(@AuthenticationPrincipal Jwt token) {
         return ApiResponse.ok(notifications.markAllRead(userId(token)));
+    }
+
+    @DeleteMapping("/{notificationId}")
+    ApiResponse<NotificationDtos.UpdateResult> delete(
+            @AuthenticationPrincipal Jwt token,
+            @PathVariable long notificationId) {
+        return ApiResponse.ok(notifications.delete(userId(token), notificationId));
     }
 
     private long userId(Jwt token) { return Long.parseLong(token.getSubject()); }

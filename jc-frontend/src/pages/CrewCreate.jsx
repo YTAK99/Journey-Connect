@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, CalendarDays, Check, MapPinned, Plus, Route, ShieldCheck, Users } from "lucide-react";
 import { useNavigate } from "react-router";
 import GoogleMapPlacePicker from "../components/GoogleMapPlacePicker";
@@ -8,8 +8,9 @@ import useTranslation from "../i18n/useTranslation";
 import { isLogin } from "../services/auth";
 import { getApiErrorMessage } from "../services/apiClient";
 import { createCrew } from "../services/crewApi";
-import { uploadPostImages } from "../services/postApi";
+import { uploadPostImagesIndividually } from "../services/postApi";
 import { richTextToPlainText } from "../utils/richText";
+import { revokePlacePreviews } from "../utils/imagePreviews";
 
 const uid = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
 const imageKey = (image) => image.localId || image.imageUrl;
@@ -26,14 +27,6 @@ const emptyPlace = () => ({
   images: [],
 });
 
-const uploadInBatches = async (files) => {
-  const uploaded = [];
-  for (let index = 0; index < files.length; index += 10) {
-    uploaded.push(...await uploadPostImages(files.slice(index, index + 10)));
-  }
-  return uploaded;
-};
-
 export default function CrewCreate() {
   const navigate = useNavigate();
   const { currentLang } = useTranslation();
@@ -49,6 +42,13 @@ export default function CrewCreate() {
   const [placePickerIndex, setPlacePickerIndex] = useState(null);
   const [coverImageKey, setCoverImageKey] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const placesRef = useRef(places);
+
+  useEffect(() => {
+    placesRef.current = places;
+  }, [places]);
+
+  useEffect(() => () => revokePlacePreviews(placesRef.current), []);
 
   useEffect(() => {
     if (!isLogin()) navigate("/login", { replace: true });
@@ -69,6 +69,7 @@ export default function CrewCreate() {
   const removePlace = (index) => setPlaces((current) => {
     if (current.length === 1) return current;
     const removed = current[index];
+    revokePlacePreviews([removed]);
     const next = current.filter((_, itemIndex) => itemIndex !== index);
     if (removed.localId === activePlaceId) setActivePlaceId(next[Math.min(index, next.length - 1)].localId);
     return next;
@@ -115,7 +116,7 @@ export default function CrewCreate() {
       const pendingFiles = places.flatMap((place) => place.images
         .filter((image) => image.file)
         .map((image) => image.file));
-      const uploaded = pendingFiles.length ? await uploadInBatches(pendingFiles) : [];
+      const uploaded = pendingFiles.length ? await uploadPostImagesIndividually(pendingFiles) : [];
       let uploadIndex = 0;
       let selectedCoverUrl = null;
       const normalizedPlaces = places.map((place) => ({
@@ -156,6 +157,7 @@ export default function CrewCreate() {
           images: place.images,
         })),
       });
+      revokePlacePreviews(places);
       navigate(`/crew/${crew.id}`, { replace: true });
     } catch (error) {
       window.alert(getApiErrorMessage(error, ko ? "크루를 만들지 못했습니다." : "Could not create the crew."));

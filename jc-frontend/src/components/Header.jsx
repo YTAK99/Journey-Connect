@@ -5,6 +5,7 @@ import { getUser, isLogin, logout } from "../services/auth";
 import { getUnreadNotificationCount } from "../services/notificationApi";
 import useLangStore from "../store/useLangStore";
 import { translate } from "../i18n";
+import { getHeaderSearchTargetPath } from "../utils/headerSearch";
 import NotificationSidebar from "./NotificationSidebar";
 import UserAvatar from "./UserAvatar";
 
@@ -128,6 +129,9 @@ export default function Header() {
     }
   }, []);
   const handleAllNotificationsRead = useCallback(() => setUnreadNotificationCount(0), []);
+  const handleNotificationDeleted = useCallback((wasUnread) => {
+    if (wasUnread) setUnreadNotificationCount((count) => Math.max(0, count - 1));
+  }, []);
 
   useEffect(() => {
     const handleProfileUpdate = () => setCurrentUser(getUser());
@@ -172,12 +176,11 @@ export default function Header() {
     navigate("/login", { replace: true });
   };
 
-  // 피드·탐색에서는 현재 화면을 유지하고, 다른 화면에서는 탐색으로 이동해 검색합니다.
+  // 피드·탐색·크루 목록에서는 현재 화면을 유지하고, 다른 화면에서는 탐색으로 이동해 검색합니다.
   const submitSearch = (event) => {
     event.preventDefault();
     const query = searchText.trim();
-    const searchablePaths = ["/feed", "/explore"];
-    const targetPath = searchablePaths.includes(location.pathname) ? location.pathname : "/explore";
+    const targetPath = getHeaderSearchTargetPath(location.pathname);
     setIsMenuOpen(false);
     navigate(query ? `${targetPath}?q=${encodeURIComponent(query)}` : targetPath);
   };
@@ -300,6 +303,7 @@ export default function Header() {
         onClose={() => setIsNotificationsOpen(false)}
         authenticated={isLogin()}
         onAllRead={handleAllNotificationsRead}
+        onNotificationDeleted={handleNotificationDeleted}
       />
     </nav>
   );

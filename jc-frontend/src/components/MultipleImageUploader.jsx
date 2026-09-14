@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Camera, Check, ImagePlus, Star, X } from "lucide-react";
 import { getMessages, translate } from "../i18n";
 
@@ -15,13 +15,6 @@ export default function MultipleImageUploader({
 }) {
   const t = getMessages(lang, "imageUploader");
   const inputRef = useRef(null);
-  const previewUrlsRef = useRef(new Set());
-
-  // 로컬 미리보기 URL은 브라우저 메모리를 점유하므로 삭제하거나 화면을 벗어날 때 반드시 해제합니다.
-  useEffect(() => () => {
-    previewUrlsRef.current.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
-    previewUrlsRef.current.clear();
-  }, []);
 
   const handleFiles = (event) => {
     // 서버 검증 전에 개수·MIME 타입·크기를 확인해 잘못된 파일을 빠르게 차단합니다.
@@ -40,7 +33,6 @@ export default function MultipleImageUploader({
 
     const selectedImages = selected.map((file, index) => {
       const previewUrl = URL.createObjectURL(file);
-      previewUrlsRef.current.add(previewUrl);
       return {
         localId: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${index}-${file.name}`,
         file,
@@ -56,7 +48,6 @@ export default function MultipleImageUploader({
     const removed = images[index];
     if (removed?.previewUrl) {
       URL.revokeObjectURL(removed.previewUrl);
-      previewUrlsRef.current.delete(removed.previewUrl);
     }
     onChange(images.filter((_, imageIndex) => imageIndex !== index));
   };

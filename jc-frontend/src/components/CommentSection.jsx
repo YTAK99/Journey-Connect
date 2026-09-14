@@ -1,5 +1,6 @@
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getUser, isLogin } from "../services/auth";
 import { addPostComment, deletePostComment, getPostComments, updatePostComment } from "../services/postApi";
@@ -9,6 +10,7 @@ const getItems = (response) => response?.items || response?.content || response?
 
 export default function CommentSection({ postId }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const currentUser = getUser();
   const [comments, setComments] = useState([]);
   const [inputText, setInputText] = useState("");
@@ -98,6 +100,13 @@ export default function CommentSection({ postId }) {
     }
   };
 
+  const openAuthorProfile = (author) => {
+    if (author?.id == null) return;
+    navigate(currentUser?.id != null && String(currentUser.id) === String(author.id)
+      ? "/mypage"
+      : `/users/${author.id}`);
+  };
+
   return (
     <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
       <h4 className="mb-3 text-sm font-bold text-slate-800 dark:text-slate-100">{t("comments.count", { count: comments.length })}</h4>
@@ -115,7 +124,7 @@ export default function CommentSection({ postId }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex items-center gap-2">
-                    <span className="font-bold text-slate-900 dark:text-white">{comment.author?.nickname || t("post.traveler")}</span>
+                    <button type="button" disabled={comment.author?.id == null} onClick={() => openAuthorProfile(comment.author)} className="font-bold text-slate-900 hover:text-primary hover:underline disabled:pointer-events-none dark:text-white">{comment.author?.nickname || t("post.traveler")}</button>
                     <time className="text-[10px] text-slate-400">{comment.createdAt ? String(comment.createdAt).slice(0, 16).replace("T", " ") : ""}</time>
                   </div>
                   {isEditing ? (

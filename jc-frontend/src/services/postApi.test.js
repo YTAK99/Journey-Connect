@@ -9,7 +9,7 @@ vi.mock("./apiClient", () => ({
 }));
 
 import apiClient, { unwrapApiResponse } from "./apiClient";
-import { getExplore, getFeed, getFeedItems, getOrRequestPostAnalysis } from "./postApi";
+import { getExplore, getFeed, getFeedItems, getOrRequestPostAnalysis, uploadPostImagesIndividually } from "./postApi";
 
 describe("postApi read contracts", () => {
   beforeEach(() => {
@@ -94,5 +94,25 @@ describe("getFeedItems", () => {
     [{}, []],
   ])("normalizes supported feed shapes", (input, expected) => {
     expect(getFeedItems(input)).toEqual(expected);
+  });
+});
+
+describe("image uploads", () => {
+  it("uploads each file in a separate multipart request", async () => {
+    vi.clearAllMocks();
+    const files = [new File(["one"], "one.jpg"), new File(["two"], "two.jpg")];
+    apiClient.post
+      .mockResolvedValueOnce({ data: [{ imageUrl: "/one.jpg" }] })
+      .mockResolvedValueOnce({ data: [{ imageUrl: "/two.jpg" }] });
+    unwrapApiResponse.mockImplementation((response) => response.data);
+
+    await expect(uploadPostImagesIndividually(files)).resolves.toEqual([
+      { imageUrl: "/one.jpg" },
+      { imageUrl: "/two.jpg" },
+    ]);
+
+    expect(apiClient.post).toHaveBeenCalledTimes(2);
+    expect(apiClient.post.mock.calls[0][1].getAll("files")).toEqual([files[0]]);
+    expect(apiClient.post.mock.calls[1][1].getAll("files")).toEqual([files[1]]);
   });
 });

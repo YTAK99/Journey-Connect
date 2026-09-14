@@ -91,6 +91,21 @@ public class NotificationService {
     }
 
     @Transactional
+    public NotificationDtos.UpdateResult delete(long recipientId, long notificationId) {
+        int deleted = jdbc.update(
+                "delete from user_notification where id = ? and recipient_id = ?",
+                notificationId,
+                recipientId);
+        if (deleted == 0) {
+            throw new DomainException(
+                    HttpStatus.NOT_FOUND,
+                    "NOTIFICATION_NOT_FOUND",
+                    "알림을 찾을 수 없습니다.");
+        }
+        return new NotificationDtos.UpdateResult(deleted);
+    }
+
+    @Transactional
     public void postLiked(long actorId, long recipientId, long postId) {
         if (actorId == recipientId) return;
         insert(recipientId, actorId, "post_like", "post", postId,

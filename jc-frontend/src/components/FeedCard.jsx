@@ -14,6 +14,7 @@ import CommentSection from "./CommentSection";
 import PostRouteMap from "./PostRouteMap";
 import PostActionsMenu from "./PostActionsMenu";
 import UserAvatar from "./UserAvatar";
+import PostLikersModal from "./PostLikersModal";
 
 const fallbackImage = "/ex_1.jpg";
 const FEED_PAGE_SIZE = 20;
@@ -93,6 +94,7 @@ function FeedItem({ post, onDeleted }) {
   const [analysis, setAnalysis] = useState(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
+  const [likersOpen, setLikersOpen] = useState(false);
   useEffect(() => {
     const handleProfileUpdate = () => {
       setDetailedPost((current) => ({
@@ -352,7 +354,7 @@ function FeedItem({ post, onDeleted }) {
 
       {/* 좋아요 개수 / 태그 */}
       <div className="px-5 pt-2">
-        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{t("post.likes", { count: likeCount })}</p>
+        <button type="button" onClick={() => setLikersOpen(true)} className="text-sm font-semibold text-gray-900 hover:text-primary hover:underline dark:text-slate-100">{t("post.likes", { count: likeCount })}</button>
         <TagChips tags={detailedPost.tags || []} className="mt-2" />
       </div>
 
@@ -387,6 +389,7 @@ function FeedItem({ post, onDeleted }) {
       </div>
       {/* 댓글 영역 */}
       {isCommentOpen && <div className="px-5 pb-5"><CommentSection postId={detailedPost.id} /></div>}
+      {likersOpen && <PostLikersModal postId={detailedPost.id} onClose={() => setLikersOpen(false)} />}
     </article>
   );
 }

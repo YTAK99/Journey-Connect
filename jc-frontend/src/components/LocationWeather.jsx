@@ -22,10 +22,14 @@ const getLocalDate = (timezone, lang) => {
   }
 };
 
-const createCustomRegion = (name, summary = null) => ({
-  id: `custom:${(summary?.place?.latitude ?? name)}:${(summary?.place?.longitude ?? name)}`,
+const createCustomRegion = (name, summary = null, source = null) => ({
+  id: source?.id || `custom:${(summary?.place?.latitude ?? name)}:${(summary?.place?.longitude ?? name)}`,
+  placeId: source?.placeId || summary?.place?.placeId || summary?.place?.googlePlaceId || null,
   label: { ko: summary?.place?.name || name, en: summary?.place?.name || name },
   country: summary?.place?.formattedAddress || "",
+  latitude: summary?.place?.latitude ?? source?.latitude ?? null,
+  longitude: summary?.place?.longitude ?? source?.longitude ?? null,
+  address: summary?.place?.formattedAddress || source?.address || "",
   timezone: summary?.timeZone?.id || "UTC",
   weather: {
     temp: Math.round(summary?.weather?.temperatureDegrees ?? 0),
@@ -309,7 +313,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
         if (!ignore) {
           setSummary(data);
           setErrorMessage("");
-          if (request.persistDynamic) onRegionChange(createCustomRegion(request.query, data));
+          if (request.persistDynamic) onRegionChange(createCustomRegion(request.query, data, request.region));
         }
       })
       .catch(() => {
@@ -346,6 +350,7 @@ export default function LocationWeather({ selectedRegion = REGIONS[0], onRegionC
         longitude: presetRegion.longitude,
         address: presetRegion.address,
       } : null,
+      region: presetRegion,
     }));
   };
 

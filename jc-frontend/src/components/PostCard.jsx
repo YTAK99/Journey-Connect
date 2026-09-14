@@ -10,17 +10,9 @@ import TagChips from "./TagChips";
 import { translate } from "../i18n";
 import { getUser } from "../services/auth";
 import UserAvatar from "./UserAvatar";
+import { getStablePostFallbackColor } from "../utils/postVisuals";
 
 const fallbackImage = "/ex_2.jpg";
-
-const getStableFallbackColor = (value) => {
-  const hash = String(value ?? "journey").split("").reduce(
-    (result, character) => ((result * 31) + character.charCodeAt(0)) >>> 0,
-    0,
-  );
-  const hue = Math.round((hash * 137.508) % 360);
-  return `hsl(${hue} 62% 72%)`;
-};
 
 function PostCard({ post, setPosts, editable = false, titleOnly = false, colorFallback = false, showBookmark = true }) {
   // 탐색 화면은 이미지와 제목만, 내 글 화면은 본문·태그와 편집 기능까지 표시합니다.
@@ -33,7 +25,7 @@ function PostCard({ post, setPosts, editable = false, titleOnly = false, colorFa
   const sourceImage = post.coverImageUrl || post.image;
   const image = sourceImage || fallbackImage;
   const showColorFallback = colorFallback && (!sourceImage || imageFailed);
-  const fallbackColor = getStableFallbackColor(post.id ?? post.title);
+  const fallbackColor = getStablePostFallbackColor(post.id ?? post.title);
   const location = getLocalizedRegionName(post, currentLang);
 
   useEffect(() => {
