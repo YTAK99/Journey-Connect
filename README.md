@@ -1,7 +1,7 @@
 # 🗺️ Journey Connect (서비스명: **여정**)
 
-[AWS Server](https://journey-connect.kro.kr/)
-[Oracle Server](https://journey-connect2.kro.kr/)
+- [AWS Server](https://journey-connect.kro.kr/)
+- [Oracle Server](https://journey-connect2.kro.kr/)
 
 > **"여행정보는 여정에서"**
 > **"누군가의 여행이, 당신의 여정이 되다."**
